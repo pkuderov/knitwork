@@ -3,7 +3,7 @@ from __future__ import annotations
 import torch
 from torch import nn
 
-from knitwork.common.utils import convert_hidden_size, count_grid_rnn_params, format_readable_num, to_torch
+from knitwork.common.utils import convert_hidden_size, format_readable_num, to_torch
 
 
 class GridRnn(nn.Module):

@@ -74,7 +74,7 @@ def main(config):
 
     logger = create_logger(config)
 
-    stats = Tracker(lr=2e-5)
+    stats = Tracker(lr=2e-4)
     fps_counter = FpsCounter()
 
     rnn_state = None

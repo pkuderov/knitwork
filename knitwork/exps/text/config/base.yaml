@@ -21,7 +21,7 @@ gens:
     reset_prob:
       val: 0.01
       tar: 1e-4
-      lr: 0.07
+      lr: 0.007
       schedule: 1000
 
 
