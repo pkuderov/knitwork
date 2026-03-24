@@ -73,11 +73,6 @@ def main(config):
     log_stats_schedule = Scheduler(int(config['log']['schedule']))
     print_stats_schedule = Scheduler(int(config['log']['print_schedule']))
 
-    curriculum_cfg, curriculum_schedule = extracted(config['curriculum'], 'schedule')
-    curriculum_step_schedule = CurriculumScheduler(
-        **curriculum_cfg, scheduler=Scheduler(curriculum_schedule)
-    )
-
     p_reset_cfg, p_reset_decay_schedule = extracted(gen_cfg['reset_prob'], 'schedule')
     p_reset = DynamicParameter(**p_reset_cfg, scheduler=Scheduler(int(p_reset_decay_schedule)))
 
