@@ -13,6 +13,7 @@ dependencies = [
     "matplotlib",
     "scipy",
     "aim>=3.20",
+    "ryaml>=0.5.1",
 ]
 
 [build-system]
