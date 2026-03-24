@@ -8,6 +8,7 @@ import torch
 
 
 timer = default_timer
+CE_ignore_index = -100
 
 
 def pprint_shape(*xs, key='', depth=0, indent='  ', **named_xs):
@@ -147,6 +148,16 @@ class FpsCounter:
         print(f'FPS: {fps:.2f}{fps_sx}')
 
 
+def get_device(device: str = None):
+    if device is None:
+        device = "cuda:0" if torch.cuda.is_available() else "cpu"
+    return torch.device(device)
+
+
+def get_dtype(dtype: str = None, default=torch.float):
+    return getattr(torch, dtype) if dtype is not None else default
+
+
 def to_torch(x, device=None, copy=True):
     if isinstance(x, np.ndarray):
         if copy:
@@ -172,6 +183,28 @@ def to_numpy(x, copy=True):
         x = np.array(x)
     return x
 
+def isnone(x, default):
+    """Return x if it's not None, or default value instead."""
+    return x if x is not None else default
+
+
+def ensure_list(arr):
+    """Wrap single value to list or return list as it is."""
+    if arr is not None and not isinstance(arr, list):
+        arr = [arr]
+    return arr
+
+
+def safe_div(num, denom, default=0.0):
+    """
+    Return num / denom or just default itself if denom ~= 0 preventing NaNs.
+    NB: it is not perfect for many borderline cases and is expected to
+        be used in very simple straightforward cases as a handy shortcut
+    """
+    return num / denom if num != 0 and abs(denom) > 1e-9 else default
+
+
+# ============================== Traversing ===================================
 
 def iterate(x):
     """
@@ -210,6 +243,8 @@ def iterate_dict(x, prefix=None):
             yield from iterate_dict(v, prefix=k)
         else:
             yield k, v
+
+# =============================================================================
 
 
 def _count_linear_params(in_dim: int, out_dim: int, bias: bool = True) -> int:

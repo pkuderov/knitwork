@@ -6,24 +6,27 @@ from pprint import pprint
 import numpy as np
 
 from knitwork.common.scheduler import Scheduler
-from knitwork.common.utils import FpsCounter, format_readable_num
+from knitwork.common.tracker import TrackerCollection
+from knitwork.common.utils import CE_ignore_index, FpsCounter, format_readable_num, safe_div
 
 
-@dataclass
-class SdqConfig:
-    # Keys / Values
-    K: int
-    V: int
+class StoreDistractQueryGenerator:
+    T: float
+    p_store: float
+    p_query: float
 
-    # Expected episode length (min, max)
-    T_range: tuple[float, float]
-
-    # Masking
-    # NB: common default for torch.nn.CrossEntropyLoss(ignore_index=...)
-    ignore_index: int = -100
-
-    def __post_init__(self):
-        # Sets powers
+    def __init__(
+            self, *, 
+            n_keys: int, n_vals: int, T: float, 
+            n_envs: int,
+            p_store: float = 0.2, p_query: float = 0.2,
+            count_stored: bool = False, count_queried: bool = False,
+            ignore_index: int,
+            seed: int = 0
+        ):
+        self.K = n_keys
+        self.V = n_vals
+        self.T = T
         self.n_store_tokens = self.K * self.V
         self.n_query_tokens = self.K
         self.n_distract_tokens = self.V
@@ -33,6 +36,187 @@ class SdqConfig:
         self.ix_distract = self.ix_store + self.n_store_tokens
         self.ix_query = self.ix_distract + self.n_distract_tokens
         self.n_tokens = self.ix_query + self.n_query_tokens
+
+        self.rng = np.random.default_rng(seed)
+        self.n_envs = n_envs
+        self.inc_stored = int(count_stored)
+        self.inc_queried = int(count_queried)
+        self.ignore_index = ignore_index
+
+        assert p_store + p_query < 1.0
+        self.p_store = p_store
+        self.p_query = p_query
+
+        self.tokens = np.empty(n_envs, dtype=int)
+        self.targets = np.full(n_envs, self.ignore_index, dtype=int)
+
+        self.stored = np.zeros((n_envs, self.K), dtype=int)
+        self.distract_accum = np.zeros(n_envs, dtype=int)
+        self.n_steps = np.zeros(n_envs, dtype=int)
+
+        self.stored_cnt = np.zeros_like(self.stored, dtype=int)
+        self.queried_cnt = np.zeros_like(self.stored, dtype=int)
+        self.step_stored = np.full_like(self.stored, fill_value=-1)
+        self.step_queried = np.full_like(self.stored, fill_value=-1)
+
+        lr_stats = 3e-4
+        self.stats = TrackerCollection(lrs=dict(ep=lr_stats, step=lr_stats))
+
+    @property
+    def p_term(self):
+        return 1.0 / self.T
+    
+    @property
+    def lr_stats(self):
+        return 0.2 / self.T
+
+    def reset(self, ixs):
+        if len(ixs) == 0:
+            return
+
+        self.stats['ep'].put({
+            'episodes': len(ixs),
+            'ep_lens': self.n_steps[ixs].sum()
+        })
+
+        self.stored[ixs, :] = 0
+        self.distract_accum[ixs] = 0
+        self.n_steps[ixs] = 0
+
+        self.stored_cnt[ixs, :] = 0
+        self.queried_cnt[ixs, :] = 0
+
+        self.step_stored[ixs, :] = -1
+        self.step_queried[ixs, :] = -1
+
+    def next(self) -> dict:
+        n_envs = self.n_envs
+        self.targets[:] = self.ignore_index
+
+        # Sample resets
+        reset_mask = self.rng.random(n_envs) < self.p_term
+        reset_ixs = np.flatnonzero(reset_mask)
+        self.reset(reset_ixs)
+
+        # Sample next tokens' type
+        token_type = self.rng.random(n_envs)
+        mask_store = token_type < self.p_store
+        mask_store_query = token_type < self.p_store + self.p_query
+        mask_query = ~mask_store & mask_store_query
+        mask_distract = ~mask_store_query
+        
+        self.handle_store(ixs=np.flatnonzero(mask_store))
+        sq_gaps = self.handle_query(ixs=np.flatnonzero(mask_query))
+        self.handle_distract(ixs=np.flatnonzero(mask_distract))
+
+        self.n_steps += 1
+        self.stats['step'].put({
+            'steps': n_envs,
+        })
+
+        return {
+            'tokens': self.tokens.copy(),
+            'targets': self.targets.copy(),
+            'reset_mask': reset_mask,
+            'sq_gaps': sq_gaps,
+        }
+
+    def handle_store(self, ixs):
+        tokens = self.rng.integers(
+            low=0, high=self.n_store_tokens,
+            size=len(ixs)
+        )
+        k, v = np.divmod(tokens, self.V)
+
+        self.stats['step'].put(
+            {
+                'stores': len(ixs),
+                'overwrites': np.count_nonzero(self.step_stored[ixs, k] >= 0),
+                's_gaps': (self.n_steps[ixs] - np.maximum(0, self.step_stored[ixs, k])).sum(),
+            }, 
+            inc_step=False
+        )
+
+        self.tokens[ixs] = tokens + self.ix_store
+        self.stored[ixs, k] = v
+        self.step_stored[ixs, k] = self.n_steps[ixs]
+        self.stored_cnt[ixs, k] += self.inc_stored
+
+    def handle_distract(self, ixs):
+        tokens = self.rng.integers(
+            low=0, high=self.n_distract_tokens,
+            size=len(ixs)
+        )
+
+        self.tokens[ixs] = tokens + self.ix_distract
+        self.distract_accum[ixs] = (self.distract_accum[ixs] + tokens) % self.V
+
+    def handle_query(self, ixs):
+        tokens = k = self.rng.integers(
+            low=0, high=self.n_query_tokens,
+            size=len(ixs)
+        )
+
+        mask_misses = self.step_stored[ixs, k] < 0
+        sq_gaps = self.n_steps[ixs] - self.step_stored[ixs, k]
+        sq_gaps[mask_misses] = -1
+
+        self.stats['step'].put(
+            {
+                'queries': len(ixs),
+                'misses': np.count_nonzero(mask_misses),
+                'q_gaps': (self.n_steps[ixs] - np.maximum(0, self.step_queried[ixs, k])).sum(),
+                'sq_gaps': sq_gaps[~mask_misses].sum(),
+            },
+            inc_step=False
+        )
+
+        self.step_queried[ixs, k] = self.n_steps[ixs]
+        self.queried_cnt[ixs, k] += self.inc_queried
+        self.tokens[ixs] = tokens + self.ix_query
+
+        self.targets[ixs] = (
+            self.stored[ixs, k] + self.distract_accum[ixs]
+            + self.stored_cnt[ixs, k] - self.queried_cnt[ixs, k]
+        ) % self.V
+
+        return sq_gaps
+
+    def set_metaparams(self, T, p_store, p_query):
+        self.T = T
+
+        assert p_store + p_query < 1.0
+        self.p_store = p_store
+        self.p_query = p_query
+    
+    def get_stats(self):
+        st = self.stats.get()
+        ep = st['episodes']
+        n = st['steps']
+
+        ep_lens = safe_div(st['ep_lens'], ep)
+        stores = safe_div(st['stores'], n)
+        queries = safe_div(st['queries'], n)
+        
+        overwrites = safe_div(st['overwrites'], st['stores'])
+        misses = safe_div(st['misses'], st['queries'])
+        s_gaps = safe_div(st['s_gaps'], st['stores'])
+        q_gaps = safe_div(st['q_gaps'], st['queries'])
+
+        non_misses = st['queries'] - st['misses']
+        sq_gaps = safe_div(st['sq_gaps'], non_misses)
+
+        res = {
+            'ep_lens': ep_lens,
+            'stores': stores,
+            'queries': queries,
+            'overwrites': overwrites,
+            'misses': misses,
+            's_gaps': s_gaps,
+            'q_gaps': q_gaps,
+            'sq_gaps': sq_gaps,
+        }
+        return {k: float(v) for k, v in res.items()}
 
 
 @dataclass
@@ -86,208 +270,13 @@ class SdqStats:
         self._ix_decay = self._ix_step
 
 
-class StoreDistractQueryGenerator:
-    T: float
-    p_store: float
-    p_query: float
-
-
-    def __init__(
-            self, cfg: SdqConfig, *, n_envs: int, seed: int = 0,
-            T: float | None = None, p_store: float = 0.2, p_query: float = 0.2,
-            odd: str = 'store'
-        ):
-        self.cfg = cfg
-        self.rng = np.random.default_rng(seed)
-        self.n_envs = n_envs
-        self.odd = odd
-
-        T = T or cfg.T_range[0]
-        self.T = min(max(T, cfg.T_range[0]), cfg.T_range[1])
-
-        assert p_store + p_query < 1.0
-        self.p_store = p_store
-        self.p_query = p_query
-
-        self.tokens = np.empty(n_envs, dtype=int)
-        self.targets = np.full(n_envs, cfg.ignore_index, dtype=int)
-
-        self.stored = np.zeros((n_envs, cfg.K), dtype=int)
-        self.distract_accum = np.zeros(n_envs, dtype=int)
-        self.n_steps = np.zeros(n_envs, dtype=int)
-
-        self.stored_cnt = np.zeros_like(self.stored, dtype=int)
-        self.queried_cnt = np.zeros_like(self.stored, dtype=int)
-        self.step_stored = np.full_like(self.stored, fill_value=-1)
-        self.step_queried = np.full_like(self.stored, fill_value=-1)
-
-        self.stats = SdqStats()
-
-    @property
-    def p_term(self):
-        return 1.0 / self.T
-    
-    @property
-    def lr_stats(self):
-        return 0.2 / self.T
-
-    def reset(self, ixs):
-        if len(ixs) == 0:
-            return
-
-        self.stats.episodes += len(ixs)
-        self.stats.ep_lens += self.n_steps[ixs].sum()
-
-        self.stored[ixs, :] = 0
-        self.distract_accum[ixs] = 0
-        self.n_steps[ixs] = 0
-
-        self.stored_cnt[ixs, :] = 0
-        self.queried_cnt[ixs, :] = 0
-
-        self.step_stored[ixs, :] = -1
-        self.step_queried[ixs, :] = -1
-
-    def next(self) -> dict:
-        n_envs = self.n_envs
-        self.targets[:] = self.cfg.ignore_index
-
-        # Sample resets
-        reset_mask = self.rng.random(n_envs) < self.p_term
-        reset_ixs = np.flatnonzero(reset_mask)
-        self.reset(reset_ixs)
-
-        # Sample next tokens' type
-        token_type = self.rng.random(n_envs)
-        mask_store = token_type < self.p_store
-        mask_store_query = token_type < self.p_store + self.p_query
-        mask_query = ~mask_store & mask_store_query
-        mask_distract = ~mask_store_query
-        
-        self.handle_store(ixs=np.flatnonzero(mask_store))
-        sq_gaps = self.handle_query(ixs=np.flatnonzero(mask_query))
-        self.handle_distract(ixs=np.flatnonzero(mask_distract))
-
-        self.n_steps += 1
-        self.stats.steps += n_envs
-        self.stats.decay(self.lr_stats)
-
-        return {
-            'tokens': self.tokens.copy(),
-            'targets': self.targets.copy(),
-            'reset_mask': reset_mask,
-            'sq_gaps': sq_gaps,
-        }
-
-    def handle_store(self, ixs):
-        tokens = self.rng.integers(
-            low=0, high=self.cfg.n_store_tokens,
-            size=len(ixs)
-        )
-        k, v = np.divmod(tokens, self.cfg.V)
-
-        self.stats.stores += len(ixs)
-        self.stats.overwrites += (self.step_stored[ixs, k] >= 0).sum()
-        self.stats.s_gaps += (self.n_steps[ixs] - np.maximum(0, self.step_stored[ixs, k])).sum()
-
-        self.tokens[ixs] = tokens + self.cfg.ix_store
-        self.stored[ixs, k] = v
-        self.step_stored[ixs, k] = self.n_steps[ixs]
-        self.stored_cnt[ixs, k] += 1
-
-    def handle_distract(self, ixs):
-        tokens = self.rng.integers(
-            low=0, high=self.cfg.n_distract_tokens,
-            size=len(ixs)
-        )
-
-        self.tokens[ixs] = tokens + self.cfg.ix_distract
-        self.distract_accum[ixs] = (self.distract_accum[ixs] + tokens) % self.cfg.V
-
-    def handle_query(self, ixs):
-        tokens = k = self.rng.integers(
-            low=0, high=self.cfg.n_query_tokens,
-            size=len(ixs)
-        )
-
-        mask_misses = self.step_stored[ixs, k] < 0
-        sq_gaps = self.n_steps[ixs] - self.step_stored[ixs, k]
-        sq_gaps[mask_misses] = -1
-
-        self.stats.queries += len(ixs)
-        self.stats.misses += mask_misses.sum()
-        self.stats.q_gaps += (self.n_steps[ixs] - np.maximum(0, self.step_queried[ixs, k])).sum()
-        self.stats.sq_gaps += sq_gaps[~mask_misses].sum()
-        
-        self.step_queried[ixs, k] = self.n_steps[ixs]
-        self.queried_cnt[ixs, k] += 1
-        self.tokens[ixs] = tokens + self.cfg.ix_query
-
-        # even-masked-out
-        # is_odd_stored = self.stored_cnt[ixs, k] % 2
-        # is_odd_queried = self.queried_cnt[ixs, k] % 2
-        # mask = is_odd_stored if self.odd == "store" else is_odd_queried
-
-        # self.targets[ixs] = (self.stored[ixs, k] + mask * self.distract_accum[ixs]) % self.cfg.V
-
-        self.targets[ixs] = (
-            self.stored[ixs, k] + self.distract_accum[ixs] + self.stored_cnt[ixs, k] - self.queried_cnt[ixs, k]
-        ) % self.cfg.V
-
-        return sq_gaps
-
-    def set_metaparams(self, T, p_store, p_query):
-        T_min, T_max = self.cfg.T_range
-        self.T = min(max(T, T_min), T_max)
-
-        assert p_store + p_query < 1.0
-        self.p_store = p_store
-        self.p_query = p_query
-    
-    def get_stats(self):
-        st = self.stats
-        n = st.steps
-        ep = st.episodes
-
-        ep_lens = safe_div(st.ep_lens, ep)
-        stores = safe_div(st.stores, n)
-        queries = safe_div(st.queries, n)
-        
-        overwrites = safe_div(st.overwrites, st.stores)
-        misses = safe_div(st.misses, st.queries)
-        s_gaps = safe_div(st.s_gaps, st.stores)
-        q_gaps = safe_div(st.q_gaps, st.queries)
-
-        non_misses = st.queries - st.misses
-        sq_gaps = safe_div(st.sq_gaps, non_misses)
-
-        res = {
-            'ep_lens': ep_lens,
-            'stores': stores,
-            'queries': queries,
-            'overwrites': overwrites,
-            'misses': misses,
-            's_gaps': s_gaps,
-            'q_gaps': q_gaps,
-            'sq_gaps': sq_gaps,
-        }
-        return {k: float(v) for k, v in res.items()}
-
-
-def safe_div(num, denom, default=0.0):
-    return num / denom if denom > 1e-6 else default
-
-
 def main():
-    gen_cfg = SdqConfig(
-        K=4, V=10, T_range=(10.0, 200.0)
-    )
     gen = StoreDistractQueryGenerator(
-        gen_cfg, n_envs=64, seed=42,
-        p_store=0.3, p_query=0.3
+        n_keys=4, n_vals=10, T=10, n_envs=64, seed=42,
+        p_store=0.3, p_query=0.3, ignore_index=CE_ignore_index
     )
 
-    n_steps = 5_000_000
+    n_steps = 10_000_000
     step = 0
 
     print_stats_schedule = Scheduler(1_000_000)

@@ -1,29 +1,11 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from pathlib import Path
-from pprint import pprint
 
 import numpy as np
 
-from knitwork.common.scheduler import Scheduler
-from knitwork.common.utils import FpsCounter, format_readable_num
+from knitwork.common.utils import CE_ignore_index
 
-@dataclass
-class TextEnvConfig:
-    # Masking
-    # NB: common default for torch.nn.CrossEntropyLoss(ignore_index=...)
-    ignore_index: int = -100
-
-
-@dataclass
-class TextEnvStats:
-    def tick(self):
-        return False
-
-    def decay(self, lr: float = 0.01):
-        if not self.tick():
-            return
 
 
 class TextGenerator:
@@ -44,16 +26,15 @@ class TextGenerator:
         self,
         data: np.ndarray,
         *,
-        n_envs: int,
+        n_envs: int, ignore_index: int,
         seed: int = None,
-        cfg: TextEnvConfig | None = None,
     ):
         data = np.asarray(data)
         assert data.ndim == 1, f"Expected flat 1D token array, got shape={data.shape}"
         assert n_envs >= 1
 
-        self.cfg = cfg or TextEnvConfig()
         self.rng = np.random.default_rng(seed)
+        self.ignore_index = ignore_index
 
         self.data = data
         self.data_len = len(self.data)
@@ -69,7 +50,7 @@ class TextGenerator:
         self.pos[wrap_mask] = 0
 
         targets = self.data[self.pos]
-        targets[wrap_mask] = self.cfg.ignore_index
+        targets[wrap_mask] = self.ignore_index
 
         return {
             "tokens": tokens.copy(),
@@ -128,7 +109,7 @@ def main():
     print(tokenized_data[:10])
     print(chars[tokenized_data[:10]].tobytes().decode('utf-8'))
 
-    gen = TextGenerator(tokenized_data, n_envs=5)
+    gen = TextGenerator(tokenized_data, n_envs=5, seed=42, ignore_index=CE_ignore_index)
     for _ in range(5):
         out = gen.next()
         print("tokens     ", out["tokens"], "    ", chars[out["tokens"]].tobytes().decode('utf-8'))

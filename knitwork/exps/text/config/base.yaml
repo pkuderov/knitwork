@@ -1,0 +1,60 @@
+seed: null
+log:
+  # enabled: true
+  enabled: false
+  logger: aim
+  project: grid-rnn-text
+  schedule: 1e+6
+  print_schedule: 5e+6
+
+device: cpu
+dtype: float32
+
+gen: text8
+model: rnn
+rollout_len: 8
+n_envs: 64
+n_steps: 1e+6
+# n_steps: 1e+9
+
+gens:
+  text8:
+    path: ~/data/text/text8.txt
+    reset_prob:
+      val: 0.01
+      tar: 1e-4
+      lr: 0.07
+      schedule: 1000
+
+
+models:
+  rnn:
+    embedding_size: 64
+    base_hidden_size: 128
+    n_layers: 1
+    use_bias: true
+    dropout: 0.0
+  
+  grnn:
+    embedding_size: 64
+    base_hidden_size: 128
+    n_layers: 1
+    n_columns: 2
+    n_attn_heads: 4
+    messaging: post
+    use_bias: true
+    dropout: 0.0
+
+lr:
+  val: 8e-4
+  warmup:
+    n_linear_steps: 50
+    schedule: 100
+  decay:
+    rel: 0.02
+    lr: 0.005
+    schedule: 2000
+
+curriculum:
+  schedule: 2e+5
+  key: Loss

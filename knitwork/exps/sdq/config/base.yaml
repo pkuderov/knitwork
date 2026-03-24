@@ -1,0 +1,70 @@
+seed: null
+log:
+  # enabled: true
+  enabled: false
+  logger: aim
+  project: grid-rnn-sdq
+  schedule: 1e+6
+  print_schedule: 5e+6
+
+device: cpu
+dtype: float32
+
+gen: hard
+model: rnn
+rollout_len: 8
+n_envs: 64
+n_steps: 1e+6
+# n_steps: 1e+9
+
+gens:
+  easy:
+    n_keys: 5
+    n_vals: 10
+    T: 10
+    p_store: 0.35
+    p_query: 0.35
+    count_stored: false
+    count_queried: false
+  
+  hard:
+    n_keys: 5
+    n_vals: 10
+    T: 10
+    p_store: 0.35
+    p_query: 0.35
+    count_stored: true
+    count_queried: true
+
+
+models:
+  rnn:
+    embedding_size: 64
+    base_hidden_size: 128
+    n_layers: 1
+    use_bias: true
+    dropout: 0.0
+  
+  grnn:
+    embedding_size: 64
+    base_hidden_size: 128
+    n_layers: 1
+    n_columns: 2
+    n_attn_heads: 4
+    messaging: post
+    use_bias: true
+    dropout: 0.0
+
+lr:
+  val: 8e-4
+  warmup:
+    n_linear_steps: 50
+    schedule: 100
+  decay:
+    rel: 0.02
+    lr: 0.005
+    schedule: 2000
+
+curriculum:
+  schedule: 2e+5
+  key: Loss
