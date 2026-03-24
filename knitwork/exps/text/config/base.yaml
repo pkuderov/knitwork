@@ -1,7 +1,6 @@
 seed: null
 log:
-  # enabled: true
-  enabled: false
+  enabled: true
   logger: aim
   project: grid-rnn-text
   schedule: 1e+6
@@ -14,8 +13,7 @@ gen: text8
 model: rnn
 rollout_len: 8
 n_envs: 64
-n_steps: 1e+6
-# n_steps: 1e+9
+n_steps: 1e+9
 
 gens:
   text8:
@@ -54,7 +52,3 @@ lr:
     rel: 0.02
     lr: 0.005
     schedule: 2000
-
-curriculum:
-  schedule: 2e+5
-  key: Loss

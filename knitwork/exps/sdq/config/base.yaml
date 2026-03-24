@@ -1,7 +1,6 @@
 seed: null
 log:
-  # enabled: true
-  enabled: false
+  enabled: true
   logger: aim
   project: grid-rnn-sdq
   schedule: 1e+6
@@ -14,8 +13,7 @@ gen: hard
 model: rnn
 rollout_len: 8
 n_envs: 64
-n_steps: 1e+6
-# n_steps: 1e+9
+n_steps: 1e+9
 
 gens:
   easy:
