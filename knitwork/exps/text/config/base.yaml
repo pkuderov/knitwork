@@ -13,7 +13,7 @@ gen: text8
 model: rnn
 rollout_len: 8
 n_envs: 64
-n_steps: 1e+9
+n_steps: 5.2e+8
 
 gens:
   text8:
@@ -42,6 +42,18 @@ models:
     messaging: post
     use_bias: true
     dropout: 0.0
+    col_identities: true
+  
+  grnn_err:
+    embedding_size: 64
+    base_hidden_size: 128
+    n_layers: 1
+    n_columns: 2
+    n_attn_heads: 4
+    messaging: post
+    use_bias: true
+    dropout: 0.0
+    col_identities: true
 
 lr:
   val: 8e-4

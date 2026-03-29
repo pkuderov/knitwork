@@ -41,6 +41,9 @@ def main(config):
         case 'grnn':
             from knitwork.models.grnn import GridRnn
             rnn_fn = GridRnn
+        case 'grnn_err':
+            from knitwork.models.grnn_err import GridRnn
+            rnn_fn = GridRnn
 
     rnn = rnn_fn(**rnn_cfg, input_size=n_chars, output_size=n_chars)
     rnn = rnn.to(device=device, dtype=dtype)

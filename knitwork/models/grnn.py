@@ -12,7 +12,7 @@ class GridRnn(nn.Module):
             input_size, embedding_size, output_size,
             hidden_size = None, base_hidden_size = None,
             n_layers: int, n_columns: int,
-            n_attn_heads, messaging: str = "post",
+            n_attn_heads, messaging: str = "post", col_identities,
             
             use_bias = True, dropout = 0.0
     ):
@@ -61,7 +61,11 @@ class GridRnn(nn.Module):
                 for icol in range(self.n_columns)
             )
             self.cells.append(nn.ModuleList(row))
-            self.attn.append(MessagePassingLayer(self.hidden_size, num_heads=self.n_attn_heads))
+
+            n_participants = self.n_columns if col_identities else None
+            self.attn.append(MessagePassingLayer(
+                self.hidden_size, num_heads=self.n_attn_heads, n_participants=n_participants
+            ))
             
             if self.use_postmsg:
                 self.attn_gates.append(nn.Linear(2 * self.hidden_size, 1))
@@ -203,18 +207,31 @@ class GridRnn(nn.Module):
 
 
 class MessagePassingLayer(nn.Module):
-    def __init__(self, dim, num_heads):
+    def __init__(self, dim, num_heads, n_participants=None):
         super().__init__()
         self.mha = nn.MultiheadAttention(dim, num_heads=num_heads, batch_first=False)
         self.norm = nn.LayerNorm(dim)
-        
+
+        xavier_alpha = (1 / dim) ** 0.5
+        # learnable identities "bias" to distinguish self-attention participants
+        self.ids = None
+        if n_participants is not None:
+            # (col, batch, dim)
+            self.ids = nn.Parameter(torch.empty(n_participants, 1, dim))
+            # init them with different near-zero vectors
+            nn.init.normal_(self.ids, 0.0, 0.01 * xavier_alpha)
+
         # Set very small out_proj to make the initial "message" negligible
-        nn.init.normal_(self.mha.out_proj.weight, 0.0, 0.001)
+        nn.init.normal_(self.mha.out_proj.weight, 0.0, 0.01 * xavier_alpha)
         nn.init.zeros_(self.mha.out_proj.bias)
 
     def forward(self, h):
         # h: (cols, batch, dim)
-        h_mixed, _ = self.mha(h, h, h, need_weights=False)
+        qh, kh, vh = h, h, h
+        if self.ids is not None:
+            qh = kh = qh + self.ids
+
+        h_mixed, _ = self.mha(qh, kh, vh, need_weights=False)
 
         # Layer norm ensures we are in a good range
         return self.norm(h_mixed)
