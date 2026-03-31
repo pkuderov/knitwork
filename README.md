@@ -11,3 +11,9 @@ uv run sdq/run.py sdq/config/base.yaml --model=grnn
 uv run text/run.py text/config/base.yaml --model=rnn
 uv run text/run.py text/config/base.yaml --model=grnn
 ```
+
+
+For add name for aim run:
+```sh
+uv run knitwork/exps/sdq/run.py knitwork/exps/sdq/config/extend_config.yaml     --model=hgrnn  --name="hgrnn baseline"
+```

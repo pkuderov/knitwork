@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 from torch import nn
-
+from datetime import datetime
 from knitwork.common.config import extracted
 from knitwork.common.curriculum import CurriculumScheduler
 from knitwork.common.dynamic_param import DynamicParameter
@@ -14,11 +14,21 @@ from knitwork.gens.sdq import StoreDistractQueryGenerator
 
 
 def main(config):
+
+    run_name = (
+        config.get('name', None)
+        or config.get('log', {}).get('name', None)
+        or datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    )
+    config.setdefault('log', {})['name'] = run_name
+    print(f'Run name: {run_name}')
+
+
     rng = np.random.default_rng(config['seed'])
     device = get_device(config.get('device', None))
     dtype = get_dtype(config.get('dtype', None))
 
-    n_envs=config['n_envs']
+    n_envs = config['n_envs']
 
     gen_cfg = config['gens'][config['gen']]
     gen = StoreDistractQueryGenerator(
@@ -35,6 +45,9 @@ def main(config):
         case 'grnn':
             from knitwork.models.grnn import GridRnn
             rnn_fn = GridRnn
+        case 'hgrnn':
+            from knitwork.models.hgrnn import HopfieldGridRnn
+            rnn_fn = HopfieldGridRnn
 
     rnn = rnn_fn(**rnn_cfg, input_size=gen.n_tokens, output_size=gen.V)
     rnn = rnn.to(device=device, dtype=dtype)
@@ -73,6 +86,13 @@ def main(config):
     )
 
     logger = create_logger(config)
+
+
+    if logger is not None:
+        if hasattr(logger, 'name'):
+            logger.name = run_name
+        elif hasattr(logger, 'run') and hasattr(logger.run, 'name'):
+            logger.run.name = run_name
 
     stats = Tracker(lr=2e-4)
     fps_counter = FpsCounter()
@@ -124,7 +144,7 @@ def main(config):
                 optim.param_groups[0]['lr'] = get_lr()
 
             stats.put({
-                "Loss": to_numpy(loss, copy=False), 
+                "Loss": to_numpy(loss, copy=False),
                 "Acc": to_numpy(acc, copy=False),
                 "Acc-": to_numpy(acc_miss, copy=False),
                 "Acc+": to_numpy(acc_non_miss, copy=False),
@@ -160,20 +180,18 @@ def main(config):
                 f' A-: {metrics["Acc-"]:.3f}, A+: {metrics["Acc+"]:.3f},'
                 f' A++: {metrics["Acc++"]:.3f}'
             )
-            # from pprint import pprint
-            # pprint(gen.get_stats(), sort_dicts=False, indent=4)
 
         if log_stats_schedule.tick(gen.n_envs) and logger is not None:
             fps = fps_counter.fps(n_iters=step, start=True)
             metrics = {
-                "global_step": step, "fps": fps, 
+                "global_step": step, "fps": fps,
                 "curr_step": curriculum_step_schedule.cnt_accepted,
                 "curr_schedule": curriculum_step_schedule.scheduler.schedule,
             } | stats.get()
             gen_stats = gen.get_stats()
             metrics['gen'] = gen_stats
             logger.track(flatten_dict(metrics))
-    
+
     fps = fps_counter.fps(n_iters=step)
     print(format_readable_num(fps))
 

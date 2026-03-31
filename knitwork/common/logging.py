@@ -20,7 +20,9 @@ def get_aim_logger(config):
     run = Run(
         experiment=cfg_log['project']
     )
-    print(f'Logging to Aim: {run.hash} {cfg_log["project"]}')
+    
+    run.name = cfg_log['name']
+    print(f'Logging to Aim: {run.hash} "{run.name}" ({cfg_log["project"]})')
     run['hparams'] = config | dict(
         project=cfg_log['project'],
     )
