@@ -1,38 +1,26 @@
 from pathlib import Path
-from datetime import datetime
 
 import numpy as np
 import torch
 from torch import nn
 
 from knitwork.common.config import extracted
+from knitwork.common.curriculum import CurriculumScheduler
 from knitwork.common.dynamic_param import DynamicParameter
 from knitwork.common.entrypoint import run_experiment
 from knitwork.common.logging import create_logger
 from knitwork.common.scheduler import Scheduler
 from knitwork.common.tracker import Tracker
-from knitwork.common.utils import (
-    CE_ignore_index, FpsCounter, flatten_dict,
-    format_readable_num, get_device, get_dtype,
-    to_numpy, to_torch,
-)
+from knitwork.common.utils import CE_ignore_index, FpsCounter, flatten_dict, format_readable_num, get_device, get_dtype, to_numpy, to_torch
 from knitwork.gens.text import TextGenerator, load_dataset, tokenize
 
 
 def main(config):
-    run_name = (
-        config.get('name', None)
-        or config.get('log', {}).get('name', None)
-        or datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    )
-    config.setdefault('log', {})['name'] = run_name
-    print(f'Run name: {run_name}')
-
     rng = np.random.default_rng(config['seed'])
     device = get_device(config.get('device', None))
     dtype = get_dtype(config.get('dtype', None))
 
-    n_envs = config['n_envs']
+    n_envs=config['n_envs']
 
     gen_cfg = config['gens'][config['gen']]
 
@@ -41,8 +29,7 @@ def main(config):
     n_chars = ds_charset.size
 
     gen = TextGenerator(
-        data, n_envs=n_envs, ignore_index=CE_ignore_index,
-        seed=rng.integers(1_000_000)
+        data, n_envs=n_envs, ignore_index=CE_ignore_index, seed=rng.integers(1_000_000)
     )
 
     rnn_type = config['model']
@@ -57,9 +44,6 @@ def main(config):
         case 'grnn_err':
             from knitwork.models.grnn_err import GridRnn
             rnn_fn = GridRnn
-        case 'hgrnn':
-            from knitwork.models.hgrnn import HopfieldGridRnn
-            rnn_fn = HopfieldGridRnn
 
     rnn = rnn_fn(**rnn_cfg, input_size=n_chars, output_size=n_chars)
     rnn = rnn.to(device=device, dtype=dtype)
@@ -74,14 +58,8 @@ def main(config):
 
     wm_lr_cfg, wm_lr_schedule = extracted(lr_cfg['warmup'], 'schedule')
     dc_lr_cfg, dc_lr_schedule = extracted(lr_cfg['decay'], 'schedule')
-    wm_lr = DynamicParameter(
-        val=1e-5*lr, tar=lr, **wm_lr_cfg,
-        scheduler=Scheduler(wm_lr_schedule)
-    )
-    dc_lr = DynamicParameter(
-        val=lr, **dc_lr_cfg,
-        scheduler=Scheduler(dc_lr_schedule)
-    )
+    wm_lr = DynamicParameter(val=1e-5*lr, tar=lr, **wm_lr_cfg, scheduler=Scheduler(wm_lr_schedule))
+    dc_lr = DynamicParameter(val=lr, **dc_lr_cfg, scheduler=Scheduler(dc_lr_schedule))
     def get_lr():
         return wm_lr.val if not wm_lr.scheduler.is_infinite else dc_lr.val
     def step_lr():
@@ -99,9 +77,7 @@ def main(config):
     print_stats_schedule = Scheduler(int(config['log']['print_schedule']))
 
     p_reset_cfg, p_reset_decay_schedule = extracted(gen_cfg['reset_prob'], 'schedule')
-    p_reset = DynamicParameter(
-        **p_reset_cfg, scheduler=Scheduler(int(p_reset_decay_schedule))
-    )
+    p_reset = DynamicParameter(**p_reset_cfg, scheduler=Scheduler(int(p_reset_decay_schedule)))
 
     logger = create_logger(config)
 
@@ -177,16 +153,18 @@ def main(config):
                 f' T: {int(metrics["T"])} | '
                 f' L: {metrics["Loss"]:.3f}, A: {metrics["Acc"]:.3f}'
             )
+            # from pprint import pprint
+            # pprint(gen.get_stats(), sort_dicts=False, indent=4)
 
         if log_stats_schedule.tick(gen.n_envs) and logger is not None:
             fps = fps_counter.fps(n_iters=step, start=True)
             metrics = {
-                "global_step": step, "fps": fps,
+                "global_step": step, "fps": fps, 
             } | stats.get()
             gen_stats = gen.get_stats()
             metrics['gen'] = gen_stats
             logger.track(flatten_dict(metrics))
-
+    
     fps = fps_counter.fps(n_iters=step)
     print(format_readable_num(fps))
 

@@ -46,6 +46,7 @@ models:
   grnn:
     embedding_size: 64
     base_hidden_size: 128
+    col_identities: true
     n_layers: 1
     n_columns: 2
     n_attn_heads: 4

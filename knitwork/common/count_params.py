@@ -1,19 +1,12 @@
-#!/usr/bin/env python
 """
-Подсчёт числа обучаемых параметров модели.
 
-Использование:
+Counting the number of trainable model parameters.
+
+Use:
   python count_params.py --model rnn   --input_size 27 --output_size 27
   python count_params.py --model grnn  --input_size 27 --output_size 27
   python count_params.py --model grnn_err --input_size 27 --output_size 27
   python count_params.py --model hgrnn --input_size 27 --output_size 27
-
-  # С кастомными гиперпараметрами:
-  python count_params.py --model hgrnn --input_size 27 --output_size 27 \
-      --base_hidden_size 256 --n_layers 2 --n_columns 4
-
-  # text8: 27 символов (a-z + пробел)
-  # SDQ:   зависит от генератора (n_keys, n_vals), обычно ~25-35
 """
 
 import argparse
@@ -25,14 +18,12 @@ def build_model(args):
     input_size = args.input_size
     output_size = args.output_size
 
-    # ── Общие гиперпараметры ─────────────────────────────────
     embedding_size = args.embedding_size
     base_hidden_size = args.base_hidden_size
     n_layers = args.n_layers
     use_bias = args.use_bias
     dropout = args.dropout
 
-    # ── Grid-специфичн��е ─────────────────────────────────────
     n_columns = args.n_columns
     n_attn_heads = args.n_attn_heads
     messaging = args.messaging
@@ -46,6 +37,7 @@ def build_model(args):
                 embedding_size=embedding_size,
                 output_size=output_size,
                 base_hidden_size=base_hidden_size,
+                hidden_size=args.hidden_size, 
                 n_layers=n_layers,
                 use_bias=use_bias,
                 dropout=dropout,
@@ -106,7 +98,7 @@ def build_model(args):
 
 
 def count_parameters(model):
-    """Возвращает (total_trainable, total_all, per_module_dict)."""
+    """return (total_trainable, total_all, per_module_dict)."""
     total_trainable = 0
     total_all = 0
     per_module = {}
@@ -117,7 +109,6 @@ def count_parameters(model):
         if param.requires_grad:
             total_trainable += numel
 
-        # Группируем по top-level модулю (embedding, rnn, cells, attn, head, ...)
         top_module = name.split('.')[0]
         if top_module not in per_module:
             per_module[top_module] = {'trainable': 0, 'total': 0}
@@ -148,15 +139,14 @@ def main():
                         help='Input vocabulary size (e.g. 27 for text8)')
     parser.add_argument('--output_size', type=int, required=True,
                         help='Output vocabulary size (e.g. 27 for text8)')
-
-    # Гиперпараметры с дефолтами из конфига
+    parser.add_argument('--hidden_size', type=int, default=None,
+                    help='Direct hidden_size (bypasses convert_hidden_size)')
     parser.add_argument('--embedding_size', type=int, default=64)
     parser.add_argument('--base_hidden_size', type=int, default=128)
     parser.add_argument('--n_layers', type=int, default=1)
     parser.add_argument('--use_bias', type=bool, default=True)
     parser.add_argument('--dropout', type=float, default=0.0)
 
-    # Grid-специфичные
     parser.add_argument('--n_columns', type=int, default=2)
     parser.add_argument('--n_attn_heads', type=int, default=4)
     parser.add_argument('--messaging', type=str, default='post',
@@ -165,10 +155,8 @@ def main():
 
     args = parser.parse_args()
 
-    print('=' * 60)
     print(f'Model: {args.model}')
     print(f'Input size: {args.input_size}, Output size: {args.output_size}')
-    print('=' * 60)
 
     model = build_model(args)
 
@@ -186,17 +174,15 @@ def main():
         )
     print('-' * 60)
     print(f'{"TOTAL":<20} {format_num(trainable):>20} {format_num(total):>20}')
-    print('=' * 60)
 
-    # Детальный вывод каждого параметра
-    print()
-    print('Detailed parameter list:')
-    print(f'{"Name":<45} {"Shape":<20} {"Numel":>10} {"Grad":>6}')
-    print('-' * 85)
-    for name, param in model.named_parameters():
-        shape_str = str(list(param.shape))
-        grad_str = '✓' if param.requires_grad else '✗'
-        print(f'{name:<45} {shape_str:<20} {param.numel():>10,d} {grad_str:>6}')
+    # print()
+    # print('Detailed parameter list:')
+    # print(f'{"Name":<45} {"Shape":<20} {"Numel":>10} {"Grad":>6}')
+    # print('-' * 85)
+    # for name, param in model.named_parameters():
+    #     shape_str = str(list(param.shape))
+    #     grad_str = '✓' if param.requires_grad else '✗'
+    #     print(f'{name:<45} {shape_str:<20} {param.numel():>10,d} {grad_str:>6}')
 
 
 if __name__ == '__main__':

@@ -14,7 +14,7 @@ dtype: float32
 gen: hard
 model: rnn
 rollout_len: 8
-n_envs: 64
+n_envs: 128
 n_steps: 1e+9
 
 gens:
@@ -47,13 +47,25 @@ models:
   
   grnn:
     embedding_size: 64
-    base_hidden_size: 128
+    base_hidden_size: 115
+    n_layers: 1
+    n_columns: 2
+    n_attn_heads: 4
+    messaging: post
+    use_bias: true
+    col_identities: true
+    dropout: 0.0
+
+  grnn_err:
+    embedding_size: 64
+    base_hidden_size: 110
     n_layers: 1
     n_columns: 2
     n_attn_heads: 4
     messaging: post
     use_bias: true
     dropout: 0.0
+    col_identities: true
 
   hgrnn:
     embedding_size: 64

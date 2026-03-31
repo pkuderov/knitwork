@@ -9,13 +9,13 @@ log:
   schedule: 1e+6
   print_schedule: 5e+6
 
-device: cpu
+device: cuda
 dtype: float32
 
 gen: text8
 model: rnn
 rollout_len: 8
-n_envs: 64
+n_envs: 128
 n_steps: 5.2e+8
 
 gens:
@@ -48,7 +48,7 @@ models:
   
   grnn_err:
     embedding_size: 64
-    base_hidden_size: 128
+    base_hidden_size: 115
     n_layers: 1
     n_columns: 2
     n_attn_heads: 4
@@ -59,7 +59,7 @@ models:
 
   hgrnn:
     embedding_size: 64
-    base_hidden_size: 128
+    base_hidden_size: 110
     n_layers: 1
     n_columns: 2
     n_attn_heads: 4

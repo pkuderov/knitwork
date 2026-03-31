@@ -13,12 +13,17 @@ uv run text/run.py text/config/base.yaml --model=grnn
 ```
 
 
-**For add name for aim run:**
+**For add name for aim run:**:
 ```sh
 uv run knitwork/exps/sdq/run.py knitwork/exps/sdq/config/extend_config.yaml     --model=hgrnn  --name="hgrnn baseline"
 ```
 
-**For get count of parameters of model**
+**For get count of parameters of model**:
 ```sh
 uv run python -m knitwork.common.count_params --model rnn --input_size 27 --output_size 27
+```
+
+**Compare 3 models om experiments(78k parameters)**:
+```sh
+
 ```
