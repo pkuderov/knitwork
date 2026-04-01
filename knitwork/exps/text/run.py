@@ -66,7 +66,7 @@ def main(config):
         return wm_lr.step() if not wm_lr.scheduler.is_infinite else dc_lr.step()
 
     optim = torch.optim.RMSprop(rnn.parameters(), lr=get_lr())
-    loss_fn = nn.CrossEntropyLoss(reduction='mean', ignore_index=CE_ignore_index)
+    loss_fn = nn.CrossEntropyLoss(reduction='sum', ignore_index=CE_ignore_index)
 
     rollout_len = config['rollout_len']
     batch_size = gen.n_envs * rollout_len
@@ -84,10 +84,14 @@ def main(config):
     stats = Tracker(lr=2e-4)
     fps_counter = FpsCounter()
 
-    rnn_state = None
-    batch_y = []
-    batch_y_gt = []
+    ix_space_char = np.argwhere(ds_charset == ord(' '))[0, 0]
     ln_2 = np.log(2.0)
+
+    rnn_state = None
+    loss, acc = 0.0, 0.0
+    intra_word_step = torch.full((n_envs, 1), -1, dtype=torch.int, device=device)
+    # TODO: make the number of tracked intra-word accuracies configurable
+    acc_char_ix = torch.full((4,), -1, dtype=dtype, device=device)
 
     while step < n_steps:
         obs = gen.next()
@@ -99,23 +103,27 @@ def main(config):
         rnn_state = rnn.reset_state(rnn_state, reset_mask)
         x = obs['tokens'].view(-1, 1)
         y, rnn_state = rnn(x, rnn_state)
+        y_gt = obs['targets']
 
-        batch_y.append(y)
-        batch_y_gt.append(obs['targets'])
+        loss = loss + loss_fn(y, y_gt)
+        with torch.no_grad():
+            cur_acc = (y.argmax(dim=-1) == y_gt).to(dtype)
+            acc = acc + cur_acc.sum()
+
+            _update_intra_word_metrics(
+                is_space=x == ix_space_char, acc=cur_acc, 
+                intra_word_step=intra_word_step, acc_char_ix=acc_char_ix
+            )
 
         step += gen.n_envs
 
         if step % batch_size == 0:
-            y = torch.cat(batch_y, dim=0)
-            y_gt = torch.cat(batch_y_gt, dim=0)
-            m_active = y_gt != CE_ignore_index
+            loss = loss / batch_size
+            acc = acc / batch_size
 
-            loss = loss_fn(y, y_gt)
             with torch.no_grad():
-                acc = (y[m_active].argmax(dim=-1) == y_gt[m_active]).float()
                 bpc = loss / ln_2
                 perplexity = torch.exp(loss)
-            acc = acc.mean()
 
             optim.zero_grad()
             loss.backward()
@@ -125,7 +133,7 @@ def main(config):
             else:
                 print('Nan loss')
 
-            stats.put({
+            metrics = {
                 "Loss": to_numpy(loss, copy=False),
                 "BPC": to_numpy(bpc, copy=False),
                 "Perplexity": to_numpy(perplexity, copy=False),
@@ -133,15 +141,17 @@ def main(config):
                 "|Grad|": to_numpy(grad_norm, copy=False),
                 "LR": get_lr(),
                 "T": 1 / p_reset.val,
-            })
+            }
+            for i in range(acc_char_ix.shape[0]):
+                metrics[f"Acc[{i}]"] = to_numpy(acc_char_ix[i], copy=False)
+            stats.put(metrics)
 
             p_reset.step()
             if step_lr():
                 optim.param_groups[0]['lr'] = get_lr()
 
             rnn_state = rnn.detach_state(rnn_state)
-            batch_y.clear()
-            batch_y_gt.clear()
+            loss, acc = 0.0, 0.0
 
         if print_stats_schedule.tick(gen.n_envs):
             metrics = {"global_step": step} | stats.get()
@@ -151,7 +161,13 @@ def main(config):
                 f' {format_readable_num(fps, frac=0)} fps |'
                 f' LR: {int(100*metrics["LR"]/lr)}%  '
                 f' T: {int(metrics["T"])} | '
-                f' L: {metrics["Loss"]:.3f}, A: {metrics["Acc"]:.3f}'
+                f' L: {metrics["Loss"]:.3f} '
+                f' A: {100*metrics["Acc"]:.1f}'
+
+                f' | A[0]: {100*metrics["Acc[0]"]:.1f} '
+                f' A[1]: {100*metrics["Acc[1]"]:.1f} '
+                f' A[2]: {100*metrics["Acc[2]"]:.1f} '
+                f' A[3]: {100*metrics["Acc[3]"]:.1f}'
             )
             # from pprint import pprint
             # pprint(gen.get_stats(), sort_dicts=False, indent=4)
@@ -167,6 +183,23 @@ def main(config):
     
     fps = fps_counter.fps(n_iters=step)
     print(format_readable_num(fps))
+
+
+@torch.no_grad()
+def _update_intra_word_metrics(is_space, acc, intra_word_step, acc_char_ix):
+    intra_word_step += 1
+    intra_word_step[is_space] = -1
+
+    iw_mask = torch.logical_and(
+        intra_word_step >= 0, 
+        intra_word_step < acc_char_ix.shape[0]
+    )
+    iw_ix = intra_word_step[iw_mask]
+
+    err = acc[iw_mask.squeeze(-1)] - acc_char_ix[iw_ix]
+    lr = 0.01
+    # equiv to: for i in iw_ix: acc_char_ix[i] += lr * err[iw_ix == i].mean()
+    acc_char_ix.scatter_reduce_(0, iw_ix, lr * err, reduce="sum")
 
 
 if __name__ == "__main__":
