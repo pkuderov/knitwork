@@ -76,7 +76,7 @@ class GridRnn(nn.Module):
         param_count = sum(p.numel() for p in self.parameters() if p.requires_grad)
         print(f'Param count: {format_readable_num(param_count)}')
 
-    def forward(self, tokens: torch.Tensor, h=None):
+    def forward(self, tokens: torch.Tensor, h=None, return_attn=False):
         tokens = to_torch(tokens)
         assert tokens.ndim == 2
         bsz, n_features = tokens.shape
@@ -85,15 +85,23 @@ class GridRnn(nn.Module):
         x = self.embedding(tokens.view(-1))
 
         # shape: (layers, cols, batch, hidden_size)
-        h = self.grid_step_postmsg(x, h=h) if self.use_postmsg else self.grid_step_premsg(x, h=h)
+        #h = self.grid_step_postmsg(x, h=h) if self.use_postmsg else self.grid_step_premsg(x, h=h)
         # top (=last) layer, first col as grid output
+        
+        if self.use_postmsg:
+            h, extras = self.grid_step_postmsg(x, h=h, return_attn=return_attn)
+        else:
+            h, extras = self.grid_step_premsg(x, h=h), {}
+                      
         z = h[-1][0]
 
         y = self.head(z)
+        if return_attn:
+            return y, h, extras
         return y, h
 
-    def grid_step_postmsg(self, x, *, h: torch.Tensor):
-        h_n = []
+    def grid_step_postmsg(self, x, *, h: torch.Tensor, return_attn=True):
+        h_n, attn_list, gate_list = [], [], []
         # it is a list of inputs, each input is [batch, col_in_dim]
         x = self._prepare_grid_input(x)
 
@@ -104,18 +112,20 @@ class GridRnn(nn.Module):
             ]
             hl_n = torch.stack(hl_n, dim=0)
 
-            msg = attn(hl_n)
+            msg, attn_w = attn(hl_n, return_weights=return_attn)
             g = torch.sigmoid(attn_gate(
                 torch.cat([hl_n, msg], dim=-1)
             ))
             hl_n = (1 - g) * hl_n + g * msg
 
             h_n.append(hl_n)
+            attn_list.append(attn_w)
+            gate_list.append(g)   
             # starting from there, x is a contiguous tensor [cols, batch, hidden_size]
             x = hl_n
 
         h_n = torch.stack(h_n, dim=0)
-        return h_n
+        return h_n, {"attn_weights": attn_list, "gates": gate_list} 
 
     def grid_step_premsg(self, x, *, h: torch.Tensor):
         h_n = []
@@ -124,7 +134,7 @@ class GridRnn(nn.Module):
         first_row = True
 
         for cells, attn, hl in zip(self.cells, self.attn, h):
-            msg = attn(hl)
+            msg, _ = attn(hl, return_weights=False)
             if first_row:
                 # a list, not a contiguous tensor
                 x = [
@@ -225,13 +235,15 @@ class MessagePassingLayer(nn.Module):
         nn.init.normal_(self.mha.out_proj.weight, 0.0, 0.01 * xavier_alpha)
         nn.init.zeros_(self.mha.out_proj.bias)
 
-    def forward(self, h):
+    def forward(self, h, return_weights: bool = False):
         # h: (cols, batch, dim)
         qh, kh, vh = h, h, h
         if self.ids is not None:
             qh = kh = qh + self.ids
 
-        h_mixed, _ = self.mha(qh, kh, vh, need_weights=False)
+        h_mixed, attn_w  = self.mha(qh, kh, vh, average_attn_weights=True)
 
         # Layer norm ensures we are in a good range
-        return self.norm(h_mixed)
+        if return_weights and attn_w is not None:
+            attn_w = attn_w.mean(dim=0)
+        return self.norm(h_mixed), attn_w 
