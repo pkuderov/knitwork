@@ -1,0 +1,41 @@
+# GridRnnLoss
+
+GridRnnLoss расширяет базовый GridRnn вспомогательными функциями потерь разнообразия колонок. Проблема, которую он решает: столбцы сетки могут коллапсировать в однородные представления, теряя потенциал параллельной специализации. Идея метода — вычислять косинусную, ковариационную и энтропийную потери по скрытым состояниям и гейтам всех слоёв и добавлять их взвешенную сумму к основному кросс-энтропийному лоссу, тем самым явно поощряя разнообразие между столбцами.
+
+## Ключевой механизм
+
+```python
+# collect per-layer hidden states and gates during grid_step_postmsg
+h_layer_list.append(hl_n)   # [cols, batch, H] per layer
+gate_list.append(g)
+
+# compute diversity loss from extras
+div_losses = model.compute_diversity_loss(extras)
+total_loss = ce_loss + div_losses['total']
+```
+
+Метод `grid_step_postmsg` переопределён так, что к стандартному словарю `extras` добавляется `h_layers` — список скрытых состояний по каждому слою. Далее `compute_diversity_loss` передаёт их в `ColumnDiversityLoss`, которая агрегирует несколько компонент потерь.
+
+## Важные детали реализации
+
+**Автоматическая конфигурация весов по слоям.** Если `diversity_cfg` не передана явно, веса слоёв линейно растут от 0.5 до 2.0 — глубокие слои штрафуются сильнее:
+
+```python
+# layer weights grow linearly: 0.5 (first) .. 2.0 (last)
+layer_w = [0.5 + 1.5 * i / max(n_layers - 1, 1) for i in range(n_layers)]
+diversity_cfg = DiversityLossConfig(layer_weights=layer_w)
+```
+
+**Безопасный возврат нулей.** Если `extras` не содержит `h_layers` (например, при вызове без `return_attn`), метод возвращает нулевые тензоры по всем компонентам без ошибки:
+
+```python
+if not h_layers:
+    zero = torch.tensor(0.0)
+    return {k: zero for k in ('cosine', 'covariance', 'variance', 'gate_entropy', 'total')}
+```
+
+## Гиперпараметры
+
+| Параметр | Описание |
+|---|---|
+| `diversity_cfg` | Конфигурация потерь разнообразия (`DiversityLossConfig`). Если `None` — создаётся автоматически с линейным ростом весов по слоям |
