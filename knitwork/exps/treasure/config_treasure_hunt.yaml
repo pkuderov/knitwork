@@ -1,0 +1,130 @@
+# config_treasure_hunt.yaml
+# TreasureHunt: RL-бенчмарк ассоциативной памяти
+seed: 42
+name: null
+
+log:
+  enabled: true
+  logger: aim
+  project: grid-rnn-treasure
+  schedule: 5.0e+5
+  print_schedule: 1.0e+6
+
+device: cuda
+dtype: float32
+
+env: easy
+model: grnn_lru
+rollout_len: 16
+n_envs: 128
+n_steps: 5.0e+8
+
+# ── Конфигурации сред ─────────────────────────────────────────────────────────
+envs:
+  easy:
+    grid_size: 8
+    n_colors: 2
+    view_radius: 1
+    max_steps: 100
+    wall_density: 0.05
+    min_key_door_dist: 2
+    reward_open_door: 1.0
+    reward_step: -0.01
+
+  medium:
+    grid_size: 10
+    n_colors: 3
+    view_radius: 1
+    max_steps: 150
+    wall_density: 0.10
+    min_key_door_dist: 4
+    reward_open_door: 1.0
+    reward_step: -0.01
+
+  hard:
+    grid_size: 12
+    n_colors: 4
+    view_radius: 1
+    max_steps: 200
+    wall_density: 0.10
+    min_key_door_dist: 6
+    reward_open_door: 1.0
+    reward_step: -0.01
+
+  nightmare:
+    # Максимальная нагрузка на ассоциативную память:
+    # 6 пар, карта 15×15, ключи далеко от дверей
+    grid_size: 15
+    n_colors: 6
+    view_radius: 1
+    max_steps: 400
+    wall_density: 0.12
+    min_key_door_dist: 8
+    reward_open_door: 1.0
+    reward_step: -0.005
+
+# ── Модели ────────────────────────────────────────────────────────────────────
+models:
+  rnn:
+    embedding_size: 64
+    base_hidden_size: 128
+    n_layers: 1
+    use_bias: true
+    dropout: 0.0
+
+  grnn:
+    embedding_size: 64
+    base_hidden_size: 128
+    n_layers: 3
+    n_columns: 4
+    n_attn_heads: 4
+    messaging: post
+    use_bias: true
+    col_identities: true
+    dropout: 0.0
+
+  grnn_lru:
+    embedding_size: 64
+    hidden_size: 128
+    n_layers: 3
+    n_columns: 4
+    n_attn_heads: 4
+    messaging: post
+    use_bias: true
+    col_identities: true
+    dropout: 0.0
+    ff_mult: 2
+    r_min: 0.0
+    r_max: 0.999
+    lru_r_per_col: true
+
+  grnn_lru_wide:
+    embedding_size: 96
+    hidden_size: 192
+    n_layers: 4
+    n_columns: 4
+    n_attn_heads: 4
+    messaging: post
+    use_bias: true
+    col_identities: true
+    dropout: 0.0
+    ff_mult: 3
+    r_min: 0.0
+    r_max: 0.9995
+    lru_r_per_col: true
+
+# ── LR schedule (как в run_sdq2.py) ─────────────────────────────────────────
+lr:
+  val: 8.0e-4
+  warmup:
+    n_linear_steps: 50
+    schedule: 100
+  decay:
+    rel: 0.02
+    lr: 0.005
+    schedule: 2000
+
+# ── Curriculum ────────────────────────────────────────────────────────────────
+curriculum:
+  schedule: 5.0e+5
+  key: Loss
