@@ -71,3 +71,16 @@ total = (cos_t + cov_t + var_t + gate_t) * cfg.total_weight
 | `diversity_loss.total_weight` | Общий масштаб diversity loss; по умолчанию 0.05 |
 | `diversity_loss.compute_every_n` | Вычислять diversity loss каждые N шагов для ускорения |
 | `use_final_output_gate` | Sigmoid-гейт поверх выхода верхнего слоя перед головой |
+
+## Результаты
+
+### SDQ (Store-Distract-Query, hard)
+
+Оба запуска в проекте `grid-rnn-sdq`, конфигурация H=192:
+
+| Версия | all\_cols\_get\_input | diversity\_loss.total\_weight | Acc | Acc++ | Loss | Шагов |
+|---|---|---|---|---|---|---|
+| grnn\_fusion v1 | `false` | 1.0 | **0.831** | **0.708** | 0.437 | ~101м |
+| grnn\_fusion v2 | `true` | 0.05 | 0.823 | 0.646 | 0.437 | ~96м |
+
+Обе версии Fusion работают на одном уровне (~Loss=0.437). Вариант v1 с более сильным diversity\_loss (1.0 vs 0.05) и без широкого ввода показал чуть лучший Acc++. Введение `all_cols_get_input=True` в v2 не дало улучшения и снизило Acc++. По сравнению с базовым grnn 4/3 (Acc=0.960), Fusion с H=192 значительно уступает, что указывает на трудности балансировки многокомпонентного лосса.

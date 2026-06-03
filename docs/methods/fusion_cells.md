@@ -48,3 +48,7 @@ for name in ['W_f', 'W_o', 'W_c', 'U_f', 'U_o', 'U_c']:
 | `learnable_beta` | Если `False` — β фиксированы и иерархия задаётся вручную через `beta_inits` |
 | `use_layer_norm` | LayerNorm применяется к candidate state `c_raw` до `tanh`, стабилизируя динамику при больших скрытых размерах |
 | `spectral_radii` | (для `BatchedReservoirColumns`) Спектральный радиус рекуррентной матрицы каждого резервуарного столбца; значения < 1 обеспечивают эхо-состояние |
+
+## Результаты
+
+`BatchedHGRUColumns` и `BatchedReservoirColumns` — компоненты, используемые внутри `grnn_fusion`. Самостоятельных экспериментов не проводилось. Результаты интегрированной модели приведены в [grnn\_fusion.md](grnn_fusion.md): SDQ Acc=0.831, Acc++=0.708.
