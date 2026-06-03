@@ -12,6 +12,12 @@ from knitwork.common.tracker import Tracker
 from knitwork.common.utils import CE_ignore_index, FpsCounter, flatten_dict, format_readable_num, get_device, get_dtype, to_numpy, to_torch
 from knitwork.gens.sdq import StoreDistractQueryGenerator
 
+from knitwork.visualization.attn_flow import AttnFlowVisualizer
+from knitwork.visualization.cka import CKAVisualizer     
+
+
+VIS_INTERVAL = 10000000
+
 
 def main(config):
 
@@ -22,7 +28,7 @@ def main(config):
     )
     config.setdefault('log', {})['name'] = run_name
     print(f'Run name: {run_name}')
-
+    VIS_ENABLED = config.get('visualize', True)
 
     rng = np.random.default_rng(config['seed'])
     device = get_device(config.get('device', None))
@@ -51,7 +57,16 @@ def main(config):
         case 'hgrnn':
             from knitwork.models.hgrnn import HopfieldGridRnn
             rnn_fn = HopfieldGridRnn
-
+        case 'grnn_fw':
+            from knitwork.models.grnn_fw import GridRnnFW
+            rnn_fn = GridRnnFW
+        case 'grnn_reservoir':
+            from knitwork.models.grnn_reservoir import GridRnnReservoir
+            rnn_fn = GridRnnReservoir
+        case 'grnn_hgrn':
+            from knitwork.models.hgrn_grnn import HGRN_GridRnn
+            rnn_fn = HGRN_GridRnn
+                
     rnn = rnn_fn(**rnn_cfg, input_size=gen.n_tokens, output_size=gen.V)
     rnn = rnn.to(device=device, dtype=dtype)
     print(
@@ -59,6 +74,17 @@ def main(config):
         f' having "{next(rnn.parameters()).dtype}" dtype'
     )
 
+    attn_vis = AttnFlowVisualizer(                          
+        n_layers=rnn.n_layers, n_columns=rnn.n_columns, buffer_size=100
+    )
+    cka_vis = CKAVisualizer(                                       
+        n_layers=rnn.n_layers, n_columns=rnn.n_columns, buffer_size=50
+    )
+    next_vis_step = VIS_INTERVAL                                    
+                                           
+    gate_buffer: list = []           
+    
+    
     lr_cfg = config['lr']
     lr = lr_cfg['val']
     print(f"Base LR: {lr}")
@@ -111,12 +137,40 @@ def main(config):
 
         rnn_state = rnn.reset_state(rnn_state, obs['reset_mask'])
         x = obs['tokens'].view(-1, 1)
-        y, rnn_state = rnn(x, rnn_state)
+
+        capture = (step >= next_vis_step - gen.n_envs)           
+        if capture:
+            y, rnn_state, extras = rnn(x, rnn_state, return_attn=True) 
+            attn_vis.update(extras["attn_weights"])                
+            h_for_cka = rnn_state[0] if isinstance(rnn_state, tuple) else rnn_state
+            cka_vis.update(h_for_cka)                             
+            # gates: list[Tensor (n_cols, batch, 1)] per layer
+            gate_vals = [g.detach().sigmoid().mean().item()        
+                         for g in extras["gates"]]                 
+            gate_buffer.append(gate_vals)                         
+        else:
+            y, rnn_state = rnn(x, rnn_state)
 
         batch_y.append(y)
         batch_y_gt.append(obs['targets'])
         batch_sq_gaps.append(obs['sq_gaps'])
 
+
+        if step >= next_vis_step and logger is not None and VIS_ENABLED:         
+            attn_vis.log(logger, step=step)                      
+            cka_vis.log(logger, step=step)                        
+
+            if gate_buffer:
+                gate_arr = np.array(gate_buffer)   # [T, n_layers]
+                for li in range(rnn.n_layers):
+                    logger.track(
+                        float(gate_arr[:, li].mean()),
+                        name=f"attn_gate/layer_{li}",
+                        step=step,
+                    )
+            gate_buffer.clear()                                 
+            next_vis_step += VIS_INTERVAL                       
+            
         step += gen.n_envs
 
         if step % batch_size == 0:

@@ -20,7 +20,7 @@ n_steps: 5.2e+8
 
 gens:
   text8:
-    path: ~/data/text/text8.txt
+    path: ~/data/text/shakespeare.txt
     reset_prob:
       val: 0.01
       tar: 1e-4
@@ -59,13 +59,75 @@ models:
 
   hgrnn:
     embedding_size: 64
-    base_hidden_size: 110
+    hidden_size: 110
     n_layers: 1
     n_columns: 2
     n_attn_heads: 4
     messaging: post
     use_bias: true
     dropout: 0.0
+
+  grnn2:
+    embedding_size: 72
+    hidden_size: 128
+    n_layers: 2
+    n_columns: 3
+    n_attn_heads: 4
+    messaging: post
+    use_bias: true
+    dropout: 0.0
+    col_identities: true
+
+    vae_latent_dim: 64
+    vae_kl_weight: 1.0e-3
+    use_time_gate: false
+
+    time_gate_delay_scale: -2.0
+
+    col_drop_prob: 0.0
+
+  grnn_loss:
+    embedding_size: 64
+    hidden_size: 128
+    n_layers: 4
+    n_columns: 4
+    n_attn_heads: 4
+    messaging: post
+    use_bias: true
+    dropout: 0.0
+    col_identities: true
+
+  grnn_res:
+    hidden_size: 300
+    embedding_size: 64
+    n_layers: 3
+    n_columns: 5 
+    n_reservoir_cols: 2
+    n_attn_heads: 4
+    messaging: post
+    col_identities: true
+    spectral_radius: 0.9 
+    reservoir_scale: 0.1 
+
+  grnn_engram:
+    embedding_size: 64
+    n_attn_heads: 4
+    messaging: post
+    use_bias: true
+    dropout: 0.0
+    n_columns: 4
+    hidden_size: 128
+
+    n_layers: 4
+    col_identities: true
+
+    n_engram_slots: 16
+
+    engram_top_k: 4
+
+    engram_hebb_lr: 0.1
+    engram_gate_write: true
+    
 
 lr:
   val: 8e-4
