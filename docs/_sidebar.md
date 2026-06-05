@@ -38,3 +38,6 @@
 - **Fusion**
   - [Fusion cells](methods/fusion_cells.md)
   - [GridRNN-Fusion](methods/grnn_fusion.md)
+
+- **Инфраструктура**
+  - [Curriculum Scheduling](methods/curriculum_scheduling.md)

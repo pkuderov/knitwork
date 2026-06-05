@@ -370,3 +370,18 @@ lr:
 curriculum:
   schedule: 2e+5
   key: Loss
+  mode: speed           # speed | threshold | plateau | multiaxis
+
+  # threshold / plateau: set key+minimization to track Acc, then set threshold
+  # key: Acc
+  # minimization: false
+  # threshold: 0.75     # advance only when Acc >= 0.75
+
+  # plateau only:
+  # plateau_len: 5      # number of curriculum checks to track
+  # plateau_tol: 0.02   # max std to consider metric stable
+
+  # multiaxis only (ignores key/threshold above):
+  # t_threshold: 0.75
+  # store_threshold: 0.80
+  # query_threshold: 0.70

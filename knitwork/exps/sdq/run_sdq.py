@@ -345,12 +345,13 @@ def main(config):
             batch_y.clear(); batch_y_gt.clear(); batch_sq_gaps.clear()
             batch_kl.clear(); batch_div.clear()
 
-        if curriculum_step.tick(metrics=stats, n_steps=gen.n_envs):
+        axes = curriculum_step.tick(metrics=stats, n_steps=gen.n_envs)
+        if any(axes.values()):
             K = 10
             gen.set_metaparams(
-                T       = gen.T + 1.0 / K,
-                p_store = max(gen.p_store - 0.0014 / K, 0.10),
-                p_query = max(gen.p_query - 0.0005 / K, 0.25),
+                T       = gen.T       + 1.0 / K        if axes['T']       else gen.T,
+                p_store = max(gen.p_store - 0.0014 / K, 0.10) if axes['p_store'] else gen.p_store,
+                p_query = max(gen.p_query - 0.0005 / K, 0.25) if axes['p_query'] else gen.p_query,
             )
 
         if print_stats_schedule.tick(gen.n_envs):
