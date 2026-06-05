@@ -244,6 +244,30 @@ models:
 
 
 
+  grnn_prec_delta:
+    embedding_size: 64
+    hidden_size: 128
+    n_layers: 2
+    n_columns: 3
+    n_attn_heads: 4
+    messaging: post
+    col_identities: true
+    delta_lr: 0.01
+    delta_decay: 0.99
+    beta2: 0.999
+    eps: 1.0e-8
+
+  grnn_ema_mem:
+    embedding_size: 64
+    hidden_size: 128
+    n_layers: 2
+    n_columns: 3
+    n_attn_heads: 4
+    messaging: post
+    col_identities: true
+    ema_beta: 0.9
+    lam_base: 0.01
+
   grnn_lru:
     embedding_size: 64
     hidden_size: 128
@@ -289,6 +313,48 @@ models:
     lru_r_min:        0.4
     lru_r_max:        0.99
     lru_max_phase:    2.094395   # pi * 2/3
+
+  grnn_delta:
+    embedding_size: 64
+    hidden_size: 128
+    n_layers: 3
+    n_columns: 4
+    n_attn_heads: 4
+    messaging: post
+    dropout: 0.0
+    ff_mult: 2
+    # LRU per-layer × per-col r_max hierarchy
+    r_min_layers: 0.05
+    r_max_layers: 0.999
+    lru_r_per_col: true
+    # two-scale delta memory
+    dk_fast: 16
+    dv_fast: 16
+    dk_slow: 32
+    dv_slow: 32
+    mem_decay_fast: [0.3, 0.5, 0.7]
+    mem_decay_slow: [0.95, 0.98, 0.999]
+    use_cross_layer_skip: false
+
+  grnn_delta_wide:
+    embedding_size: 96
+    hidden_size: 160
+    n_layers: 4
+    n_columns: 4
+    n_attn_heads: 4
+    messaging: post
+    dropout: 0.0
+    ff_mult: 3
+    r_min_layers: 0.02
+    r_max_layers: 0.9995
+    lru_r_per_col: true
+    dk_fast: 20
+    dv_fast: 20
+    dk_slow: 40
+    dv_slow: 40
+    mem_decay_fast: [0.2, 0.4, 0.6, 0.8]
+    mem_decay_slow: [0.9, 0.95, 0.98, 0.999]
+    use_cross_layer_skip: true
 
 
 lr:

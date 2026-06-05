@@ -25,7 +25,7 @@ from knitwork.gens.sdq import StoreDistractQueryGenerator
 from knitwork.exps.sdq._viz import VizManager
 
 
-# ── Model registry ────────────────────────────────────────────────────────────
+#  Model registry 
 
 _REGISTRY: dict[str, tuple[str, str] | None] = {
     'rnn':            ('knitwork.models.gru',           'GruBaseline'),
@@ -45,10 +45,14 @@ _REGISTRY: dict[str, tuple[str, str] | None] = {
     'grnn_disc':      ('knitwork.models.grnn_disc',      'GridRnnNoveltyGate'),
     'grnn_adv_loss':  ('knitwork.models.grnn_adv_loss',  'GridRnn'),
     'grnn_engram':    ('knitwork.models.engram_grnn',    'EngramGridRnn'),
+    'grnn_prec_delta': ('knitwork.models.grnn_prec_delta', 'GridRnnPrecDelta'),
+    'grnn_ema_mem':   ('knitwork.models.grnn_ema_mem',   'GridRnnEmaMem'),
     'grnn_fusion':    None,  # factory
     # config aliases
     'grnn_hgrn':      ('knitwork.models.hgrn_grnn',  'HGRN_GridRnn'),
     'grnn_lru_hop':   ('knitwork.models.hgrnn_lru',  'HopfieldGridLRU'),
+    'grnn_delta':     ('knitwork.models.grnn_delta', 'GridDelta'),
+    'grnn_delta_wide':('knitwork.models.grnn_delta', 'GridDelta'),
 }
 
 
@@ -64,7 +68,7 @@ def build_model(rnn_type: str, rnn_cfg: dict, gen):
     return cls(**rnn_cfg, input_size=gen.n_tokens, output_size=gen.V)
 
 
-# ── Forward normalizer ────────────────────────────────────────────────────────
+#  Forward normalizer 
 
 def model_forward(rnn, x, state, *, capture: bool):
     """Normalize model forward to (logits, state, extras, aux_loss)."""
@@ -87,7 +91,7 @@ def model_forward(rnn, x, state, *, capture: bool):
     return y, state, {}, None
 
 
-# ── LRU spectrum logging ──────────────────────────────────────────────────────
+#  LRU spectrum logging 
 
 def log_lru_spectrum(rnn, logger, step: int) -> None:
     if not hasattr(rnn, 'cells'):
@@ -106,7 +110,7 @@ def log_lru_spectrum(rnn, logger, step: int) -> None:
         print(f'[LRU spectrum] {e}')
 
 
-# ── KL annealing ──────────────────────────────────────────────────────────────
+#  KL annealing 
 
 def make_kl_anneal(cfg: dict):
     steps = int(cfg.get('steps', 50_000))
@@ -118,7 +122,7 @@ def make_kl_anneal(cfg: dict):
     return get
 
 
-# ── Acc metrics from sq_gaps ──────────────────────────────────────────────────
+#  Acc metrics from sq_gaps
 
 def sq_gap_metrics(acc: torch.Tensor, sq_gaps: torch.Tensor) -> dict:
     def safe_mean(t, mask):
@@ -139,7 +143,7 @@ def sq_gap_metrics(acc: torch.Tensor, sq_gaps: torch.Tensor) -> dict:
     }
 
 
-# ── Main ──────────────────────────────────────────────────────────────────────
+#  Main 
 
 def main(config):
     run_name = (

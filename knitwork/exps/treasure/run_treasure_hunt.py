@@ -37,6 +37,10 @@ _REGISTRY: dict[str, tuple[str, str]] = {
     'grnn_reservoir': ('knitwork.models.grnn_reservoir', 'GridRnnReservoir'),
     'grnn_loss':      ('knitwork.models.grnn_loss',      'GridRnnLoss'),
     'grnn_engram':    ('knitwork.models.engram_grnn',    'EngramGridRnn'),
+    'grnn_prec_delta': ('knitwork.models.grnn_prec_delta', 'GridRnnPrecDelta'),
+    'grnn_ema_mem':   ('knitwork.models.grnn_ema_mem',   'GridRnnEmaMem'),
+    'grnn_delta':     ('knitwork.models.grnn_delta', 'GridDelta'),
+    'grnn_delta_wide':('knitwork.models.grnn_delta', 'GridDelta'),
 }
 
 

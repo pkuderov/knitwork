@@ -1,3 +1,9 @@
+- **Эксперименты**
+  - [SDQ](experiments/sdq.md)
+  - [Text Modeling](experiments/text.md)
+  - [TreasureHunt](experiments/treasure.md)
+  - [MIKASA / POPGym](experiments/mikasa.md)
+
 - **Базовые**
   - [GRU baseline](methods/gru.md)
   - [GridRNN](methods/grnn.md)
@@ -12,9 +18,12 @@
   - [HopfieldGridLRU](methods/hgrnn_lru.md)
 
 - **Память и ассоциации**
+  - [DeltaGrid (NEW)](methods/grnn_delta.md)
   - [Engram](methods/engram_grnn.md)
   - [Fast Weights](methods/grnn_fw.md)
   - [Reservoir](methods/grnn_reservoir.md)
+  - [PrecDelta](methods/grnn_prec_delta.md)
+  - [EmaMem](methods/grnn_ema_mem.md)
 
 - **Итеративные методы**
   - [Equilibrium](methods/grnn_eq.md)
