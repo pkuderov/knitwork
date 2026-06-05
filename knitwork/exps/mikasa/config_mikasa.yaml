@@ -1,0 +1,202 @@
+# config_mikasa.yaml
+# POPGym/MIKASA memory benchmark — PPO с рекуррентными моделями
+seed: 42
+name: null
+
+log:
+  enabled: true
+  logger: aim
+  project: grid-rnn-mikasa
+  schedule: 2.0e+5
+  print_schedule: 5.0e+5
+
+device: cuda
+dtype: float32
+
+# Среда POPGym — менять через --env=<gym_id>
+# Дискретные наблюдения + дискретные действия (без изменений в моделях):
+#   popgym-RepeatFirstEasy-v0      | Object memory
+#   popgym-RepeatFirstMedium-v0    | Object memory (сложнее)
+#   popgym-RepeatFirstHard-v0      | Object memory (макс. сложность)
+#   popgym-RepeatPreviousEasy-v0   | Object + Sequential
+#   popgym-RepeatPreviousMedium-v0
+#   popgym-RepeatPreviousHard-v0
+#   popgym-HigherLowerEasy-v0      | Object + Sequential
+#   popgym-HigherLowerMedium-v0
+#   popgym-HigherLowerHard-v0
+#   popgym-MultiarmedBanditEasy-v0 | Object + Capacity
+#   popgym-MultiarmedBanditMedium-v0
+#   popgym-MultiarmedBanditHard-v0
+# Непрерывные наблюдения (нужны continuous-обёртки из rl_wrappers.py):
+#   popgym-CountRecallEasy-v0      | Capacity
+#   popgym-AutoencodeEasy-v0       | Sequential
+
+env: popgym-RepeatFirstEasy-v0
+model: grnn_lru
+rollout_len: 32
+n_envs: 64
+n_steps: 2.0e+8
+
+# Конфигурации моделей
+models:
+  rnn:
+    embedding_size: 64
+    base_hidden_size: 128
+    n_layers: 1
+    use_bias: true
+    dropout: 0.0
+
+  grnn:
+    embedding_size: 64
+    base_hidden_size: 128
+    n_layers: 3
+    n_columns: 4
+    n_attn_heads: 4
+    messaging: post
+    use_bias: true
+    col_identities: true
+    dropout: 0.0
+
+  grnn_lru:
+    embedding_size: 64
+    hidden_size: 128
+    n_layers: 3
+    n_columns: 4
+    n_attn_heads: 4
+    messaging: post
+    use_bias: true
+    col_identities: true
+    dropout: 0.0
+    ff_mult: 2
+    r_min: 0.0
+    r_max: 0.999
+    lru_r_per_col: true
+
+  grnn_lru_wide:
+    embedding_size: 96
+    hidden_size: 192
+    n_layers: 4
+    n_columns: 4
+    n_attn_heads: 4
+    messaging: post
+    use_bias: true
+    col_identities: true
+    dropout: 0.0
+    ff_mult: 3
+    r_min: 0.0
+    r_max: 0.9995
+    lru_r_per_col: true
+
+  hgrnn:
+    embedding_size: 64
+    hidden_size: 128
+    n_layers: 3
+    n_columns: 4
+    n_attn_heads: 4
+    messaging: post
+    use_bias: true
+    dropout: 0.0
+
+  hgrnn_lru:
+    embedding_size: 64
+    hidden_size: 128
+    n_layers: 3
+    n_columns: 4
+    n_attn_heads: 4
+    messaging: post
+    use_bias: true
+    dropout: 0.0
+    ffn_expansion: 2
+    attn_dropout: 0.0
+    lru_r_min: 0.0
+    lru_r_max: 0.999
+
+  hgrn_grnn:
+    embedding_size: 64
+    hidden_size: 128
+    n_layers: 3
+    n_columns: 4
+    n_attn_heads: 4
+    messaging: post
+    col_identities: true
+    use_bias: true
+    dropout: 0.0
+
+  grnn_fw:
+    embedding_size: 64
+    hidden_size: 128
+    n_layers: 3
+    n_columns: 4
+    n_attn_heads: 4
+    messaging: post
+    col_identities: true
+    use_bias: true
+    dropout: 0.0
+
+  grnn_reservoir:
+    embedding_size: 64
+    hidden_size: 128
+    n_layers: 3
+    n_columns: 4
+    n_attn_heads: 4
+    messaging: post
+    col_identities: true
+    use_bias: true
+    dropout: 0.0
+
+  grnn_loss:
+    embedding_size: 64
+    hidden_size: 128
+    n_layers: 3
+    n_columns: 4
+    n_attn_heads: 4
+    messaging: post
+    col_identities: true
+    use_bias: true
+    dropout: 0.0
+
+  grnn_engram:
+    embedding_size: 64
+    hidden_size: 128
+    n_layers: 3
+    n_columns: 4
+    n_attn_heads: 4
+    messaging: post
+    col_identities: true
+    use_bias: true
+    dropout: 0.0
+
+  grnn_prec_delta:
+    embedding_size: 64
+    hidden_size: 128
+    n_layers: 2
+    n_columns: 3
+    n_attn_heads: 4
+    messaging: post
+    col_identities: true
+    delta_lr: 0.01
+    delta_decay: 0.99
+    beta2: 0.999
+    eps: 1.0e-8
+
+  grnn_ema_mem:
+    embedding_size: 64
+    hidden_size: 128
+    n_layers: 2
+    n_columns: 3
+    n_attn_heads: 4
+    messaging: post
+    col_identities: true
+    ema_beta: 0.9
+    lam_base: 0.01
+
+# LR schedule
+lr:
+  val: 8.0e-4
+  warmup:
+    n_linear_steps: 50
+    schedule: 100
+  decay:
+    rel: 0.02
+    lr: 0.005
+    schedule: 2000
