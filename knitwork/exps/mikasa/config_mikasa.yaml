@@ -190,6 +190,19 @@ models:
     ema_beta: 0.9
     lam_base: 0.01
 
+  grnn_delta:
+    embedding_size: 64
+    hidden_size: 128
+    n_layers: 2
+    n_columns: 3
+    n_attn_heads: 4
+    messaging: post
+    dropout: 0.0
+    ff_mult: 2
+    r_min_layers: 0.0
+    r_max_layers: 0.999
+    lru_r_per_col: true
+
 # LR schedule
 lr:
   val: 8.0e-4

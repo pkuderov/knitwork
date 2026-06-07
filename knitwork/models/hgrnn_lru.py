@@ -377,7 +377,7 @@ class HopfieldGridLRU(nn.Module):
         if not reset_mask.any():
             return state
         # multiply by keep-mask: cheaper than clone+index; grad through live envs preserved
-        keep = (~reset_mask).to(dtype=state.dtype, device=state.device)
+        keep = (~reset_mask.bool()).to(dtype=state.dtype, device=state.device)
         return state * keep.view(1, 1, -1, 1)   # broadcast [layers, cols, batch, 2*H]
 
     def detach_state(self, state: torch.Tensor | None) -> torch.Tensor | None:

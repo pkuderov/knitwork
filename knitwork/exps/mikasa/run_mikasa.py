@@ -40,6 +40,7 @@ _REGISTRY_DISCRETE: dict[str, tuple[str, str]] = {
     'grnn_engram':    ('knitwork.models.engram_grnn',    'EngramGridRnn'),
     'grnn_prec_delta':('knitwork.models.grnn_prec_delta','GridRnnPrecDelta'),
     'grnn_ema_mem':   ('knitwork.models.grnn_ema_mem',   'GridRnnEmaMem'),
+    'grnn_delta':     ('knitwork.models.grnn_delta',     'GridDelta'),
 }
 
 # For MultiDiscrete / Box / Tuple observation spaces — linear encoder replaces Embedding
