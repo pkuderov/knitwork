@@ -129,6 +129,10 @@ class HopfieldMessageLayer(nn.Module):
         k = self.W_k(h).view(C, B, self.num_heads, self.head_dim).permute(2, 1, 0, 3)
         v = self.W_v(h).view(C, B, self.num_heads, self.head_dim).permute(2, 1, 0, 3)
 
+        # normalize to unit sphere so score magnitude is bounded → no softmax overflow
+        q = F.normalize(q, dim=-1)
+        k = F.normalize(k, dim=-1)
+
         beta   = self.log_beta.exp().view(self.num_heads, 1, 1, 1)
         scores = beta * torch.matmul(q, k.transpose(-2, -1))
         attn   = self.attn_dropout(torch.softmax(scores, dim=-1))
