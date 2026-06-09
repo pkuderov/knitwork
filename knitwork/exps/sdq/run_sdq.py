@@ -16,6 +16,7 @@ from knitwork.common.entrypoint import run_experiment
 from knitwork.common.logging import create_logger
 from knitwork.common.scheduler import Scheduler
 from knitwork.common.tracker import Tracker
+from knitwork.common.status import write_status
 from knitwork.common.utils import (
     CE_ignore_index, FpsCounter, flatten_dict,
     format_readable_num, get_device, get_dtype,
@@ -51,8 +52,9 @@ _REGISTRY: dict[str, tuple[str, str] | None] = {
     # config aliases
     'grnn_hgrn':      ('knitwork.models.hgrn_grnn',  'HGRN_GridRnn'),
     'grnn_lru_hop':   ('knitwork.models.hgrnn_lru',  'HopfieldGridLRU'),
-    'grnn_delta':     ('knitwork.models.grnn_delta', 'GridDelta'),
-    'grnn_delta_wide':('knitwork.models.grnn_delta', 'GridDelta'),
+    'grnn_delta':     ('knitwork.models.grnn_delta',    'GridDelta'),
+    'grnn_delta_wide':('knitwork.models.grnn_delta',    'GridDelta'),
+    'grnn_harmonic':  ('knitwork.models.grnn_harmonic', 'HarmonicGridRNN'),
 }
 
 
@@ -369,7 +371,7 @@ def main(config):
                 f' A++:{m.get("Acc++", float("nan")):.3f}'
             )
 
-        if log_stats_schedule.tick(gen.n_envs) and logger is not None:
+        if log_stats_schedule.tick(gen.n_envs):
             fps = fps_counter.fps(n_iters=step, start=True)
             metrics = {
                 'global_step':   step,
@@ -380,7 +382,9 @@ def main(config):
             metrics['gen'] = gen.get_stats()
             for k, v in reservoir_sr_info.items():
                 metrics[k] = v
-            logger.track(flatten_dict(metrics))
+            write_status(step, metrics)
+            if logger is not None:
+                logger.track(flatten_dict(metrics))
 
     fps = fps_counter.fps(n_iters=step)
     print(f'Done. {format_readable_num(fps)} fps')
