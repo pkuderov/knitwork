@@ -192,6 +192,31 @@ models:
     mem_decay_slow: [0.96, 0.98, 0.993, 0.999]
     use_cross_layer_skip: true
 
+  grnn_harmonic:
+    embedding_size: 64
+    hidden_size: 128
+    n_layers: 3
+    n_columns: 4
+    n_attn_heads: 4
+    messaging: post
+    dropout: 0.0
+    ffn_expansion: 2
+    attn_dropout: 0.0
+    # 2D spectral LRU hierarchy
+    r_min_col: 0.3
+    r_min_layers: 0.7
+    r_max_layers: 0.999
+    # Surprise-Delta Memory
+    ema_beta: 0.9
+    delta_decay: 0.99
+    delta_decay_min: 0.95
+    lam_base: 0.01
+    # Frozen Reservoir — for long-range BPC
+    n_reservoir_cols: 4
+    reservoir_hidden_size: 64
+    r_res_min: 0.90
+    r_res_max: 0.999
+
 lr:
   val: 8e-4
   warmup:

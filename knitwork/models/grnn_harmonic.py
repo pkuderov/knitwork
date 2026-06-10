@@ -73,7 +73,7 @@ class SurpriseDeltaMemory(nn.Module):
         y_flat = y.reshape(C * B, -1)
 
         k = self.proj_k(y_flat).view(C, B, self.dk)
-        v = self.proj_v(y_flat).view(C, B, self.dv)
+        v = F.normalize(self.proj_v(y_flat).view(C, B, self.dv), dim=-1)  # bound delta_W
         q = self.proj_q(y_flat).view(C, B, self.dk)
 
         k = F.normalize(k + self.col_ids.unsqueeze(1), dim=-1)  # [C, B, dk]
@@ -89,10 +89,13 @@ class SurpriseDeltaMemory(nn.Module):
             surprise_acc += (error.detach() ** 2).mean(dim=-1)                               # [B]
             delta_W      += torch.bmm(k[c].unsqueeze(-1), error.unsqueeze(1))  # [B, dk, dv]
 
+        # normalize by C: stability condition requires alpha * C < 1 + decay
+        delta_W = delta_W / C
+
         # EMA of surprise: tracks "how unexpected" recent inputs are
         m_new = self.ema_beta * m_prev + (1.0 - self.ema_beta) * (surprise_acc / C)  # [B]
-        # sigmoid of log-surprise: smooth gate in (0,1), no division instability
-        alpha = torch.sigmoid(torch.log(m_new.detach().clamp(min=1e-8)))              # write [0,1]
+        # normalize within batch: highest-surprise element → alpha=1, others proportionally
+        alpha = (m_new / m_new.detach().max().clamp(min=1e-6)).clamp(0.0, 1.0)       # write [0,1]
 
         # adaptive forgetting: stronger when matrix is "fuller"
         fullness = W.detach().norm(dim=(-2, -1)) / math.sqrt(self.dk * self.dv)  # [B]
@@ -199,7 +202,8 @@ class HarmonicGridRNN(nn.Module):
         dk: int | None = None,        # key dim; default H // 4
         dv: int | None = None,        # value dim; default H
         ema_beta: float = 0.9,
-        delta_decay: float = 0.99,
+        delta_decay: float = 0.99,    # decay for top layer (slowest)
+        delta_decay_min: float = 0.95,# decay for bottom layer (fastest)
         lam_base: float = 0.01,
         # Frozen Reservoir (set n_reservoir_cols=0 to disable)
         n_reservoir_cols: int = 0,
@@ -260,7 +264,7 @@ class HarmonicGridRNN(nn.Module):
         for skip in self.embed_skip:
             nn.init.normal_(skip.weight, 0.0, 0.01)
 
-        # Block 2: Surprise-Delta Memory — one per layer, shared across columns
+        # Block 2: Surprise-Delta Memory — one per layer, per-layer decay schedule
         self.mem_layers = nn.ModuleList([
             SurpriseDeltaMemory(
                 hidden_size = H,
@@ -268,10 +272,11 @@ class HarmonicGridRNN(nn.Module):
                 dk          = self.dk,
                 dv          = self.dv,
                 ema_beta    = ema_beta,
-                delta_decay = delta_decay,
+                delta_decay = delta_decay_min + (delta_decay - delta_decay_min)
+                              * l / max(n_layers - 1, 1),  # 0.95 → 0.99
                 lam_base    = lam_base,
             )
-            for _ in range(n_layers)
+            for l in range(n_layers)
         ])
 
         # Block 3: Frozen Reservoir — one per layer
@@ -294,6 +299,9 @@ class HarmonicGridRNN(nn.Module):
         self.attn_gates = nn.ModuleList([
             nn.Linear(2 * H, 1) for _ in range(n_layers)
         ])
+
+        # inter-layer normalization: prevents magnitude explosion across layers
+        self.out_norms = nn.ModuleList([nn.LayerNorm(H) for _ in range(n_layers)])
 
         self.head = nn.Linear(H, output_size)
 
@@ -333,6 +341,7 @@ class HarmonicGridRNN(nn.Module):
     def _grid_step(self, x_embed: torch.Tensor, *, state):
         B = x_embed.shape[0]
         H = self.hidden_size
+        C = self.n_columns
 
         if state is None:
             state = self.init_state(B)
@@ -394,6 +403,8 @@ class HarmonicGridRNN(nn.Module):
             W_new_all.append(W_new)
             m_new_all.append(m_new)
 
+            # normalize before passing to next layer — prevents inter-layer magnitude growth
+            y_out = self.out_norms[l](y_out.reshape(C * B, H)).view(C, B, H)
             x_cols = [y_out[c] for c in range(self.n_columns)]
 
         new_state = HarmonicState(
