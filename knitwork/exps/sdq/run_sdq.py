@@ -181,6 +181,7 @@ def main(config):
     has_hgrn_betas = hasattr(rnn, 'get_hgrn_betas')
     has_reservoir  = hasattr(rnn, 'get_reservoir_spectral_radii')
     has_lru        = hasattr(rnn, 'lru_r_per_col')
+    has_harmonic   = hasattr(rnn, 'mem_layers') and hasattr(rnn, 'flatten_extras_stats')
     use_vae        = getattr(rnn, 'use_vae', False)
     is_fusion      = rnn_type == 'grnn_fusion'
 
@@ -230,6 +231,7 @@ def main(config):
     batch_sq_gaps: list = []
     batch_kl:      list = []
     batch_div:     list = []
+    batch_harmonic: list = []   # harmonic model diagnostics
 
     while step < n_steps:
         obs = gen.next()
@@ -238,7 +240,7 @@ def main(config):
         x = obs['tokens'].view(-1, 1)
 
         capture = vis_enabled and viz is not None and (step >= viz.next_step - gen.n_envs)
-        need_extras = capture or has_diversity or has_act_loss
+        need_extras = capture or has_diversity or has_act_loss or has_harmonic
 
         y, rnn_state, extras, kl = model_forward(rnn, x, rnn_state, capture=need_extras)
 
@@ -246,6 +248,10 @@ def main(config):
         if has_diversity and extras:
             div = rnn.compute_diversity_loss(extras)
             batch_div.append({k: v.detach() for k, v in div.items()})
+
+        # Harmonic model diagnostics (lightweight scalar dicts, no tensors)
+        if has_harmonic and extras:
+            batch_harmonic.append(rnn.flatten_extras_stats(extras))
 
         if capture and viz is not None:
             viz.update(step, extras, rnn_state, has_hgrn=has_hgrn_betas, has_fusion=is_fusion, rnn=rnn)
@@ -338,6 +344,14 @@ def main(config):
             if has_act_loss and extras.get('act_iters'):
                 for li, iters in enumerate(extras['act_iters']):
                     stat_dict[f'eq/iters/L{li}'] = float(iters.float().mean())
+            if has_harmonic and batch_harmonic:
+                # average harmonic diagnostics over rollout steps
+                keys = batch_harmonic[0].keys()
+                for k in keys:
+                    vals = [d[k] for d in batch_harmonic if k in d]
+                    if vals:
+                        stat_dict[k] = float(np.mean(vals))
+                batch_harmonic.clear()
             stats.put(stat_dict)
 
             if has_lru and logger is not None and step % (batch_size * 100) == 0:

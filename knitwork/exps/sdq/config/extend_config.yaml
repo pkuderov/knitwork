@@ -374,6 +374,7 @@ models:
     dk: null    # default H // 4 = 32
     dv: null    # default H = 128
     ema_beta: 0.9
+    ema_beta_min: 0.7    # per-layer EMA beta: layer0=0.7 (fast) → layerL=0.9 (slow)
     delta_decay: 0.99
     delta_decay_min: 0.95
     lam_base: 0.01

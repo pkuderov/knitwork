@@ -217,7 +217,9 @@ models:
     r_min_layers: 0.7
     r_max_layers: 0.999
     ema_beta: 0.9
+    ema_beta_min: 0.7
     delta_decay: 0.99
+    delta_decay_min: 0.95
     lam_base: 0.01
     n_reservoir_cols: 2
     reservoir_hidden_size: 32

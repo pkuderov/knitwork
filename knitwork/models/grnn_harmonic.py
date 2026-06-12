@@ -44,6 +44,7 @@ class SurpriseDeltaMemory(nn.Module):
         ema_beta: float = 0.9,
         delta_decay: float = 0.99,
         lam_base: float = 0.01,
+        layer_idx: int = 0,   # for debug prints only
     ):
         super().__init__()
         self.dk          = dk
@@ -51,6 +52,7 @@ class SurpriseDeltaMemory(nn.Module):
         self.ema_beta    = ema_beta
         self.delta_decay = delta_decay
         self.lam_base    = lam_base
+        self.layer_idx   = layer_idx
 
         self.proj_k   = nn.Linear(hidden_size, dk,         bias=False)
         self.proj_v   = nn.Linear(hidden_size, dv,         bias=False)
@@ -68,7 +70,7 @@ class SurpriseDeltaMemory(nn.Module):
         y: torch.Tensor,       # [C, B, H]
         W: torch.Tensor,       # [B, dk, dv]
         m_prev: torch.Tensor,  # [B]
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, dict]:
         C, B, _ = y.shape
         y_flat = y.reshape(C * B, -1)
 
@@ -83,10 +85,13 @@ class SurpriseDeltaMemory(nn.Module):
         W_frozen     = W.detach()
         delta_W      = torch.zeros_like(W)   # [B, dk, dv]
         surprise_acc = torch.zeros(B, device=y.device, dtype=y.dtype)
+        error_norm   = torch.zeros(B, device=y.device, dtype=y.dtype)
         for c in range(C):
-            v_pred = torch.bmm(W_frozen.transpose(-2, -1), k[c].unsqueeze(-1)).squeeze(-1)  # [B, dv]
-            error  = v[c] - v_pred                                                            # [B, dv]
-            surprise_acc += (error.detach() ** 2).mean(dim=-1)                               # [B]
+            v_pred       = torch.bmm(W_frozen.transpose(-2, -1), k[c].unsqueeze(-1)).squeeze(-1)  # [B, dv]
+            error        = v[c] - v_pred                                                             # [B, dv]
+            err_sq       = (error.detach() ** 2).mean(dim=-1)                                       # [B]
+            surprise_acc += err_sq
+            error_norm   += err_sq.sqrt()
             delta_W      += torch.bmm(k[c].unsqueeze(-1), error.unsqueeze(1))  # [B, dk, dv]
 
         # normalize by C: stability condition requires alpha * C < 1 + decay
@@ -110,7 +115,17 @@ class SurpriseDeltaMemory(nn.Module):
             for c in range(C)
         ]   # list of [B, H]
         h_msg = self.norm(torch.stack(msgs, dim=0))   # [C, B, H]
-        return h_msg, W_new, m_new
+
+        # memory diagnostics: scalars averaged over batch
+        with torch.no_grad():
+            stats = {
+                'W_norm':    W_new.detach().norm(dim=(-2, -1)).mean().item(),
+                'alpha':     alpha.mean().item(),
+                'surprise':  m_new.mean().item(),
+                'fullness':  fullness.mean().item(),
+                'error':     (error_norm / C).mean().item(),
+            }
+        return h_msg, W_new, m_new, stats
 
 
 class FrozenReservoir(nn.Module):
@@ -201,7 +216,8 @@ class HarmonicGridRNN(nn.Module):
         # Surprise-Delta Memory
         dk: int | None = None,        # key dim; default H // 4
         dv: int | None = None,        # value dim; default H
-        ema_beta: float = 0.9,
+        ema_beta: float = 0.9,        # EMA beta for top layer (slowest write)
+        ema_beta_min: float = 0.7,    # EMA beta for bottom layer (fastest write); v3
         delta_decay: float = 0.99,    # decay for top layer (slowest)
         delta_decay_min: float = 0.95,# decay for bottom layer (fastest)
         lam_base: float = 0.01,
@@ -264,17 +280,20 @@ class HarmonicGridRNN(nn.Module):
         for skip in self.embed_skip:
             nn.init.normal_(skip.weight, 0.0, 0.01)
 
-        # Block 2: Surprise-Delta Memory — one per layer, per-layer decay schedule
+        # Block 2: Surprise-Delta Memory — one per layer, per-layer decay+ema schedule
         self.mem_layers = nn.ModuleList([
             SurpriseDeltaMemory(
                 hidden_size = H,
                 n_cols      = n_columns,
                 dk          = self.dk,
                 dv          = self.dv,
-                ema_beta    = ema_beta,
+                # per-layer EMA beta: fast write for low layers, slow for high layers (v3)
+                ema_beta    = ema_beta_min + (ema_beta - ema_beta_min)
+                              * l / max(n_layers - 1, 1),  # 0.7 → 0.9
                 delta_decay = delta_decay_min + (delta_decay - delta_decay_min)
                               * l / max(n_layers - 1, 1),  # 0.95 → 0.99
                 lam_base    = lam_base,
+                layer_idx   = l,
             )
             for l in range(n_layers)
         ])
@@ -354,8 +373,10 @@ class HarmonicGridRNN(nn.Module):
         m_new_all     = []
         attn_list     = []
         gate_list     = []
+        mem_stats_all = []   # [L] of dicts — memory diagnostics per layer
+        col_stats_all = []   # [L] of dicts — column diagnostics per layer
 
-        x_cols = self._prepare_grid_input(x_embed, B)   # list[C] of [B, *]
+        x_cols = self._prepare_grid_input(x_embed, B)   # list[C] of [B, E]
 
         for l in range(self.n_layers):
             # Block 1: Spectral LRU + FFN
@@ -375,7 +396,8 @@ class HarmonicGridRNN(nn.Module):
             y_lru = y_lru + self.embed_skip[l](x_embed).unsqueeze(0)  # [1, B, H] broadcast
 
             # Block 2: Surprise-Delta Memory
-            y_mem, W_new, m_new = self.mem_layers[l](y_lru, W_s[l], m_s[l])
+            y_mem, W_new, m_new, mem_stats = self.mem_layers[l](y_lru, W_s[l], m_s[l])
+            mem_stats_all.append(mem_stats)
             y_aug = y_lru + y_mem   # [C, B, H]
 
             # Block 3: Frozen Reservoir (fed by first trainable column output)
@@ -403,6 +425,17 @@ class HarmonicGridRNN(nn.Module):
             W_new_all.append(W_new)
             m_new_all.append(m_new)
 
+            # column diagnostics: diversity and per-column norms
+            with torch.no_grad():
+                col_norms  = y_out.norm(dim=-1).mean(dim=-1)         # [C] — per-col activation norm
+                diversity  = y_out.std(dim=0).mean().item()           # scalar — spread across cols
+                gate_mean  = g.mean().item()                          # scalar — Hopfield gate strength
+                col_stats_all.append({
+                    'diversity': diversity,
+                    'gate':      gate_mean,
+                    **{f'col{c}_norm': col_norms[c].item() for c in range(C)},
+                })
+
             # normalize before passing to next layer — prevents inter-layer magnitude growth
             y_out = self.out_norms[l](y_out.reshape(C * B, H)).view(C, B, H)
             x_cols = [y_out[c] for c in range(self.n_columns)]
@@ -413,8 +446,14 @@ class HarmonicGridRNN(nn.Module):
             W     = torch.stack(W_new_all,     dim=0),   # [L, B, dk, dv]
             m     = torch.stack(m_new_all,     dim=0),   # [L, B]
         )
-        y_top  = y_out[0]                                 # top layer, col 0: [B, H]
-        extras = {'attn_weights': attn_list, 'gates': gate_list}
+        # v3: average all columns → all temporal scales contribute to prediction
+        y_top  = y_out.mean(0)   # [B, H]
+        extras = {
+            'attn_weights': attn_list,
+            'gates':        gate_list,
+            'mem_stats':    mem_stats_all,   # [L] of {W_norm, alpha, surprise, fullness, error}
+            'col_stats':    col_stats_all,   # [L] of {diversity, gate, col0_norm, ...}
+        }
         return new_state, y_top, extras
 
     def _assoc_loss(
@@ -435,8 +474,6 @@ class HarmonicGridRNN(nn.Module):
         cos_pos  = sim.diagonal()
         cos_neg  = sim.masked_fill(torch.eye(n, device=z.device, dtype=torch.bool), -1.0).max(dim=-1).values
         return (-cos_pos + F.relu(cos_neg + margin)).mean()
-
-    # -------------------------------------------------------------------------
 
     def init_state(self, bsz: int) -> HarmonicState:
         dev, dt  = self.head.weight.device, self.head.weight.dtype
@@ -473,12 +510,23 @@ class HarmonicGridRNN(nn.Module):
             m     = state.m.detach(),
         )
 
+    @staticmethod
+    def flatten_extras_stats(extras: dict) -> dict:
+        """Convert extras['mem_stats'] and extras['col_stats'] to a flat metric dict for logging."""
+        out = {}
+        for l, ms in enumerate(extras.get('mem_stats', [])):
+            for k, v in ms.items():
+                out[f'mem/{k}/L{l}'] = v
+        for l, cs in enumerate(extras.get('col_stats', [])):
+            for k, v in cs.items():
+                out[f'col/{k}/L{l}'] = v
+        return out
+
     def _cell_input_dim(self, ix_layer: int, ix_col: int, embedding_size: int) -> int:
         if ix_layer == 0:
-            return embedding_size if ix_col == 0 else self.hidden_size
+            return embedding_size   # v3: all cols get x_embed at layer 0 (same input, diff LRU r_max)
         return self.hidden_size
 
     def _prepare_grid_input(self, x: torch.Tensor, bsz: int) -> list:
-        H     = self.hidden_size
-        dummy = torch.zeros(bsz, H, device=x.device, dtype=x.dtype)
-        return [x] + [dummy] * (self.n_columns - 1)
+        # v3: broadcast x_embed to all columns — each col processes same token with its own LRU params
+        return [x] * self.n_columns

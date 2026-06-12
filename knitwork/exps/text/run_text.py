@@ -132,8 +132,9 @@ def main(config):
     rnn = rnn.to(device=device, dtype=dtype)
     print(f'Model on {next(rnn.parameters()).device} | dtype {next(rnn.parameters()).dtype}')
 
-    use_vae = getattr(rnn, 'use_vae', False)
-    has_grid = hasattr(rnn, 'n_layers') and hasattr(rnn, 'n_columns')
+    use_vae      = getattr(rnn, 'use_vae', False)
+    has_grid     = hasattr(rnn, 'n_layers') and hasattr(rnn, 'n_columns')
+    has_harmonic = hasattr(rnn, 'mem_layers') and hasattr(rnn, 'flatten_extras_stats')
 
     # Visualizers
     attn_vis = AttnFlowVisualizer(
@@ -188,7 +189,8 @@ def main(config):
     rnn_state   = None
     batch_y:    list = []
     batch_y_gt: list = []
-    batch_kl:   list = []
+    batch_kl:       list = []
+    batch_harmonic: list = []   # harmonic model diagnostics
     acc_by_pos: dict[int, float] = {}
 
     while step < n_steps:
@@ -201,7 +203,11 @@ def main(config):
         x = obs['tokens'].view(-1, 1)
 
         capture = vis_enabled and (step >= next_vis_step - gen.n_envs)
-        y, rnn_state, extras, kl = model_forward(rnn, x, rnn_state, capture=capture)
+        capture_extras = capture or has_harmonic
+        y, rnn_state, extras, kl = model_forward(rnn, x, rnn_state, capture=capture_extras)
+
+        if has_harmonic and extras:
+            batch_harmonic.append(rnn.flatten_extras_stats(extras))
 
         if capture and extras and attn_vis is not None:
             attn_vis.update(extras['attn_weights'])
@@ -278,6 +284,13 @@ def main(config):
                 stat_dict['KL_scale'] = kl_scale
             for pos, val in list(acc_by_pos.items())[:4]:
                 stat_dict[f'Acc[{pos}]'] = val
+            if has_harmonic and batch_harmonic:
+                keys = batch_harmonic[0].keys()
+                for k in keys:
+                    vals = [d[k] for d in batch_harmonic if k in d]
+                    if vals:
+                        stat_dict[k] = float(np.mean(vals))
+                batch_harmonic.clear()
             stats.put(stat_dict)
 
             rnn_state = rnn.detach_state(rnn_state)
