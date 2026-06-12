@@ -226,6 +226,7 @@ class HarmonicGridRNN(nn.Module):
         reservoir_hidden_size: int = 64,
         r_res_min: float = 0.90,
         r_res_max: float = 0.999,
+        multi_col_head: bool = True,  # True=mean(cols), False=col0 only (for RL)
         **_kwargs,   # absorb extra config keys
     ):
         super().__init__()
@@ -322,6 +323,7 @@ class HarmonicGridRNN(nn.Module):
         # inter-layer normalization: prevents magnitude explosion across layers
         self.out_norms = nn.ModuleList([nn.LayerNorm(H) for _ in range(n_layers)])
 
+        self.multi_col_head = multi_col_head
         self.head = nn.Linear(H, output_size)
 
         n_params = sum(p.numel() for p in self.parameters() if p.requires_grad)
@@ -447,7 +449,7 @@ class HarmonicGridRNN(nn.Module):
             m     = torch.stack(m_new_all,     dim=0),   # [L, B]
         )
         # v3: average all columns → all temporal scales contribute to prediction
-        y_top  = y_out.mean(0)   # [B, H]
+        y_top  = y_out.mean(0) if self.multi_col_head else y_out[0]   # [B, H]
         extras = {
             'attn_weights': attn_list,
             'gates':        gate_list,
@@ -524,9 +526,10 @@ class HarmonicGridRNN(nn.Module):
 
     def _cell_input_dim(self, ix_layer: int, ix_col: int, embedding_size: int) -> int:
         if ix_layer == 0:
-            return embedding_size   # v3: all cols get x_embed at layer 0 (same input, diff LRU r_max)
+            return embedding_size if ix_col == 0 else self.hidden_size
         return self.hidden_size
 
     def _prepare_grid_input(self, x: torch.Tensor, bsz: int) -> list:
-        # v3: broadcast x_embed to all columns — each col processes same token with its own LRU params
-        return [x] * self.n_columns
+        H = self.hidden_size
+        dummy = torch.zeros(bsz, H, device=x.device, dtype=x.dtype)
+        return [x] + [dummy] * (self.n_columns - 1)

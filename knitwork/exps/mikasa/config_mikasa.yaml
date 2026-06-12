@@ -221,10 +221,11 @@ models:
     delta_decay: 0.99
     delta_decay_min: 0.95
     lam_base: 0.01
-    n_reservoir_cols: 2
+    n_reservoir_cols: 0      # reservoir wrong for short RL episodes (τ≫ep_len)
     reservoir_hidden_size: 32
     r_res_min: 0.90
     r_res_max: 0.999
+    multi_col_head: false    # col0 only — focused policy representation for RL
 
 # LR schedule
 lr:

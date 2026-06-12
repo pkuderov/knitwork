@@ -34,7 +34,7 @@ class AttnFlowVisualizer:
                 continue
             # w: (n_cols, n_cols)
             w_np = w.detach().float().cpu().numpy()
-            if w_np.ndim == 3:
+            while w_np.ndim > 2:
                 w_np = w_np.mean(0)
             self._buffers[layer_idx].append(w_np)
 

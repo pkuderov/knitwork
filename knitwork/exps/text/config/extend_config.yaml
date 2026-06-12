@@ -217,6 +217,7 @@ models:
     reservoir_hidden_size: 64
     r_res_min: 0.90
     r_res_max: 0.999
+    multi_col_head: true    # mean over all columns for LM prediction
 
 lr:
   val: 8e-4
