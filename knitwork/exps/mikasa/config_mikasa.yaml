@@ -203,6 +203,27 @@ models:
     r_max_layers: 0.999
     lru_r_per_col: true
 
+  grnn_harmonic:
+    embedding_size: 64
+    hidden_size: 128
+    n_layers: 3
+    n_columns: 4
+    n_attn_heads: 4
+    messaging: post
+    dropout: 0.0
+    ffn_expansion: 2
+    attn_dropout: 0.0
+    r_min_col: 0.3
+    r_min_layers: 0.7
+    r_max_layers: 0.999
+    ema_beta: 0.9
+    delta_decay: 0.99
+    lam_base: 0.01
+    n_reservoir_cols: 2
+    reservoir_hidden_size: 32
+    r_res_min: 0.90
+    r_res_max: 0.999
+
 # LR schedule
 lr:
   val: 8.0e-4
