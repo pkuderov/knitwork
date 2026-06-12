@@ -35,6 +35,9 @@
   - [GridRNN-AdvLoss](methods/grnn_adv_loss.md)
   - [GridRNN-Disc](methods/grnn_disc.md)
 
+- **Гармонические**
+  - [HarmonicGridRNN](methods/grnn_harmonic.md)
+
 - **Fusion**
   - [Fusion cells](methods/fusion_cells.md)
   - [GridRNN-Fusion](methods/grnn_fusion.md)
