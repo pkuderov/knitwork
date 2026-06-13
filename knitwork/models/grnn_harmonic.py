@@ -42,28 +42,39 @@ class SurpriseDeltaMemory(nn.Module):
         dk: int,
         dv: int,
         ema_beta: float = 0.9,
-        delta_decay: float = 0.99,
+        delta_decay: float = 0.99,    # max decay (learned gate interpolates to this)
+        decay_min: float = 0.90,      # min decay (strong forgetting)
         lam_base: float = 0.01,
-        layer_idx: int = 0,   # for debug prints only
+        layer_idx: int = 0,
     ):
         super().__init__()
-        self.dk          = dk
-        self.dv          = dv
-        self.ema_beta    = ema_beta
-        self.delta_decay = delta_decay
-        self.lam_base    = lam_base
-        self.layer_idx   = layer_idx
+        self.dk        = dk
+        self.dv        = dv
+        self.ema_beta  = ema_beta
+        self.decay_max = delta_decay
+        self.decay_min = decay_min
+        self.lam_base  = lam_base
+        self.layer_idx = layer_idx
 
         self.proj_k   = nn.Linear(hidden_size, dk,         bias=False)
         self.proj_v   = nn.Linear(hidden_size, dv,         bias=False)
         self.proj_q   = nn.Linear(hidden_size, dk,         bias=False)
         self.proj_out = nn.Linear(dv,          hidden_size, bias=False)
-        self.col_ids  = nn.Parameter(torch.zeros(n_cols, dk))  # per-col key/query bias
+        self.col_ids  = nn.Parameter(torch.zeros(n_cols, dk))
         self.norm     = nn.LayerNorm(hidden_size)
+
+        # learned forget gate: decay = decay_min + (decay_max - decay_min) * sigmoid(forget_proj)
+        self.forget_proj = nn.Linear(hidden_size, 1, bias=True)
+        nn.init.constant_(self.forget_proj.bias, 2.0)  # init: sigmoid(2)≈0.88 → decay≈0.98
+
+        # Adam-style preconditioning: track key second moment for stable, scaled delta_W
+        self.register_buffer('v2', torch.ones(dk))  # init=1 avoids /eps blow-up at start
+        self.beta2    = 0.999
+        self.prec_eps = 1e-6
 
         for proj in (self.proj_k, self.proj_v, self.proj_q):
             nn.init.normal_(proj.weight, 0.0, 0.01)
-        nn.init.normal_(self.proj_out.weight, 0.0, 0.001)  # start muted
+        nn.init.normal_(self.proj_out.weight, 0.0, 0.001)
 
     def forward(
         self,
@@ -81,49 +92,59 @@ class SurpriseDeltaMemory(nn.Module):
         k = F.normalize(k + self.col_ids.unsqueeze(1), dim=-1)  # [C, B, dk]
         q = F.normalize(q + self.col_ids.unsqueeze(1), dim=-1)
 
+        # Adam-style preconditioning: update key second moment, normalize keys
+        k_sq  = (k.detach() ** 2).mean(dim=(0, 1))                          # [dk]
+        v2_new = self.beta2 * self.v2 + (1.0 - self.beta2) * k_sq
+        self.v2.copy_(v2_new.detach())
+        k_prec = k / (v2_new.sqrt().view(1, 1, self.dk) + self.prec_eps)    # [C, B, dk]
+
         # parallel delta rule on detached W — no chained Jacobians through sequential reads
         W_frozen     = W.detach()
         delta_W      = torch.zeros_like(W)   # [B, dk, dv]
         surprise_acc = torch.zeros(B, device=y.device, dtype=y.dtype)
         error_norm   = torch.zeros(B, device=y.device, dtype=y.dtype)
         for c in range(C):
-            v_pred       = torch.bmm(W_frozen.transpose(-2, -1), k[c].unsqueeze(-1)).squeeze(-1)  # [B, dv]
-            error        = v[c] - v_pred                                                             # [B, dv]
-            err_sq       = (error.detach() ** 2).mean(dim=-1)                                       # [B]
+            v_pred       = torch.bmm(W_frozen.transpose(-2, -1), k[c].unsqueeze(-1)).squeeze(-1)
+            error        = v[c] - v_pred                                         # [B, dv]
+            err_sq       = (error.detach() ** 2).mean(dim=-1)                   # [B]
             surprise_acc += err_sq
             error_norm   += err_sq.sqrt()
-            delta_W      += torch.bmm(k[c].unsqueeze(-1), error.unsqueeze(1))  # [B, dk, dv]
+            delta_W      += torch.bmm(k_prec[c].unsqueeze(-1), error.unsqueeze(1))  # [B, dk, dv]
 
-        # normalize by C: stability condition requires alpha * C < 1 + decay
-        delta_W = delta_W / C
+        delta_W = delta_W / C   # stability: alpha*C < 1 + effective_decay
 
-        # EMA of surprise: tracks "how unexpected" recent inputs are
-        m_new = self.ema_beta * m_prev + (1.0 - self.ema_beta) * (surprise_acc / C)  # [B]
-        # normalize within batch: highest-surprise element → alpha=1, others proportionally
-        alpha = (m_new / m_new.detach().max().clamp(min=1e-6)).clamp(0.0, 1.0)       # write [0,1]
+        # EMA surprise write-gate
+        m_new = self.ema_beta * m_prev + (1.0 - self.ema_beta) * (surprise_acc / C)
+        alpha = (m_new / m_new.detach().max().clamp(min=1e-6)).clamp(0.0, 1.0)  # [B]
 
-        # adaptive forgetting: stronger when matrix is "fuller"
+        # adaptive forgetting: stronger when matrix is fuller
         fullness = W.detach().norm(dim=(-2, -1)) / math.sqrt(self.dk * self.dv)  # [B]
-        lam      = self.lam_base * fullness.clamp(0.0, 1.0)                       # [B]
+        lam      = self.lam_base * fullness.clamp(0.0, 1.0)
 
-        W_new = (1.0 - lam).view(B, 1, 1) * self.delta_decay * W \
-              + alpha.view(B, 1, 1) * delta_W   # [B, dk, dv]
+        # learned forget gate: model decides how much to forget based on current context
+        forget          = torch.sigmoid(self.forget_proj(y.mean(0))).squeeze(-1)  # [B]
+        effective_decay = self.decay_min + (self.decay_max - self.decay_min) * forget  # [B]
+
+        W_new = (1.0 - lam).view(B, 1, 1) * effective_decay.view(B, 1, 1) * W \
+              + alpha.view(B, 1, 1) * delta_W
 
         # read for each column
-        msgs = [
+        msgs  = [
             self.proj_out(torch.bmm(W_new.transpose(-2, -1), q[c].unsqueeze(-1)).squeeze(-1))
             for c in range(C)
-        ]   # list of [B, H]
+        ]
         h_msg = self.norm(torch.stack(msgs, dim=0))   # [C, B, H]
 
-        # memory diagnostics: scalars averaged over batch
         with torch.no_grad():
             stats = {
-                'W_norm':    W_new.detach().norm(dim=(-2, -1)).mean().item(),
-                'alpha':     alpha.mean().item(),
-                'surprise':  m_new.mean().item(),
-                'fullness':  fullness.mean().item(),
-                'error':     (error_norm / C).mean().item(),
+                'W_norm':         W_new.detach().norm(dim=(-2, -1)).mean().item(),
+                'alpha':          alpha.mean().item(),
+                'surprise':       m_new.mean().item(),
+                'fullness':       fullness.mean().item(),
+                'error':          (error_norm / C).mean().item(),
+                'forget':         forget.mean().item(),
+                'eff_decay':      effective_decay.mean().item(),
+                'v2_norm':        v2_new.norm().item(),
             }
         return h_msg, W_new, m_new, stats
 
@@ -281,18 +302,16 @@ class HarmonicGridRNN(nn.Module):
         for skip in self.embed_skip:
             nn.init.normal_(skip.weight, 0.0, 0.01)
 
-        # Block 2: Surprise-Delta Memory — one per layer, per-layer decay+ema schedule
+        # Block 2: Surprise-Delta Memory — one per layer, per-layer ema schedule
         self.mem_layers = nn.ModuleList([
             SurpriseDeltaMemory(
                 hidden_size = H,
                 n_cols      = n_columns,
                 dk          = self.dk,
                 dv          = self.dv,
-                # per-layer EMA beta: fast write for low layers, slow for high layers (v3)
                 ema_beta    = ema_beta_min + (ema_beta - ema_beta_min)
-                              * l / max(n_layers - 1, 1),  # 0.7 → 0.9
-                delta_decay = delta_decay_min + (delta_decay - delta_decay_min)
-                              * l / max(n_layers - 1, 1),  # 0.95 → 0.99
+                              * l / max(n_layers - 1, 1),  # 0.7 → 0.9 per layer
+                delta_decay = delta_decay,   # decay_max; learned gate interpolates down to 0.90
                 lam_base    = lam_base,
                 layer_idx   = l,
             )
@@ -313,17 +332,21 @@ class HarmonicGridRNN(nn.Module):
         ])
 
         # Block 4: Hopfield over all columns (trainable + reservoir)
-        self.attn       = nn.ModuleList([
+        self.attn          = nn.ModuleList([
             HopfieldMessageLayer(H, n_attn_heads, attn_dropout) for _ in range(n_layers)
         ])
-        self.attn_gates = nn.ModuleList([
+        self.attn_gates    = nn.ModuleList([
             nn.Linear(2 * H, 1) for _ in range(n_layers)
         ])
+        # normalize inputs to Hopfield to prevent attractor collapse (col norm explosion)
+        self.pre_attn_norms = nn.ModuleList([nn.LayerNorm(H) for _ in range(n_layers)])
 
         # inter-layer normalization: prevents magnitude explosion across layers
         self.out_norms = nn.ModuleList([nn.LayerNorm(H) for _ in range(n_layers)])
 
         self.multi_col_head = multi_col_head
+        # learned column weights for multi-col head (model decides which timescale matters)
+        self.col_weights = nn.Parameter(torch.zeros(n_columns))
         self.head = nn.Linear(H, output_size)
 
         n_params = sum(p.numel() for p in self.parameters() if p.requires_grad)
@@ -407,10 +430,12 @@ class HarmonicGridRNN(nn.Module):
             # y_res: [C_res, B, H];  h_res_new: [C_res, B, H_res]
 
             # Block 4: Hopfield over trainable + reservoir columns
+            # normalize before attention to prevent attractor collapse (col norm explosion)
+            y_for_attn = self.pre_attn_norms[l](y_aug.reshape(C * B, H)).view(C, B, H)
             if self.n_reservoir_cols > 0:
-                all_cols = torch.cat([y_aug, y_res], dim=0)   # [C+C_res, B, H]
+                all_cols = torch.cat([y_for_attn, y_res], dim=0)   # [C+C_res, B, H]
             else:
-                all_cols = y_aug
+                all_cols = y_for_attn
 
             msgs, attn_w = self.attn[l](all_cols)
             attn_list.append(attn_w)
@@ -449,12 +474,20 @@ class HarmonicGridRNN(nn.Module):
             m     = torch.stack(m_new_all,     dim=0),   # [L, B]
         )
         # v3: average all columns → all temporal scales contribute to prediction
-        y_top  = y_out.mean(0) if self.multi_col_head else y_out[0]   # [B, H]
+        # learned weighted sum over columns (or col0 for RL)
+        if self.multi_col_head:
+            w     = F.softmax(self.col_weights, dim=0)          # [C]
+            y_top = (y_out * w.view(C, 1, 1)).sum(0)            # [B, H]
+        else:
+            y_top = y_out[0]
+        with torch.no_grad():
+            head_w = F.softmax(self.col_weights, dim=0).tolist() if self.multi_col_head else []
         extras = {
             'attn_weights': attn_list,
             'gates':        gate_list,
-            'mem_stats':    mem_stats_all,   # [L] of {W_norm, alpha, surprise, fullness, error}
-            'col_stats':    col_stats_all,   # [L] of {diversity, gate, col0_norm, ...}
+            'mem_stats':    mem_stats_all,
+            'col_stats':    col_stats_all,
+            'head_weights': head_w,   # [C] learned column weights in prediction head
         }
         return new_state, y_top, extras
 
@@ -514,7 +547,6 @@ class HarmonicGridRNN(nn.Module):
 
     @staticmethod
     def flatten_extras_stats(extras: dict) -> dict:
-        """Convert extras['mem_stats'] and extras['col_stats'] to a flat metric dict for logging."""
         out = {}
         for l, ms in enumerate(extras.get('mem_stats', [])):
             for k, v in ms.items():
@@ -522,6 +554,8 @@ class HarmonicGridRNN(nn.Module):
         for l, cs in enumerate(extras.get('col_stats', [])):
             for k, v in cs.items():
                 out[f'col/{k}/L{l}'] = v
+        for c, w in enumerate(extras.get('head_weights', [])):
+            out[f'col/head_w{c}'] = w
         return out
 
     def _cell_input_dim(self, ix_layer: int, ix_col: int, embedding_size: int) -> int:
