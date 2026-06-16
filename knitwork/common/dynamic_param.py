@@ -1,9 +1,74 @@
-from knitwork.common.scheduler import Scheduler
-from knitwork.common.utils import to_readable_num
+from knitwork.common.scheduler import Scheduler, create_scheduler
+from knitwork.common.utils import isnone, to_readable_num
 
 
 class DynamicParameter:
+    def __init__(
+            self, val: float, *, name: str = '',
+
+            # set target explicitly or via relative to the initial value
+            tar: float = None, rel: float = 1.0,
+
+            schedule: dict | Scheduler = None,
+
+            # mismatch-based change, factor = 1 - lr; val += lr * (tar - val)
+            factor: float = None, lr: float = None,
+
+            # const change by fraction of the full delta D = (target - initial)
+            # i.e. val += fraction * D, 
+            # or you can set the number of change events n_linear_steps to induce the fraction
+            fraction: float = None, n_linear_steps: int = None,
+
+            # warmup for the parameter, can be set as a separate DynamicParameter, its config or just a scheduler
+            warmup: dict | Scheduler = None,
+
+            print_debug: bool = False
+    ):
+        self.param = DynamicParameterBase(
+            val=val, name=name, tar=tar, rel=rel, schedule=schedule, 
+            factor=factor, lr=lr, fraction=fraction, n_linear_steps=n_linear_steps,
+            print_debug=print_debug
+        )
+
+        if warmup is not None:
+            warmup_cfg = dict(
+                val=0.0, tar=self.param.tar, name=f'{self.param.name}_warmup', warmup=None
+            )
+            if isinstance(warmup, dict):
+                warmup = DynamicParameter(**(warmup_cfg | warmup))
+            elif isinstance(warmup, Scheduler):
+                warmup = DynamicParameter(**warmup_cfg, schedule=warmup)
+        self.warmup = warmup
+    
+    @property
+    def val(self):
+        return self.warmup.val if self.is_warmup_stage() else self.param.val
+    
+    @property
+    def base_val(self):
+        return self.param.base_val
+
+    @property
+    def name(self):
+        return self.param.name
+
+    def step(self, n_steps=1):
+        if self.is_warmup_stage():
+            return self.warmup.step(n_steps)
+        else:
+            return self.param.step(n_steps)
+    
+    def is_enough(self):
+        # don't need to check warmup separately, since param defines the final stage anyway
+        return self.param.is_enough()
+
+    def is_warmup_stage(self):
+        return self.warmup is not None and not self.warmup.is_enough()
+
+
+class DynamicParameterBase:
     name: str
+    base_val: float
     val: float
     tar: float
 
@@ -21,25 +86,21 @@ class DynamicParameter:
             # set target explicitly or via relative to the initial value
             tar: float = None, rel: float = 1.0,
 
-            schedule: dict = None, scheduler: Scheduler = None,
+            schedule: int | dict | Scheduler = None,
 
             # mismatch-based change, factor = 1 - lr; val += lr * (tar - val)
             factor: float = None, lr: float = None,
 
             # const change by fraction of the full delta D = (target - initial)
-            # i.e. val += fraction * D, but if set > 1.0, defines the number of change events
-            # to induce the fraction
+            # i.e. val += fraction * D, 
+            # or you can set the number of change events n_linear_steps to induce the fraction
             fraction: float = None, n_linear_steps: int = None,
 
             print_debug: bool = False
     ):
         assert tar is not None or rel is not None
 
-        if scheduler is None:
-            schedule = schedule if schedule is not None else dict()
-            scheduler = Scheduler(**schedule)
-        self.scheduler = scheduler
-
+        self.scheduler = create_scheduler(schedule)
         assert (
             self.scheduler.is_infinite
             or factor is not None or lr is not None 
@@ -47,7 +108,7 @@ class DynamicParameter:
         )
 
         self.name = name
-        self.val = val
+        self.val = self.base_val = val
         self.tar = tar if tar is not None else val * rel
 
         self.is_lr_based = True
@@ -90,7 +151,7 @@ class DynamicParameter:
             self.val += self.fraction * self.delta
     
     def is_enough(self):
-        return abs(self.val - self.tar) < 1e-4 * (abs(self.val) + abs(self.tar))
+        return abs(self.val - self.tar) <= 1e-4 * (abs(self.val) + abs(self.tar))
 
     def print_state(self, prefix):
         v, sfx = to_readable_num(self.scheduler.schedule)

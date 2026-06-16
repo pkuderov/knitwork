@@ -66,7 +66,7 @@ To view locally: open `docs/index.html` in a browser or run `npx serve docs`.
 
 ## Project structure
 
-```
+```text
 knitwork/
   common/         # shared utilities: config, logging, scheduler, tracker, entrypoint
   gens/           # data generators: sdq.py, text.py, periodic.py

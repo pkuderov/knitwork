@@ -1,4 +1,4 @@
-from knitwork.common.scheduler import Scheduler
+from knitwork.common.scheduler import Scheduler, create_scheduler
 
 _AXES = ('T', 'p_store', 'p_query')
 
@@ -14,7 +14,8 @@ class CurriculumScheduler:
       multiaxis — each difficulty axis advances independently by its own accuracy gate
     """
     def __init__(
-            self, scheduler: Scheduler, key: str,
+            self, schedule: dict | Scheduler = None, *, 
+            key: str,
             mode: str = 'speed',
             minimization: bool = True,
             threshold: float = 0.0,
@@ -27,7 +28,7 @@ class CurriculumScheduler:
             reinforce_factors=(1.25, 0.97),
             lr=0.1,
     ):
-        self.scheduler = scheduler
+        self.scheduler = create_scheduler(schedule)
         self.key = key
         self.mode = mode
         min_sc, max_sc = allowed_range

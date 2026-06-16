@@ -2,19 +2,17 @@
 from __future__ import annotations
 
 import importlib
-from collections import defaultdict
 from datetime import datetime
 
 import numpy as np
 import torch
 from torch import nn
 
-from knitwork.common.config import extracted
 from knitwork.common.curriculum import CurriculumScheduler
-from knitwork.common.dynamic_param import DynamicParameter
 from knitwork.common.entrypoint import run_experiment
 from knitwork.common.logging import create_logger
-from knitwork.common.scheduler import Scheduler
+from knitwork.common.scheduler import create_scheduler
+from knitwork.common.torch import DynamicLearningRate
 from knitwork.common.tracker import Tracker
 from knitwork.common.status import write_status
 from knitwork.common.utils import (
@@ -192,20 +190,10 @@ def main(config):
 
     kl_anneal = make_kl_anneal(config.get('kl_anneal', {}))
 
-    # LR
-    lr_cfg = config['lr']
-    lr     = lr_cfg['val']
-    wm_lr_cfg, wm_lr_schedule = extracted(lr_cfg['warmup'], 'schedule')
-    dc_lr_cfg, dc_lr_schedule = extracted(lr_cfg['decay'],  'schedule')
-    wm_lr = DynamicParameter(val=1e-5*lr, tar=lr, **wm_lr_cfg, scheduler=Scheduler(wm_lr_schedule))
-    dc_lr = DynamicParameter(val=lr, **dc_lr_cfg, scheduler=Scheduler(dc_lr_schedule))
+    lr = DynamicLearningRate(name=f'LR', **config['lr'])
+    optim = torch.optim.RMSprop(rnn.parameters(), lr=lr.val)
+    lr.connect_to_optimiser(optim)
 
-    def get_lr():
-        return wm_lr.val if not wm_lr.scheduler.is_infinite else dc_lr.val
-    def step_lr():
-        return wm_lr.step() if not wm_lr.scheduler.is_infinite else dc_lr.step()
-
-    optim   = torch.optim.RMSprop(rnn.parameters(), lr=get_lr())
     loss_fn = nn.CrossEntropyLoss(reduction='mean', ignore_index=CE_ignore_index)
 
     rollout_len = config['rollout_len']
@@ -213,10 +201,9 @@ def main(config):
     n_steps     = int(config['n_steps'])
     step        = 0
 
-    log_stats_schedule   = Scheduler(int(config['log']['schedule']))
-    print_stats_schedule = Scheduler(int(config['log']['print_schedule']))
-    curriculum_cfg, curriculum_schedule = extracted(config['curriculum'], 'schedule')
-    curriculum_step = CurriculumScheduler(**curriculum_cfg, scheduler=Scheduler(curriculum_schedule))
+    log_stats_schedule = create_scheduler(config['log']['schedule'])
+    print_stats_schedule = create_scheduler(config['log']['print_schedule'])
+    curriculum_step = CurriculumScheduler(**config['curriculum'])
 
     logger = create_logger(config)
     stats       = Tracker(lr=2e-4)
@@ -310,14 +297,13 @@ def main(config):
             else:
                 print('Nan/Inf grad — step skipped')
 
-            if step_lr():
-                optim.param_groups[0]['lr'] = get_lr()
+            lr.step()
 
             stat_dict = {
                 'Loss':   to_numpy(ce_loss,    copy=False),
                 'Acc':    to_numpy(acc.mean(), copy=False),
                 '|Grad|': to_numpy(grad_norm,  copy=False),
-                'LR':     get_lr(),
+                'LR':     lr.val,
                 **{k: to_numpy(v, copy=False) for k, v in gap_metrics.items()},
             }
             if use_vae:
@@ -377,7 +363,7 @@ def main(config):
             print(
                 f'[{format_readable_num(step)}/{format_readable_num(n_steps, frac=0)}]'
                 f' {format_readable_num(fps, frac=0)}fps |'
-                f' LR:{int(100*m["LR"]/lr)}% |{kl_s}'
+                f' LR:{int(100*m["LR"]/lr.base_val)}% |{kl_s}'
                 f' L:{m["Loss"]:.3f}'
                 f' A:{m["Acc"]:.3f}'
                 f' Aq:{m.get("Acc/query", float("nan")):.3f}'

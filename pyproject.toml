@@ -15,9 +15,6 @@ dependencies = [
     "aim>=3.20",
     "ryaml>=0.5.1",
     "popgym>=1.0.6",
-    "nvidia-cudnn-cu13>=9.23.0.39",
-    "nvidia-cusparselt-cu13>=0.9.1",
-    "nvidia-nccl-cu13>=2.30.4",
 ]
 
 [build-system]
@@ -26,3 +23,25 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 packages = ["knitwork"]
+
+[tool.uv]
+required-environments = [
+  "sys_platform == 'darwin' and platform_machine == 'arm64'",
+  "sys_platform == 'linux' and platform_machine == 'x86_64'"
+]
+
+[tool.uv.sources]
+torch = [
+  { index = "pytorch-cpu", marker = "sys_platform == 'darwin' and platform_machine == 'arm64'" },
+  { index = "pytorch-cu130", marker = "sys_platform == 'linux' and platform_machine == 'x86_64'" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true

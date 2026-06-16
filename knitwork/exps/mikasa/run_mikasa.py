@@ -9,11 +9,10 @@ import torch.nn.functional as F
 from torch import nn
 from torch.distributions import Categorical
 
-from knitwork.common.config import extracted
-from knitwork.common.dynamic_param import DynamicParameter
 from knitwork.common.entrypoint import run_experiment
 from knitwork.common.logging import create_logger
-from knitwork.common.scheduler import Scheduler
+from knitwork.common.scheduler import create_scheduler
+from knitwork.common.torch import DynamicLearningRate
 from knitwork.common.tracker import Tracker
 from knitwork.common.utils import (
     FpsCounter, flatten_dict,
@@ -166,29 +165,17 @@ def main(config):
         # Grid: [layers, cols, B, H or 2H]
         return h[-1, 0, :, :actor_hidden]
 
-    # LR warmup + decay
-    lr_cfg = config['lr']
-    lr     = lr_cfg['val']
-    wm_lr_cfg, wm_lr_schedule = extracted(lr_cfg['warmup'], 'schedule')
-    dc_lr_cfg, dc_lr_schedule = extracted(lr_cfg['decay'],  'schedule')
-    wm_lr = DynamicParameter(val=1e-5 * lr, tar=lr, **wm_lr_cfg, scheduler=Scheduler(wm_lr_schedule))
-    dc_lr = DynamicParameter(val=lr, **dc_lr_cfg, scheduler=Scheduler(dc_lr_schedule))
-
-    def get_lr():
-        return wm_lr.val if not wm_lr.scheduler.is_infinite else dc_lr.val
-
-    def step_lr():
-        return wm_lr.step() if not wm_lr.scheduler.is_infinite else dc_lr.step()
-
     all_params = list(rnn.parameters()) + list(critic.parameters())
-    optim = torch.optim.Adam(all_params, lr=get_lr(), eps=1e-5)
+    lr = DynamicLearningRate(name=f'LR', **config['lr'])
+    optim = torch.optim.RMSprop(all_params, lr=lr.val, eps=1e-5)
+    lr.connect_to_optimiser(optim)
 
     rollout_len = config['rollout_len']
     n_steps     = int(config['n_steps'])
     step        = 0
 
-    log_stats_schedule   = Scheduler(int(config['log']['schedule']))
-    print_stats_schedule = Scheduler(int(config['log']['print_schedule']))
+    log_stats_schedule = create_scheduler(config['log']['schedule'])
+    print_stats_schedule = create_scheduler(config['log']['print_schedule'])
 
     logger = create_logger(config)
     stats       = Tracker(lr=lr)
@@ -303,16 +290,14 @@ def main(config):
 
         rnn_state = rnn.detach_state(rnn_state)
 
-        if step_lr():
-            for pg in optim.param_groups:
-                pg['lr'] = get_lr()
+        lr.step()
 
         stats.put({
             'PolicyLoss' : total_policy_loss / max(n_updates, 1),
             'ValueLoss'  : total_value_loss  / max(n_updates, 1),
             'Entropy'    : total_entropy     / max(n_updates, 1),
             'MeanReward' : to_numpy(rewards_t.mean()),
-            'LR'         : get_lr(),
+            'LR'         : lr.val,
         })
 
         if print_stats_schedule.tick(n_envs * rollout_len):
@@ -322,7 +307,7 @@ def main(config):
             print(
                 f'[{format_readable_num(step)} / {format_readable_num(n_steps, frac=0)}]'
                 f' {format_readable_num(fps, frac=0)} fps |'
-                f' LR:{int(100*m["LR"]/lr)}% |'
+                f' LR:{int(100*m["LR"]/lr.base_val)}% |'
                 f' PL:{m["PolicyLoss"]:.3f}'
                 f' VL:{m["ValueLoss"]:.3f}'
                 f' H:{m["Entropy"]:.2f}'

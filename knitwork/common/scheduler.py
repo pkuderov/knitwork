@@ -54,3 +54,16 @@ class Scheduler:
 
     def reset(self):
         self.remain = self.schedule
+
+
+def create_scheduler(cfg: int | dict | Scheduler | None = None) -> Scheduler:
+    if cfg is None:
+        cfg = dict()
+    elif isinstance(cfg, Scheduler):
+        return cfg
+    elif isinstance(cfg, dict):
+        ...
+    else:
+        # schedule, it may be specified as float as well
+        cfg = dict(schedule=int(cfg))
+    return Scheduler(**cfg)
