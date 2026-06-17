@@ -21,10 +21,12 @@ from knitwork.models.hgrnn_lru import HopfieldMessageLayer, LRUCell, Positionwis
 
 
 class HarmonicState(NamedTuple):
-    h:     torch.Tensor  # [L, C, B, 2H]        — LRU complex states (Re | Im)
-    h_res: torch.Tensor  # [L, C_res, B, H_res]  — frozen reservoir states
-    W:     torch.Tensor  # [L, B, dk, dv]         — surprise-delta memory
-    m:     torch.Tensor  # [L, B]                  — EMA surprise per layer
+    h:      torch.Tensor  # [L, C, B, 2H]         — LRU complex states (Re | Im)
+    h_res:  torch.Tensor  # [L, C_res, B, H_res]   — frozen reservoir states
+    W:      torch.Tensor  # [L, B, dk, dv]          — surprise-delta memory
+    m:      torch.Tensor  # [L, B]                   — EMA velocity-surprise per layer
+    v2:     torch.Tensor  # [L, B, dk]               — per-batch Adam preconditioner
+    y_prev: torch.Tensor  # [L, C, B, H]             — previous LRU outputs for velocity
 
 
 class SurpriseDeltaMemory(nn.Module):
@@ -67,8 +69,7 @@ class SurpriseDeltaMemory(nn.Module):
         self.forget_proj = nn.Linear(hidden_size, 1, bias=True)
         nn.init.constant_(self.forget_proj.bias, 2.0)  # init: sigmoid(2)≈0.88 → decay≈0.98
 
-        # Adam-style preconditioning: track key second moment for stable, scaled delta_W
-        self.register_buffer('v2', torch.ones(dk))  # init=1 avoids /eps blow-up at start
+        # Adam-style preconditioning: v2 passed in from HarmonicState (per-batch, avoids RL contamination)
         self.beta2    = 0.999
         self.prec_eps = 1e-6
 
@@ -78,54 +79,54 @@ class SurpriseDeltaMemory(nn.Module):
 
     def forward(
         self,
-        y: torch.Tensor,       # [C, B, H]
-        W: torch.Tensor,       # [B, dk, dv]
-        m_prev: torch.Tensor,  # [B]
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, dict]:
+        y: torch.Tensor,        # [C, B, H]
+        W: torch.Tensor,        # [B, dk, dv]
+        m_prev: torch.Tensor,   # [B]
+        v2_prev: torch.Tensor,  # [B, dk] — per-batch Adam preconditioner
+        y_prev: torch.Tensor,   # [C, B, H] — previous step LRU output for velocity
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, dict]:
         C, B, _ = y.shape
         y_flat = y.reshape(C * B, -1)
 
         k = self.proj_k(y_flat).view(C, B, self.dk)
-        v = F.normalize(self.proj_v(y_flat).view(C, B, self.dv), dim=-1)  # bound delta_W
+        # noise injection: prevents memory from freezing when prediction error → 0
+        v_raw = self.proj_v(y_flat).view(C, B, self.dv)
+        v = F.normalize(v_raw, dim=-1) + 0.01 * torch.randn_like(v_raw)
         q = self.proj_q(y_flat).view(C, B, self.dk)
 
         k = F.normalize(k + self.col_ids.unsqueeze(1), dim=-1)  # [C, B, dk]
         q = F.normalize(q + self.col_ids.unsqueeze(1), dim=-1)
 
-        # Adam-style preconditioning: update key second moment, normalize keys
-        k_sq  = (k.detach() ** 2).mean(dim=(0, 1))                          # [dk]
-        v2_new = self.beta2 * self.v2 + (1.0 - self.beta2) * k_sq
-        self.v2.copy_(v2_new.detach())
-        k_prec = k / (v2_new.sqrt().view(1, 1, self.dk) + self.prec_eps)    # [C, B, dk]
+        # per-batch Adam preconditioning (v2_prev: [B, dk])
+        k_sq   = (k.detach() ** 2).mean(dim=0)                              # [B, dk]
+        v2_new = self.beta2 * v2_prev + (1.0 - self.beta2) * k_sq
+        k_prec = k / (v2_new.sqrt().unsqueeze(0) + self.prec_eps)           # [C, B, dk]
 
         # parallel delta rule on detached W — no chained Jacobians through sequential reads
-        W_frozen     = W.detach()
-        delta_W      = torch.zeros_like(W)   # [B, dk, dv]
-        surprise_acc = torch.zeros(B, device=y.device, dtype=y.dtype)
-        error_norm   = torch.zeros(B, device=y.device, dtype=y.dtype)
+        W_frozen   = W.detach()
+        delta_W    = torch.zeros_like(W)   # [B, dk, dv]
+        error_norm = torch.zeros(B, device=y.device, dtype=y.dtype)
         for c in range(C):
-            v_pred       = torch.bmm(W_frozen.transpose(-2, -1), k[c].unsqueeze(-1)).squeeze(-1)
-            error        = v[c] - v_pred                                         # [B, dv]
-            err_sq       = (error.detach() ** 2).mean(dim=-1)                   # [B]
-            surprise_acc += err_sq
-            error_norm   += err_sq.sqrt()
-            delta_W      += torch.bmm(k_prec[c].unsqueeze(-1), error.unsqueeze(1))  # [B, dk, dv]
+            v_pred  = torch.bmm(W_frozen.transpose(-2, -1), k[c].unsqueeze(-1)).squeeze(-1)
+            error   = v[c] - v_pred                                          # [B, dv]
+            error_norm += (error.detach() ** 2).mean(dim=-1).sqrt()
+            delta_W += torch.bmm(k_prec[c].unsqueeze(-1), error.unsqueeze(1))   # [B, dk, dv]
 
         delta_W = delta_W / C   # stability: alpha*C < 1 + effective_decay
 
-        # EMA surprise write-gate
-        m_new = self.ema_beta * m_prev + (1.0 - self.ema_beta) * (surprise_acc / C)
+        # velocity-based write-gate (ema_mem style): write ∝ state change, not prediction error
+        vel   = (y.detach() - y_prev).norm(dim=-1).mean(dim=0)              # [B]
+        m_new = self.ema_beta * m_prev + (1.0 - self.ema_beta) * vel
         alpha = (m_new / m_new.detach().max().clamp(min=1e-6)).clamp(0.0, 1.0)  # [B]
 
-        # adaptive forgetting: stronger when matrix is fuller
-        fullness = W.detach().norm(dim=(-2, -1)) / math.sqrt(self.dk * self.dv)  # [B]
-        lam      = self.lam_base * fullness.clamp(0.0, 1.0)
+        # fixed forgetting (fullness-adaptive was < 5% always, negligible effect)
+        lam = self.lam_base
 
-        # learned forget gate: model decides how much to forget based on current context
-        forget          = torch.sigmoid(self.forget_proj(y.mean(0))).squeeze(-1)  # [B]
-        effective_decay = self.decay_min + (self.decay_max - self.decay_min) * forget  # [B]
+        # learned forget gate: model decides how much to forget
+        forget          = torch.sigmoid(self.forget_proj(y.mean(0))).squeeze(-1)   # [B]
+        effective_decay = self.decay_min + (self.decay_max - self.decay_min) * forget
 
-        W_new = (1.0 - lam).view(B, 1, 1) * effective_decay.view(B, 1, 1) * W \
+        W_new = (1.0 - lam) * effective_decay.view(B, 1, 1) * W \
               + alpha.view(B, 1, 1) * delta_W
 
         # read for each column
@@ -136,17 +137,18 @@ class SurpriseDeltaMemory(nn.Module):
         h_msg = self.norm(torch.stack(msgs, dim=0))   # [C, B, H]
 
         with torch.no_grad():
+            fullness = W.detach().norm(dim=(-2, -1)) / math.sqrt(self.dk * self.dv)
             stats = {
-                'W_norm':         W_new.detach().norm(dim=(-2, -1)).mean().item(),
-                'alpha':          alpha.mean().item(),
-                'surprise':       m_new.mean().item(),
-                'fullness':       fullness.mean().item(),
-                'error':          (error_norm / C).mean().item(),
-                'forget':         forget.mean().item(),
-                'eff_decay':      effective_decay.mean().item(),
-                'v2_norm':        v2_new.norm().item(),
+                'W_norm':     W_new.detach().norm(dim=(-2, -1)).mean().item(),
+                'alpha':      alpha.mean().item(),
+                'surprise':   m_new.mean().item(),
+                'fullness':   fullness.mean().item(),
+                'error':      (error_norm / C).mean().item(),
+                'forget':     forget.mean().item(),
+                'eff_decay':  effective_decay.mean().item(),
+                'v2_norm':    v2_new.norm(dim=-1).mean().item(),
             }
-        return h_msg, W_new, m_new, stats
+        return h_msg, W_new, m_new, v2_new, stats
 
 
 class FrozenReservoir(nn.Module):
@@ -390,12 +392,14 @@ class HarmonicGridRNN(nn.Module):
         if state is None:
             state = self.init_state(B)
 
-        h_s, h_res_s, W_s, m_s = state
+        h_s, h_res_s, W_s, m_s, v2_s, y_prev_s = state
 
         h_new_all     = []
         h_res_new_all = []
         W_new_all     = []
         m_new_all     = []
+        v2_new_all    = []
+        y_prev_new_all = []
         attn_list     = []
         gate_list     = []
         mem_stats_all = []   # [L] of dicts — memory diagnostics per layer
@@ -421,7 +425,9 @@ class HarmonicGridRNN(nn.Module):
             y_lru = y_lru + self.embed_skip[l](x_embed).unsqueeze(0)  # [1, B, H] broadcast
 
             # Block 2: Surprise-Delta Memory
-            y_mem, W_new, m_new, mem_stats = self.mem_layers[l](y_lru, W_s[l], m_s[l])
+            y_mem, W_new, m_new, v2_new, mem_stats = self.mem_layers[l](
+                y_lru, W_s[l], m_s[l], v2_s[l], y_prev_s[l],
+            )
             mem_stats_all.append(mem_stats)
             y_aug = y_lru + y_mem   # [C, B, H]
 
@@ -451,6 +457,8 @@ class HarmonicGridRNN(nn.Module):
             h_res_new_all.append(h_res_new)
             W_new_all.append(W_new)
             m_new_all.append(m_new)
+            v2_new_all.append(v2_new)
+            y_prev_new_all.append(y_lru.detach())
 
             # column diagnostics: diversity and per-column norms
             with torch.no_grad():
@@ -468,10 +476,12 @@ class HarmonicGridRNN(nn.Module):
             x_cols = [y_out[c] for c in range(self.n_columns)]
 
         new_state = HarmonicState(
-            h     = torch.stack(h_new_all,     dim=0),   # [L, C, B, 2H]
-            h_res = torch.stack(h_res_new_all, dim=0),   # [L, C_res, B, H_res]
-            W     = torch.stack(W_new_all,     dim=0),   # [L, B, dk, dv]
-            m     = torch.stack(m_new_all,     dim=0),   # [L, B]
+            h      = torch.stack(h_new_all,      dim=0),   # [L, C, B, 2H]
+            h_res  = torch.stack(h_res_new_all,  dim=0),   # [L, C_res, B, H_res]
+            W      = torch.stack(W_new_all,      dim=0),   # [L, B, dk, dv]
+            m      = torch.stack(m_new_all,      dim=0),   # [L, B]
+            v2     = torch.stack(v2_new_all,     dim=0),   # [L, B, dk]
+            y_prev = torch.stack(y_prev_new_all, dim=0),   # [L, C, B, H]
         )
         # v3: average all columns → all temporal scales contribute to prediction
         # learned weighted sum over columns (or col0 for RL)
@@ -516,10 +526,12 @@ class HarmonicGridRNN(nn.Module):
         C_res    = self.n_reservoir_cols
         H_res    = self.reservoirs[0].hidden_size if C_res > 0 else 1
         return HarmonicState(
-            h     = torch.zeros(L, C,    bsz, 2 * H,  device=dev, dtype=dt),
-            h_res = torch.zeros(L, C_res, bsz, H_res,  device=dev, dtype=dt),
-            W     = torch.zeros(L, bsz, self.dk, self.dv, device=dev, dtype=dt),
-            m     = torch.zeros(L, bsz,                   device=dev, dtype=dt),
+            h      = torch.zeros(L, C,    bsz, 2 * H,          device=dev, dtype=dt),
+            h_res  = torch.zeros(L, C_res, bsz, H_res,          device=dev, dtype=dt),
+            W      = torch.zeros(L, bsz, self.dk, self.dv,      device=dev, dtype=dt),
+            m      = torch.zeros(L, bsz,                         device=dev, dtype=dt),
+            v2     = torch.ones( L, bsz, self.dk,                device=dev, dtype=dt),
+            y_prev = torch.zeros(L, C, bsz, H,                   device=dev, dtype=dt),
         )
 
     def reset_state(self, state, reset_mask) -> HarmonicState:
@@ -528,21 +540,26 @@ class HarmonicGridRNN(nn.Module):
         if not reset_mask.any():
             return state
         keep = (~reset_mask.bool()).to(dtype=state.h.dtype, device=state.h.device)
+        reset = reset_mask.bool()
         return HarmonicState(
-            h     = state.h     * keep.view(1, 1, -1, 1),   # [L, C, B, 2H]
-            h_res = state.h_res * keep.view(1, 1, -1, 1),   # [L, C_res, B, H_res]
-            W     = state.W     * keep.view(1, -1, 1, 1),   # [L, B, dk, dv]
-            m     = state.m     * keep.view(1, -1),          # [L, B]
+            h      = state.h     * keep.view(1, 1, -1, 1),   # [L, C, B, 2H]
+            h_res  = state.h_res * keep.view(1, 1, -1, 1),   # [L, C_res, B, H_res]
+            W      = state.W     * keep.view(1, -1, 1, 1),   # [L, B, dk, dv]
+            m      = state.m     * keep.view(1, -1),          # [L, B]
+            v2     = torch.where(reset.view(1, -1, 1), torch.ones_like(state.v2),   state.v2),
+            y_prev = state.y_prev * keep.view(1, 1, -1, 1),  # zero on reset — no false velocity
         )
 
     def detach_state(self, state) -> HarmonicState | None:
         if state is None:
             return None
         return HarmonicState(
-            h     = state.h.detach(),
-            h_res = state.h_res.detach(),
-            W     = state.W.detach(),
-            m     = state.m.detach(),
+            h      = state.h.detach(),
+            h_res  = state.h_res.detach(),
+            W      = state.W.detach(),
+            m      = state.m.detach(),
+            v2     = state.v2.detach(),
+            y_prev = state.y_prev.detach(),
         )
 
     @staticmethod
