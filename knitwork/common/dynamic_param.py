@@ -1,5 +1,5 @@
 from knitwork.common.scheduler import Scheduler, create_scheduler
-from knitwork.common.utils import isnone, to_readable_num
+from knitwork.common.utils import to_readable_num
 
 
 class DynamicParameter:

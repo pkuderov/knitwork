@@ -4,14 +4,16 @@ import numpy as np
 import torch
 from torch import nn
 
-from knitwork.common.config import extracted
 from knitwork.common.dynamic_param import DynamicParameter
 from knitwork.common.entrypoint import run_experiment
 from knitwork.common.logging import create_logger
-from knitwork.common.scheduler import Scheduler, create_scheduler
+from knitwork.common.scheduler import create_scheduler
 from knitwork.common.torch import DynamicLearningRate
 from knitwork.common.tracker import Tracker
-from knitwork.common.utils import CE_ignore_index, FpsCounter, flatten_dict, format_readable_num, get_device, get_dtype, to_numpy, to_torch
+from knitwork.common.utils import (
+    CE_ignore_index, FpsCounter, flatten_dict, format_readable_num, 
+    get_device, get_dtype, to_numpy, to_torch
+)
 from knitwork.gens.text import TextGenerator, load_dataset, tokenize
 
 

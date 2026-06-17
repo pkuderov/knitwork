@@ -56,13 +56,13 @@ models:
 
 lr:
   val: 8e-4
+  rel: 0.02
+  lr: 0.005
+  schedule: 2000
   warmup:
+    val: 1e-9
     n_linear_steps: 50
     schedule: 100
-  decay:
-    rel: 0.02
-    lr: 0.005
-    schedule: 2000
 
 curriculum:
   schedule: 2e+5
