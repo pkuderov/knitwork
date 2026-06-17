@@ -143,7 +143,7 @@ def main(config):
     if logger is not None:
         config.setdefault('log', {})['name'] = run_name
 
-    stats       = Tracker(lr=lr)
+    stats       = Tracker(lr=2e-4)
     fps_counter = FpsCounter()
 
     rnn_state = None
