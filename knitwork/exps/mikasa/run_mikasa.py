@@ -178,7 +178,7 @@ def main(config):
     print_stats_schedule = create_scheduler(config['log']['print_schedule'])
 
     logger = create_logger(config)
-    stats       = Tracker(lr=lr)
+    stats       = Tracker(lr=2e-4)
     fps_counter = FpsCounter()
 
     rnn_state = None
