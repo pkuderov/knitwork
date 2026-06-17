@@ -340,6 +340,8 @@ class HarmonicGridRNN(nn.Module):
         self.attn_gates    = nn.ModuleList([
             nn.Linear(2 * H, 1) for _ in range(n_layers)
         ])
+        for gate in self.attn_gates:
+            nn.init.constant_(gate.bias, -4.0)  # sigmoid(-4)≈0.018 — Hopfield starts near-inactive
         # normalize inputs to Hopfield to prevent attractor collapse (col norm explosion)
         self.pre_attn_norms = nn.ModuleList([nn.LayerNorm(H) for _ in range(n_layers)])
 

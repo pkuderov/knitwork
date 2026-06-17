@@ -86,7 +86,6 @@ GAMMA        = 0.99
 GAE_LAMBDA   = 0.95
 CLIP_EPS     = 0.2
 VALUE_COEF   = 0.5
-ENTROPY_COEF = 0.01
 MAX_GRAD_NORM = 0.5
 PPO_EPOCHS   = 4
 
@@ -120,10 +119,11 @@ def main(config):
     config.setdefault('log', {})['name'] = run_name
     print(f'Run name: {run_name}')
 
-    rng    = np.random.default_rng(config['seed'])
-    device = get_device(config.get('device', None))
-    dtype  = get_dtype(config.get('dtype', None))
-    n_envs = config['n_envs']
+    rng          = np.random.default_rng(config['seed'])
+    device       = get_device(config.get('device', None))
+    dtype        = get_dtype(config.get('dtype', None))
+    n_envs       = config['n_envs']
+    entropy_coef = config.get('entropy_coef', 0.05)
 
     # env
     env_id = config['env']
@@ -275,7 +275,7 @@ def main(config):
                 ).mean()
                 v_loss = F.mse_loss(value_new, returns[t])
 
-                loss = p_loss + VALUE_COEF * v_loss - ENTROPY_COEF * entropy
+                loss = p_loss + VALUE_COEF * v_loss - entropy_coef * entropy
                 optim.zero_grad()
                 loss.backward()
                 nn.utils.clip_grad_norm_(all_params, MAX_GRAD_NORM)

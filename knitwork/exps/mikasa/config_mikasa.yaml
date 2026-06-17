@@ -33,9 +33,10 @@ dtype: float32
 
 env: popgym-RepeatFirstEasy-v0
 model: grnn_lru
-rollout_len: 32
+rollout_len: 128
 n_envs: 64
 n_steps: 2.0e+8
+entropy_coef: 0.05   # 0.01 too low — policy collapses during warmup before LR kicks in
 
 # Конфигурации моделей
 models:
@@ -235,5 +236,5 @@ lr:
   schedule: 2000
   warmup:
     val: 1e-9
-    n_linear_steps: 50
+    n_linear_steps: 5    # was 50 → 10.24M steps warmup; now ~1M
     schedule: 100
