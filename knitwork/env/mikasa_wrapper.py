@@ -99,8 +99,12 @@ class MikasakWrapper:
             'reset_mask': self._pending_reset.copy(),     # [B] bool
         }
 
-    def step(self, actions: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-        """Apply actions; return (rewards [B], dones [B])."""
+    def step(self, actions: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Apply actions; return (rewards [B], dones [B], terminated [B]).
+
+        dones      = terminated | truncated  — use for GAE carry-over mask and state reset
+        terminated — use for GAE bootstrap mask (truncated episodes must still bootstrap V)
+        """
         obs_arr, rewards, terminated, truncated, _ = self._env.step(actions)
 
         dones = terminated | truncated
@@ -117,7 +121,7 @@ class MikasakWrapper:
         self._current_obs   = _flatten_obs(obs_arr, self.obs_space)
         self._pending_reset = dones.copy()
 
-        return rewards.astype(np.float32), dones.astype(np.float32)
+        return rewards.astype(np.float32), dones.astype(np.float32), terminated.astype(np.float32)
 
     def get_stats(self) -> dict:
         if not self._completed_returns:

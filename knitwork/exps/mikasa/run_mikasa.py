@@ -92,17 +92,19 @@ PPO_EPOCHS   = 4
 
 
 def compute_gae(
-    rewards: torch.Tensor,  # [T, B]
-    values:  torch.Tensor,  # [T+1, B]
-    dones:   torch.Tensor,  # [T, B]
+    rewards:    torch.Tensor,  # [T, B]
+    values:     torch.Tensor,  # [T+1, B]
+    dones:      torch.Tensor,  # [T, B]  terminated | truncated — resets GAE carry-over
+    terminated: torch.Tensor,  # [T, B]  true terminal only — zeros bootstrap
 ) -> tuple[torch.Tensor, torch.Tensor]:
     T = rewards.shape[0]
     advs = torch.zeros_like(rewards)
     gae  = torch.zeros(rewards.shape[1], device=rewards.device)
     for t in reversed(range(T)):
-        mask    = 1.0 - dones[t]
-        delta   = rewards[t] + GAMMA * values[t + 1] * mask - values[t]
-        gae     = delta + GAMMA * GAE_LAMBDA * mask * gae
+        mask_cont = 1.0 - dones[t]        # 0 on any done — stops GAE carry-over
+        mask_boot = 1.0 - terminated[t]   # 0 only on true termination — zeros V(s_next)
+        delta   = rewards[t] + GAMMA * values[t + 1] * mask_boot - values[t]
+        gae     = delta + GAMMA * GAE_LAMBDA * mask_cont * gae
         advs[t] = gae
     returns = advs + values[:T]
     return advs, returns
@@ -227,7 +229,7 @@ def main(config):
                 actions   = dist.sample()
                 log_probs = dist.log_prob(actions)
 
-                rewards_np, dones_np = gen.step(to_numpy(actions))
+                rewards_np, dones_np, _ = gen.step(to_numpy(actions))
                 rewards = to_torch(rewards_np, device=device).to(dtype)
                 dones   = to_torch(dones_np,   device=device).to(dtype)
 
