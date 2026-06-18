@@ -133,6 +133,149 @@ def plot_diversity_components(
     return fig
 
 
+def plot_column_attn_by_phase(
+    attn_by_phase: dict[str, list],  # phase → list of [n_layers, n_cols, n_cols] arrays
+    n_layers: int, n_columns: int, step: int,
+) -> plt.Figure:
+    """Heatmap of mean attention weight [src_col → dst_col] per task phase."""
+    phases = [p for p in ('store', 'distract', 'query') if p in attn_by_phase and attn_by_phase[p]]
+    if not phases:
+        return None
+    n_phases = len(phases)
+    fig, axes = plt.subplots(n_layers, n_phases, figsize=(3 * n_phases, 2.5 * n_layers), squeeze=False)
+    for li in range(n_layers):
+        for pi, phase in enumerate(phases):
+            mats = [m[li] for m in attn_by_phase[phase] if m is not None and len(m) > li]
+            ax = axes[li][pi]
+            if mats:
+                avg = np.mean(np.stack(mats, axis=0), axis=0)  # [C, C]
+                im = ax.imshow(avg, vmin=0, vmax=avg.max(), cmap='Blues', aspect='auto')
+                plt.colorbar(im, ax=ax, fraction=0.046)
+            ax.set_title(f'L{li} | {phase}')
+            ax.set_xlabel('dst col')
+            ax.set_ylabel('src col')
+            ax.set_xticks(range(n_columns))
+            ax.set_yticks(range(n_columns))
+    fig.suptitle(f'Column Attention by Phase | step={step:,}', fontsize=11)
+    plt.tight_layout()
+    return fig
+
+
+def plot_column_pca(
+    states_by_phase: dict[str, list],  # phase → list of [B, H] arrays (top layer, col 0 etc.)
+    col_states: dict[str, list],       # col_key "L{l}C{c}" → list of [B, H] arrays
+    phase_colors: dict[str, str] | None = None,
+    step: int = 0,
+) -> plt.Figure:
+    """2D PCA of column hidden states coloured by task phase."""
+    try:
+        from sklearn.decomposition import PCA
+    except ImportError:
+        return None
+
+    all_vecs, labels, col_ids = [], [], []
+    col_keys = sorted(col_states.keys())
+    for ck in col_keys:
+        for arr in col_states[ck]:
+            all_vecs.append(arr)
+            col_ids.extend([ck] * len(arr))
+
+    if not all_vecs:
+        return None
+
+    X = np.concatenate(all_vecs, axis=0)
+    pca = PCA(n_components=2)
+    Z = pca.fit_transform(X)
+
+    phase_color_map = phase_colors or {'store': '#e74c3c', 'distract': '#3498db', 'query': '#2ecc71'}
+    cmap = plt.get_cmap('tab10', len(col_keys))
+    col_idx = {ck: i for i, ck in enumerate(col_keys)}
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+
+    for ck in col_keys:
+        mask = np.array(col_ids) == ck
+        ax1.scatter(Z[mask, 0], Z[mask, 1], s=8, alpha=0.4,
+                    color=cmap(col_idx[ck]), label=ck)
+    ax1.set_title('PCA by Column')
+    ax1.legend(fontsize=7, markerscale=2)
+    ax1.set_xlabel('PC1')
+    ax1.set_ylabel('PC2')
+
+    # same plot coloured by phase if phase labels available
+    phase_vecs = []
+    phase_labels_flat = []
+    for phase, arrs in states_by_phase.items():
+        for arr in arrs:
+            phase_vecs.append(arr)
+            phase_labels_flat.extend([phase] * len(arr))
+    if phase_vecs:
+        Xp = np.concatenate(phase_vecs, axis=0)
+        Zp = pca.transform(Xp)
+        for phase in set(phase_labels_flat):
+            mask = np.array(phase_labels_flat) == phase
+            ax2.scatter(Zp[mask, 0], Zp[mask, 1], s=8, alpha=0.4,
+                        color=phase_color_map.get(phase, 'grey'), label=phase)
+        ax2.set_title('PCA by Phase (col-0 top layer)')
+        ax2.legend(fontsize=8)
+        ax2.set_xlabel('PC1')
+        ax2.set_ylabel('PC2')
+
+    fig.suptitle(f'Column Specialisation PCA | step={step:,}', fontsize=11)
+    plt.tight_layout()
+    return fig
+
+
+def plot_column_mi(
+    mi_grid: dict[str, float],  # "L{l}C{c}" → MI value
+    mi_rnn:  dict[str, float] | None,
+    n_layers: int, n_columns: int, step: int,
+) -> plt.Figure:
+    """Bar chart of MI(hidden_col, phase) for Grid RNN vs GRU segments."""
+    fig, axes = plt.subplots(1, n_layers, figsize=(4 * n_layers, 4), sharey=True)
+    if n_layers == 1:
+        axes = [axes]
+    for li, ax in enumerate(axes):
+        keys  = [f'L{li}C{ci}' for ci in range(n_columns)]
+        vals  = [mi_grid.get(k, 0.0) for k in keys]
+        x     = np.arange(n_columns)
+        ax.bar(x - 0.2, vals, width=0.4, label='Grid col', color='steelblue')
+        if mi_rnn:
+            rvals = [mi_rnn.get(k, 0.0) for k in keys]
+            ax.bar(x + 0.2, rvals, width=0.4, label='GRU seg', color='coral')
+        ax.set_xticks(x)
+        ax.set_xticklabels([f'C{ci}' for ci in range(n_columns)])
+        ax.set_title(f'Layer {li}')
+        ax.set_ylabel('MI (nats)')
+        if li == 0:
+            ax.legend(fontsize=8)
+        ax.grid(True, alpha=0.3)
+    fig.suptitle(f'MI(column, phase) | step={step:,}', fontsize=11)
+    plt.tight_layout()
+    return fig
+
+
+def _estimate_mi(states: np.ndarray, labels: np.ndarray, n_bins: int = 10) -> float:
+    """Discretised MI estimate via histogram binning."""
+    from scipy.stats import entropy as scipy_entropy
+    n_classes = len(np.unique(labels))
+    # flatten to scalar norm per sample
+    norms = np.linalg.norm(states, axis=-1) if states.ndim > 1 else states
+    bins  = np.histogram_bin_edges(norms, bins=n_bins)
+    idx   = np.digitize(norms, bins) - 1
+    idx   = np.clip(idx, 0, n_bins - 1)
+    joint = np.zeros((n_bins, n_classes))
+    for i, l in zip(idx, labels):
+        joint[i, l] += 1
+    joint /= joint.sum() + 1e-12
+    px = joint.sum(axis=1)
+    py = joint.sum(axis=0)
+    h_x  = scipy_entropy(px + 1e-12)
+    h_y  = scipy_entropy(py + 1e-12)
+    h_xy = -np.sum(joint * np.log(joint + 1e-12))
+    return float(max(0.0, h_x + h_y - h_xy))
+
+
 def plot_hidden_norm_heatmap(
     norm_history: list[dict[str, float]], n_layers: int, n_columns: int, step: int,
 ) -> plt.Figure:
@@ -236,6 +379,14 @@ class VizManager:
         self.grad_norm_buffer:   list[dict]          = []
         self.grad_step_buffer:   list[int]           = []
 
+        # column specialisation buffers
+        # attn_by_phase: phase_name → list of [n_layers, n_cols, n_cols] np arrays
+        self.attn_by_phase:   dict[str, list] = defaultdict(list)
+        # col_hidden_by_phase: phase_name → list of [B, H] np arrays (top layer, col 0)
+        self.phase_states:    dict[str, list] = defaultdict(list)
+        # per-column states for PCA: "L{l}C{c}" → list of [B, H]
+        self.col_states:      dict[str, list] = defaultdict(list)
+
     def should_capture(self, step: int) -> bool:
         return step >= self.next_step - self.n_layers  # one step before flush
 
@@ -273,6 +424,44 @@ class VizManager:
         for key, val in div_mean.items():
             self.div_history[f'div/{key}'].append(float(val) if not isinstance(val, float) else val)
         self.div_step_history.append(step)
+
+    def update_specialisation(
+        self,
+        phase: str,              # 'store' | 'distract' | 'query'
+        rnn_state,               # model hidden state
+        attn_weights: list | None,  # list of [B, heads, C, C] per layer, or None
+    ) -> None:
+        """Accumulate per-phase hidden states and attention weights for column specialisation plots."""
+        # collect attention weights: average over batch+heads → [L, C, C]
+        if attn_weights:
+            mats = []
+            for aw in attn_weights:  # aw: [B, heads, C, C] or [heads, C, C]
+                a = aw.detach().float().cpu().numpy() if isinstance(aw, torch.Tensor) else np.array(aw)
+                if a.ndim == 4:
+                    a = a.mean(axis=(0, 1))  # [C, C]
+                elif a.ndim == 3:
+                    a = a.mean(axis=0)       # [C, C]
+                mats.append(a)
+            self.attn_by_phase[phase].append(mats)  # list of [C, C] per layer
+
+        # collect top-layer col-0 hidden state for phase PCA
+        h = rnn_state[0] if isinstance(rnn_state, tuple) else rnn_state
+        if h is None:
+            return
+        h_np = h.detach().float().cpu().numpy() if isinstance(h, torch.Tensor) else np.array(h)
+        if h_np.ndim == 4:  # [L, C, B, H]
+            top = h_np[-1, 0]  # [B, H]
+            self.phase_states[phase].append(top)
+            for li in range(h_np.shape[0]):
+                for ci in range(h_np.shape[1]):
+                    self.col_states[f'L{li}C{ci}'].append(h_np[li, ci])
+        elif h_np.ndim == 3:  # [L, B, H] — plain RNN, treat each layer-segment as a column
+            top = h_np[-1]
+            self.phase_states[phase].append(top)
+            H = top.shape[-1]
+            seg = H // max(self.n_columns, 1)
+            for ci in range(self.n_columns):
+                self.col_states[f'L0C{ci}'].append(top[:, ci * seg:(ci + 1) * seg])
 
     def update_grad_norms(self, step: int, rnn) -> dict[str, float]:
         grad_norms = compute_grad_norm_per_layer(rnn, self.n_layers)
@@ -353,5 +542,47 @@ class VizManager:
                     logger.track(v, name=k, step=step)
                 except Exception:
                     pass
+
+        # column specialisation plots
+        if self.attn_by_phase:
+            try:
+                fig = plot_column_attn_by_phase(
+                    self.attn_by_phase, self.n_layers, self.n_columns, step,
+                )
+                log_figure(logger, fig, 'vis/col_attn_by_phase', step)
+            except Exception as e:
+                print(f'[VIS] col_attn_phase: {e}')
+            self.attn_by_phase.clear()
+
+        if self.col_states:
+            try:
+                fig = plot_column_pca(
+                    self.phase_states, self.col_states, step=step,
+                )
+                log_figure(logger, fig, 'vis/col_pca', step)
+            except Exception as e:
+                print(f'[VIS] col_pca: {e}')
+
+            # compute MI per column and log bar chart
+            try:
+                all_labels, all_vecs = [], []
+                label_map = {p: i for i, p in enumerate(sorted(self.phase_states.keys()))}
+                for phase, arrs in self.phase_states.items():
+                    for arr in arrs:
+                        all_vecs.append(arr)
+                        all_labels.extend([label_map[phase]] * len(arr))
+                if all_vecs:
+                    labels_np = np.array(all_labels)
+                    mi_grid = {}
+                    for ck, arrs in self.col_states.items():
+                        vecs = np.concatenate(arrs, axis=0)
+                        mi_grid[ck.replace('L', 'L').replace('C', 'C')] = _estimate_mi(vecs, labels_np)
+                    fig = plot_column_mi(mi_grid, None, self.n_layers, self.n_columns, step)
+                    log_figure(logger, fig, 'vis/col_mi', step)
+            except Exception as e:
+                print(f'[VIS] col_mi: {e}')
+
+            self.col_states.clear()
+            self.phase_states.clear()
 
         self.next_step += self.interval

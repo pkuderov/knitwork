@@ -209,8 +209,9 @@ def main(config):
     stats       = Tracker(lr=2e-4)
     fps_counter = FpsCounter()
 
-    has_grid = hasattr(rnn, 'n_layers') and hasattr(rnn, 'n_columns')
-    viz = VizManager(rnn.n_layers, rnn.n_columns) if (vis_enabled and has_grid) else None
+    has_grid    = hasattr(rnn, 'n_layers') and hasattr(rnn, 'n_columns')
+    vis_interval = int(config.get('vis_interval', 10_000_000))
+    viz = VizManager(rnn.n_layers, rnn.n_columns, vis_interval=vis_interval) if (vis_enabled and has_grid) else None
 
     rnn_state     = None
     batch_y:       list = []
@@ -242,6 +243,13 @@ def main(config):
 
         if capture and viz is not None:
             viz.update(step, extras, rnn_state, has_hgrn=has_hgrn_betas, has_fusion=is_fusion, rnn=rnn)
+            # specialisation update: use sq_gaps to determine dominant phase
+            sq = obs['sq_gaps'].float()
+            n_s = (sq < -1.0).sum().item()
+            n_q = (sq > 0.0).sum().item()
+            n_d = len(sq) - n_s - n_q
+            phase = max([('store', n_s), ('query', n_q), ('distract', n_d)], key=lambda x: x[1])[0]
+            viz.update_specialisation(phase, rnn_state, extras.get('attn_weights'))
 
         batch_y.append(y)
         batch_y_gt.append(obs['targets'])
