@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 import gymnasium as gym
-from gymnasium.vector import SyncVectorEnv
+from gymnasium.vector import AsyncVectorEnv, SyncVectorEnv
 from gymnasium import spaces
 
 # side-effect import: registers all popgym environment IDs
@@ -58,15 +58,15 @@ class MikasakWrapper:
     Exposes observe() / step() / get_stats() matching TreasureHuntEnv API.
     """
 
-    def __init__(self, env_id: str, n_envs: int, seed: int):
+    def __init__(self, env_id: str, n_envs: int, seed: int, async_envs: bool = True):
         self.env_id  = env_id
         self.n_envs  = n_envs
 
-        # create vectorised env
         def _make():
             return gym.make(env_id)
 
-        self._env = SyncVectorEnv([_make for _ in range(n_envs)])
+        VecCls = AsyncVectorEnv if async_envs else SyncVectorEnv
+        self._env = VecCls([_make for _ in range(n_envs)])
 
         single_obs_space = self._env.single_observation_space
         single_act_space = self._env.single_action_space

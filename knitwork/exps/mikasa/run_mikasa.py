@@ -20,6 +20,7 @@ from knitwork.common.utils import (
     to_numpy, to_torch,
 )
 from knitwork.env.mikasa_wrapper import MikasakWrapper
+from knitwork.exps.sdq._viz import log_figure, plot_hidden_norm_heatmap
 
 # ---------------------------------------------------------------------------
 # Model registries
@@ -126,11 +127,13 @@ def main(config):
     entropy_coef = config.get('entropy_coef', 0.05)
 
     # env
-    env_id = config['env']
+    env_id    = config['env']
+    async_envs = config.get('async_envs', True)
     gen = MikasakWrapper(
         env_id=env_id,
         n_envs=n_envs,
         seed=int(rng.integers(1_000_000)),
+        async_envs=async_envs,
     )
     print(
         f'Env: {env_id}'
@@ -170,40 +173,48 @@ def main(config):
     optim = torch.optim.RMSprop(all_params, lr=lr.val, eps=1e-5)
     lr.connect_to_optimiser(optim)
 
-    rollout_len = config['rollout_len']
-    n_steps     = int(config['n_steps'])
-    step        = 0
+    rollout_len  = config['rollout_len']
+    n_steps      = int(config['n_steps'])
+    vis_interval = int(config.get('vis_interval', 10_000_000))
+    step         = 0
+    next_vis     = vis_interval
 
-    log_stats_schedule = create_scheduler(config['log']['schedule'])
+    log_stats_schedule   = create_scheduler(config['log']['schedule'])
     print_stats_schedule = create_scheduler(config['log']['print_schedule'])
 
     logger = create_logger(config)
     stats       = Tracker(lr=2e-4)
     fps_counter = FpsCounter()
 
-    rnn_state = None
+    rnn_state   = None
     is_discrete = gen.obs_type == 'discrete'
+    is_grid     = hasattr(rnn, 'cells')  # Grid-type model with per-column cells
 
     def _obs_to_model_input(obs_np: np.ndarray) -> torch.Tensor:
-        """Convert env obs to model input tensor."""
         t = to_torch(obs_np, device=device)
         if is_discrete:
-            return t.view(-1, 1)          # [B, 1] int64
-        return t.to(dtype)               # [B, obs_dim] float
+            return t.view(-1, 1)   # [B, 1] int64
+        return t.to(dtype)         # [B, obs_dim] float
+
+    # Pre-allocate rollout buffers to avoid repeated torch.stack / alloc
+    _obs_shape = (rollout_len, n_envs, 1) if is_discrete else (rollout_len, n_envs, gen.obs_dim)
+    _obs_dtype = torch.int64 if is_discrete else dtype
+    obs_buf  = torch.zeros(_obs_shape, dtype=_obs_dtype, device=device)
+    act_buf  = torch.zeros(rollout_len, n_envs, dtype=torch.int64, device=device)
+    lp_buf   = torch.zeros(rollout_len, n_envs, dtype=dtype, device=device)
+    rew_buf  = torch.zeros(rollout_len, n_envs, dtype=dtype, device=device)
+    done_buf = torch.zeros(rollout_len, n_envs, dtype=dtype, device=device)
+    val_buf  = torch.zeros(rollout_len, n_envs, dtype=dtype, device=device)
+
+    # Column-norm visualisation buffers (Grid models only)
+    vis_norm_buf: list[dict] = []
 
     while step < n_steps:
-        buf_obs       = []
-        buf_actions   = []
-        buf_log_probs = []
-        buf_rewards   = []
-        buf_dones     = []
-        buf_values    = []
-
         h_init = rnn_state
 
         with torch.no_grad():
-            for _ in range(rollout_len):
-                raw = gen.observe()
+            for t in range(rollout_len):
+                raw        = gen.observe()
                 reset_mask = to_torch(raw['reset_mask'], device=device)
                 obs_in     = _obs_to_model_input(raw['obs'])
 
@@ -220,33 +231,37 @@ def main(config):
                 rewards = to_torch(rewards_np, device=device).to(dtype)
                 dones   = to_torch(dones_np,   device=device).to(dtype)
 
-                buf_obs.append(obs_in)
-                buf_actions.append(actions)
-                buf_log_probs.append(log_probs)
-                buf_rewards.append(rewards)
-                buf_dones.append(dones)
-                buf_values.append(value)
+                obs_buf[t]  = obs_in
+                act_buf[t]  = actions
+                lp_buf[t]   = log_probs
+                rew_buf[t]  = rewards
+                done_buf[t] = dones
+                val_buf[t]  = value
+
+                # accumulate column norms for visualisation
+                if is_grid and logger is not None:
+                    h = rnn_state[0] if isinstance(rnn_state, tuple) else rnn_state
+                    if h.ndim == 4:  # [L, C, B, H]
+                        n_l, n_c = h.shape[:2]
+                        entry = {}
+                        for li in range(n_l):
+                            for ci in range(n_c):
+                                entry[f'hidden_norm/L{li}_C{ci}'] = h[li, ci].float().norm(dim=-1).mean().item()
+                        vis_norm_buf.append(entry)
 
                 step += n_envs
 
-            # bootstrap
-            raw = gen.observe()
-            reset_mask  = to_torch(raw['reset_mask'], device=device)
-            obs_last    = _obs_to_model_input(raw['obs'])
-            rnn_state   = rnn.reset_state(rnn_state, reset_mask)
+            # bootstrap value
+            raw        = gen.observe()
+            reset_mask = to_torch(raw['reset_mask'], device=device)
+            obs_last   = _obs_to_model_input(raw['obs'])
+            rnn_state  = rnn.reset_state(rnn_state, reset_mask)
             _, rnn_last = rnn(obs_last, rnn_state)
             value_last  = critic(extract_h_top(rnn_last)).squeeze(-1).detach()
 
-        obs_t     = torch.stack(buf_obs,       dim=0)  # [T, B, ...]
-        actions_t = torch.stack(buf_actions,   dim=0)  # [T, B]
-        old_lp_t  = torch.stack(buf_log_probs, dim=0)  # [T, B]
-        rewards_t = torch.stack(buf_rewards,   dim=0)  # [T, B]
-        dones_t   = torch.stack(buf_dones,     dim=0)  # [T, B]
-        values_t  = torch.stack(buf_values,    dim=0)  # [T, B]
+        values_with_boot = torch.cat([val_buf, value_last.unsqueeze(0)], dim=0)
 
-        values_with_boot = torch.cat([values_t, value_last.unsqueeze(0)], dim=0)
-
-        advs, returns = compute_gae(rewards_t, values_with_boot, dones_t)
+        advs, returns = compute_gae(rew_buf, values_with_boot, done_buf)
         advs = (advs - advs.mean()) / (advs.std() + 1e-8)
 
         # PPO update
@@ -257,17 +272,17 @@ def main(config):
             h = h_init
 
             for t in range(rollout_len):
-                reset_mask_t = dones_t[t - 1] if t > 0 else torch.zeros(n_envs, device=device)
+                reset_mask_t = done_buf[t - 1] if t > 0 else torch.zeros(n_envs, device=device)
                 h = rnn.reset_state(h, reset_mask_t)
 
-                logits, h = rnn(obs_t[t], h)
+                logits, h = rnn(obs_buf[t], h)
 
                 value_new = critic(extract_h_top(h)).squeeze(-1)
                 dist_new  = Categorical(F.softmax(logits, dim=-1))
-                new_lp    = dist_new.log_prob(actions_t[t])
+                new_lp    = dist_new.log_prob(act_buf[t])
                 entropy   = dist_new.entropy().mean()
 
-                ratio = (new_lp - old_lp_t[t]).exp()
+                ratio = (new_lp - lp_buf[t]).exp()
                 adv_t = advs[t]
                 p_loss = -torch.min(
                     ratio * adv_t,
@@ -290,13 +305,25 @@ def main(config):
 
         rnn_state = rnn.detach_state(rnn_state)
 
+        # column-norm visualisation flush
+        if step >= next_vis and is_grid and vis_norm_buf and logger is not None:
+            try:
+                n_l = rnn_state[0].shape[0] if isinstance(rnn_state, tuple) else rnn_state.shape[0]
+                n_c = rnn_state[0].shape[1] if isinstance(rnn_state, tuple) else rnn_state.shape[1]
+                fig = plot_hidden_norm_heatmap(vis_norm_buf, n_l, n_c, step)
+                log_figure(logger, fig, 'vis/col_norm_heatmap', step)
+            except Exception as e:
+                print(f'[VIS] col_norm: {e}')
+            vis_norm_buf.clear()
+            next_vis += vis_interval
+
         lr.step()
 
         stats.put({
             'PolicyLoss' : total_policy_loss / max(n_updates, 1),
             'ValueLoss'  : total_value_loss  / max(n_updates, 1),
             'Entropy'    : total_entropy     / max(n_updates, 1),
-            'MeanReward' : to_numpy(rewards_t.mean()),
+            'MeanReward' : to_numpy(rew_buf.mean()),
             'LR'         : lr.val,
         })
 
