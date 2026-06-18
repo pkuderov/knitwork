@@ -89,9 +89,8 @@ class SurpriseDeltaMemory(nn.Module):
         y_flat = y.reshape(C * B, -1)
 
         k = self.proj_k(y_flat).view(C, B, self.dk)
-        # noise injection: prevents memory from freezing when prediction error → 0
         v_raw = self.proj_v(y_flat).view(C, B, self.dv)
-        v = F.normalize(v_raw, dim=-1) + 0.01 * torch.randn_like(v_raw)
+        v = F.normalize(v_raw, dim=-1)
         q = self.proj_q(y_flat).view(C, B, self.dk)
 
         k = F.normalize(k + self.col_ids.unsqueeze(1), dim=-1)  # [C, B, dk]
@@ -313,7 +312,8 @@ class HarmonicGridRNN(nn.Module):
                 dv          = self.dv,
                 ema_beta    = ema_beta_min + (ema_beta - ema_beta_min)
                               * l / max(n_layers - 1, 1),  # 0.7 → 0.9 per layer
-                delta_decay = delta_decay,   # decay_max; learned gate interpolates down to 0.90
+                delta_decay = delta_decay,
+                decay_min   = delta_decay_min,
                 lam_base    = lam_base,
                 layer_idx   = l,
             )
@@ -341,7 +341,7 @@ class HarmonicGridRNN(nn.Module):
             nn.Linear(2 * H, 1) for _ in range(n_layers)
         ])
         for gate in self.attn_gates:
-            nn.init.constant_(gate.bias, -4.0)  # sigmoid(-4)≈0.018 — Hopfield starts near-inactive
+            nn.init.constant_(gate.bias, -2.0)  # sigmoid(-2)≈0.12 — Hopfield starts weak but active
         # normalize inputs to Hopfield to prevent attractor collapse (col norm explosion)
         self.pre_attn_norms = nn.ModuleList([nn.LayerNorm(H) for _ in range(n_layers)])
 

@@ -201,12 +201,14 @@ def main(config):
     # Pre-allocate rollout buffers to avoid repeated torch.stack / alloc
     _obs_shape = (rollout_len, n_envs, 1) if is_discrete else (rollout_len, n_envs, gen.obs_dim)
     _obs_dtype = torch.int64 if is_discrete else dtype
-    obs_buf  = torch.zeros(_obs_shape, dtype=_obs_dtype, device=device)
-    act_buf  = torch.zeros(rollout_len, n_envs, dtype=torch.int64, device=device)
-    lp_buf   = torch.zeros(rollout_len, n_envs, dtype=dtype, device=device)
-    rew_buf  = torch.zeros(rollout_len, n_envs, dtype=dtype, device=device)
-    done_buf = torch.zeros(rollout_len, n_envs, dtype=dtype, device=device)
-    val_buf  = torch.zeros(rollout_len, n_envs, dtype=dtype, device=device)
+    obs_buf   = torch.zeros(_obs_shape, dtype=_obs_dtype, device=device)
+    act_buf   = torch.zeros(rollout_len, n_envs, dtype=torch.int64, device=device)
+    lp_buf    = torch.zeros(rollout_len, n_envs, dtype=dtype, device=device)
+    rew_buf   = torch.zeros(rollout_len, n_envs, dtype=dtype, device=device)
+    done_buf  = torch.zeros(rollout_len, n_envs, dtype=dtype, device=device)
+    term_buf  = torch.zeros(rollout_len, n_envs, dtype=dtype, device=device)
+    reset_buf = torch.zeros(rollout_len, n_envs, dtype=dtype, device=device)
+    val_buf   = torch.zeros(rollout_len, n_envs, dtype=dtype, device=device)
 
     # Column-norm visualisation buffers (Grid models only)
     vis_norm_buf: list[dict] = []
@@ -229,16 +231,19 @@ def main(config):
                 actions   = dist.sample()
                 log_probs = dist.log_prob(actions)
 
-                rewards_np, dones_np, _ = gen.step(to_numpy(actions))
+                rewards_np, dones_np, term_np = gen.step(to_numpy(actions))
                 rewards = to_torch(rewards_np, device=device).to(dtype)
                 dones   = to_torch(dones_np,   device=device).to(dtype)
+                term    = to_torch(term_np,    device=device).to(dtype)
 
-                obs_buf[t]  = obs_in
-                act_buf[t]  = actions
-                lp_buf[t]   = log_probs
-                rew_buf[t]  = rewards
-                done_buf[t] = dones
-                val_buf[t]  = value
+                obs_buf[t]   = obs_in
+                act_buf[t]   = actions
+                lp_buf[t]    = log_probs
+                rew_buf[t]   = rewards
+                done_buf[t]  = dones
+                term_buf[t]  = term
+                reset_buf[t] = reset_mask.to(dtype)
+                val_buf[t]   = value
 
                 # accumulate column norms for visualisation
                 if is_grid and logger is not None:
@@ -263,7 +268,7 @@ def main(config):
 
         values_with_boot = torch.cat([val_buf, value_last.unsqueeze(0)], dim=0)
 
-        advs, returns = compute_gae(rew_buf, values_with_boot, done_buf)
+        advs, returns = compute_gae(rew_buf, values_with_boot, done_buf, term_buf)
         advs = (advs - advs.mean()) / (advs.std() + 1e-8)
 
         # PPO update
@@ -274,8 +279,7 @@ def main(config):
             h = h_init
 
             for t in range(rollout_len):
-                reset_mask_t = done_buf[t - 1] if t > 0 else torch.zeros(n_envs, device=device)
-                h = rnn.reset_state(h, reset_mask_t)
+                h = rnn.reset_state(h, reset_buf[t])
 
                 logits, h = rnn(obs_buf[t], h)
 

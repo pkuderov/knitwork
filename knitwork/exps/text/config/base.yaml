@@ -15,6 +15,12 @@ rollout_len: 8
 n_envs: 64
 n_steps: 5.2e+8
 
+eval:
+  enabled: false
+  interval: 5.0e+6
+  n_batches: 200
+  context_window: 0
+
 gens:
   text8:
     path: ~/data/text/text8.txt

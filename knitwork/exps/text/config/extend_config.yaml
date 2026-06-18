@@ -18,6 +18,12 @@ rollout_len: 8
 n_envs: 128
 n_steps: 5.2e+8
 
+eval:
+  enabled: false        # enable val-set evaluation
+  interval: 5.0e+6     # run eval every N train tokens
+  n_batches: 200        # val steps per evaluation
+  context_window: 0     # >0: reset state every N tokens; measures BPC vs context length
+
 gens:
   text8:
     path: ~/data/text/shakespeare.txt

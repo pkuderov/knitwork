@@ -124,8 +124,22 @@ def main(config):
     data, charset = tokenize(load_dataset(data_path))
     n_chars = charset.size
 
-    gen = TextGenerator(data, n_envs=n_envs, ignore_index=CE_ignore_index,
-                        seed=rng.integers(1_000_000))
+    eval_cfg        = config.get('eval', {})
+    do_eval         = eval_cfg.get('enabled', False)
+    eval_interval   = int(eval_cfg.get('interval', 5_000_000))
+    eval_n_batches  = int(eval_cfg.get('n_batches', 200))
+    context_window  = int(eval_cfg.get('context_window', 0))
+
+    if do_eval:
+        from knitwork.gens.text import split_train_test
+        train_data, val_data = split_train_test(data, train_frac=0.95)
+        val_gen = TextGenerator(val_data, n_envs=n_envs, ignore_index=CE_ignore_index,
+                                seed=int(rng.integers(1_000_000)))
+    else:
+        train_data = data
+
+    gen = TextGenerator(train_data if do_eval else data, n_envs=n_envs,
+                        ignore_index=CE_ignore_index, seed=int(rng.integers(1_000_000)))
 
     rnn_type = config['model']
     rnn_cfg  = config['models'][rnn_type]
@@ -167,8 +181,9 @@ def main(config):
     n_steps     = int(config['n_steps'])
     step        = 0
 
-    log_stats_schedule = create_scheduler(config['log']['schedule'])
+    log_stats_schedule   = create_scheduler(config['log']['schedule'])
     print_stats_schedule = create_scheduler(config['log']['print_schedule'])
+    eval_schedule        = create_scheduler(eval_interval) if do_eval else None
 
     logger = create_logger(config)
     stats       = Tracker(lr=2e-4)
@@ -181,6 +196,105 @@ def main(config):
     batch_kl:       list = []
     batch_harmonic: list = []   # harmonic model diagnostics
     acc_by_pos: dict[int, float] = {}
+
+    def run_eval(global_step: int):
+        """Evaluate on val set; if context_window>0, also run context-memory probe."""
+        rnn.eval()
+        val_state = None
+        val_loss_acc  = []
+        val_char_acc  = []
+
+        # context probe accumulators: bpc_by_pos[pos] = list of per-env bpc values
+        bpc_by_pos: list[list[float]] = [[] for _ in range(context_window)] if context_window > 0 else []
+        pos_counter = np.zeros(n_envs, dtype=np.int64)  # position within context window per env
+
+        with torch.no_grad():
+            for _ in range(eval_n_batches):
+                obs = val_gen.next()
+                obs = {k: to_torch(v, device=device) for k, v in obs.items()}
+
+                # reset at dataset wrap
+                val_state = rnn.reset_state(val_state, obs['reset_mask'])
+
+                # context window reset: zero state for envs at boundary
+                if context_window > 0:
+                    at_boundary = torch.from_numpy(pos_counter == 0).to(device)
+                    val_state = rnn.reset_state(val_state, at_boundary)
+
+                x = obs['tokens'].view(-1, 1)
+                y, val_state, *_ = model_forward(rnn, x, val_state, capture=False)
+
+                targets = obs['targets']
+                valid   = targets != CE_ignore_index
+                if valid.any():
+                    ce = nn.functional.cross_entropy(
+                        y[valid], targets[valid], reduction='mean'
+                    )
+                    val_loss_acc.append(ce.item())
+                    acc_t = (y[valid].argmax(dim=-1) == targets[valid]).float().mean().item()
+                    val_char_acc.append(acc_t)
+
+                # context probe: record per-env BPC at current position
+                if context_window > 0 and valid.any():
+                    per_env_ce = nn.functional.cross_entropy(
+                        y, targets.clamp(min=0),
+                        reduction='none', ignore_index=CE_ignore_index,
+                    )  # [B]
+                    per_env_bpc = (per_env_ce / ln_2).cpu().numpy()
+                    for env_i, pos in enumerate(pos_counter):
+                        if valid[env_i].item():
+                            bpc_by_pos[pos].append(float(per_env_bpc[env_i]))
+
+                pos_counter = (pos_counter + 1) % context_window if context_window > 0 else pos_counter
+
+                val_state = rnn.detach_state(val_state)
+
+        rnn.train()
+
+        if not val_loss_acc:
+            return
+
+        val_bpc  = float(np.mean(val_loss_acc)) / ln_2
+        val_loss = float(np.mean(val_loss_acc))
+        val_acc  = float(np.mean(val_char_acc))
+        print(f'[EVAL step={format_readable_num(global_step)}]'
+              f' BPC:{val_bpc:.3f} Acc:{val_acc:.3f}')
+        if logger is not None:
+            logger.track(val_bpc,  name='val/BPC',  step=global_step)
+            logger.track(val_loss, name='val/Loss', step=global_step)
+            logger.track(val_acc,  name='val/Acc',  step=global_step)
+
+        if context_window > 0:
+            bpc_curve = np.array([
+                float(np.mean(bpc_by_pos[p])) if bpc_by_pos[p] else float('nan')
+                for p in range(context_window)
+            ])
+            # log key percentiles numerically
+            for label, frac in [('p0', 0.0), ('p25', 0.25), ('p50', 0.50), ('p75', 0.75), ('p100', 0.99)]:
+                idx = min(int(frac * context_window), context_window - 1)
+                if not np.isnan(bpc_curve[idx]):
+                    if logger is not None:
+                        logger.track(float(bpc_curve[idx]),
+                                     name=f'val/ctx/{label}', step=global_step)
+            # visual plot
+            if logger is not None:
+                try:
+                    import matplotlib
+                    matplotlib.use('Agg')
+                    import matplotlib.pyplot as plt
+                    from knitwork.exps.sdq._viz import log_figure
+                    fig, ax = plt.subplots(figsize=(8, 4))
+                    valid_mask = ~np.isnan(bpc_curve)
+                    ax.plot(np.where(valid_mask)[0], bpc_curve[valid_mask], lw=1.5)
+                    ax.set_xlabel('Position in context window (tokens)')
+                    ax.set_ylabel('BPC')
+                    ax.set_title(f'Context memory probe (window={context_window}) step={format_readable_num(global_step)}')
+                    ax.grid(True, alpha=0.3)
+                    plt.tight_layout()
+                    log_figure(logger, fig, 'val/ctx/bpc_curve', global_step)
+                    plt.close(fig)
+                except Exception as e:
+                    print(f'[EVAL ctx plot] {e}')
 
     while step < n_steps:
         obs = gen.next()
@@ -305,6 +419,9 @@ def main(config):
             write_status(step, metrics)
             if logger is not None:
                 logger.track(flatten_dict(metrics))
+
+        if do_eval and eval_schedule.tick(gen.n_envs):
+            run_eval(step)
 
     fps = fps_counter.fps(n_iters=step)
     print(f'Done. {format_readable_num(fps)} fps')
