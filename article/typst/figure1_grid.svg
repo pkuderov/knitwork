@@ -1,0 +1,258 @@
+<svg width="700" height="455" viewBox="0 0 700 455"
+     xmlns="http://www.w3.org/2000/svg"
+     font-family="'Linux Libertine O', 'Libertinus Serif', Georgia, 'Times New Roman', serif">
+
+  <!-- ── DEFINITIONS ─────────────────────────────────────────────────────── -->
+  <defs>
+    <marker id="arr" markerWidth="7" markerHeight="6" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#374151"/>
+    </marker>
+    <marker id="arr-blue" markerWidth="7" markerHeight="6" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#2563EB"/>
+    </marker>
+    <marker id="arr-attn" markerWidth="7" markerHeight="6" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#7C3AED"/>
+    </marker>
+    <marker id="arr-out" markerWidth="7" markerHeight="6" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#059669"/>
+    </marker>
+    <marker id="arr-orange" markerWidth="7" markerHeight="6" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#D97706"/>
+    </marker>
+    <marker id="arr-gray" markerWidth="7" markerHeight="6" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#9CA3AF"/>
+    </marker>
+    <filter id="shadow">
+      <feDropShadow dx="1" dy="1" stdDeviation="1.5" flood-color="#00000022"/>
+    </filter>
+  </defs>
+
+  <!-- ── BACKGROUND ─────────────────────────────────────────────────────── -->
+  <rect width="700" height="455" fill="#FAFAFA" rx="6"/>
+
+  <!-- ── COLUMN HEADERS ────────────────────────────────────────────────── -->
+  <text x="110" y="32" text-anchor="middle" font-size="12" font-weight="bold" fill="#1E3A8A">Col 0</text>
+  <text x="110" y="46" text-anchor="middle" font-size="9.5" fill="#1E3A8A">(data)</text>
+  <text x="220" y="32" text-anchor="middle" font-size="12" font-weight="bold" fill="#4B5563">Col 1</text>
+  <text x="330" y="32" text-anchor="middle" font-size="12" font-weight="bold" fill="#4B5563">Col 2</text>
+  <text x="440" y="32" text-anchor="middle" font-size="12" font-weight="bold" fill="#4B5563">Col 3</text>
+  <text x="220" y="46" text-anchor="middle" font-size="9" fill="#9CA3AF">(zero input)</text>
+  <text x="330" y="46" text-anchor="middle" font-size="9" fill="#9CA3AF">(zero input)</text>
+  <text x="440" y="46" text-anchor="middle" font-size="9" fill="#9CA3AF">(zero input)</text>
+
+  <!-- ── LAYER LABELS ──────────────────────────────────────────────────── -->
+  <text x="24" y="119" text-anchor="middle" font-size="11" font-weight="bold" fill="#374151">L2</text>
+  <text x="24" y="219" text-anchor="middle" font-size="11" font-weight="bold" fill="#374151">L1</text>
+  <text x="24" y="319" text-anchor="middle" font-size="11" font-weight="bold" fill="#374151">L0</text>
+
+  <!-- ── GRID CELLS ─────────────────────────────────────────────────────── -->
+
+  <!-- Layer 2 -->
+  <rect x="72" y="99" width="76" height="40" rx="6" fill="#DBEAFE" stroke="#2563EB" stroke-width="2" filter="url(#shadow)"/>
+  <text x="110" y="120" text-anchor="middle" font-size="9" font-weight="bold" fill="#1E40AF">GRU / LRU</text>
+  <text x="110" y="131" text-anchor="middle" font-size="8" fill="#1E40AF">h[2,0]</text>
+
+  <rect x="182" y="99" width="76" height="40" rx="6" fill="#F3F4F6" stroke="#9CA3AF" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="220" y="120" text-anchor="middle" font-size="9" fill="#374151">GRU / LRU</text>
+  <text x="220" y="131" text-anchor="middle" font-size="8" fill="#6B7280">h[2,1]</text>
+
+  <rect x="292" y="99" width="76" height="40" rx="6" fill="#F3F4F6" stroke="#9CA3AF" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="330" y="120" text-anchor="middle" font-size="9" fill="#374151">GRU / LRU</text>
+  <text x="330" y="131" text-anchor="middle" font-size="8" fill="#6B7280">h[2,2]</text>
+
+  <rect x="402" y="99" width="76" height="40" rx="6" fill="#F3F4F6" stroke="#9CA3AF" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="440" y="120" text-anchor="middle" font-size="9" fill="#374151">GRU / LRU</text>
+  <text x="440" y="131" text-anchor="middle" font-size="8" fill="#6B7280">h[2,3]</text>
+
+  <!-- Layer 1 -->
+  <rect x="72" y="199" width="76" height="40" rx="6" fill="#DBEAFE" stroke="#2563EB" stroke-width="2" filter="url(#shadow)"/>
+  <text x="110" y="220" text-anchor="middle" font-size="9" font-weight="bold" fill="#1E40AF">GRU / LRU</text>
+  <text x="110" y="231" text-anchor="middle" font-size="8" fill="#1E40AF">h[1,0]</text>
+
+  <rect x="182" y="199" width="76" height="40" rx="6" fill="#F3F4F6" stroke="#9CA3AF" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="220" y="220" text-anchor="middle" font-size="9" fill="#374151">GRU / LRU</text>
+  <text x="220" y="231" text-anchor="middle" font-size="8" fill="#6B7280">h[1,1]</text>
+
+  <rect x="292" y="199" width="76" height="40" rx="6" fill="#F3F4F6" stroke="#9CA3AF" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="330" y="220" text-anchor="middle" font-size="9" fill="#374151">GRU / LRU</text>
+  <text x="330" y="231" text-anchor="middle" font-size="8" fill="#6B7280">h[1,2]</text>
+
+  <rect x="402" y="199" width="76" height="40" rx="6" fill="#F3F4F6" stroke="#9CA3AF" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="440" y="220" text-anchor="middle" font-size="9" fill="#374151">GRU / LRU</text>
+  <text x="440" y="231" text-anchor="middle" font-size="8" fill="#6B7280">h[1,3]</text>
+
+  <!-- Layer 0 -->
+  <rect x="72" y="299" width="76" height="40" rx="6" fill="#DBEAFE" stroke="#2563EB" stroke-width="2" filter="url(#shadow)"/>
+  <text x="110" y="320" text-anchor="middle" font-size="9" font-weight="bold" fill="#1E40AF">GRU / LRU</text>
+  <text x="110" y="331" text-anchor="middle" font-size="8" fill="#1E40AF">h[0,0]</text>
+
+  <rect x="182" y="299" width="76" height="40" rx="6" fill="#EEF2FF" stroke="#A5B4FC" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="220" y="320" text-anchor="middle" font-size="9" fill="#4B5563">GRU / LRU</text>
+  <text x="220" y="331" text-anchor="middle" font-size="8" fill="#6B7280">h[0,1]</text>
+
+  <rect x="292" y="299" width="76" height="40" rx="6" fill="#EEF2FF" stroke="#A5B4FC" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="330" y="320" text-anchor="middle" font-size="9" fill="#4B5563">GRU / LRU</text>
+  <text x="330" y="331" text-anchor="middle" font-size="8" fill="#6B7280">h[0,2]</text>
+
+  <rect x="402" y="299" width="76" height="40" rx="6" fill="#EEF2FF" stroke="#A5B4FC" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="440" y="320" text-anchor="middle" font-size="9" fill="#4B5563">GRU / LRU</text>
+  <text x="440" y="331" text-anchor="middle" font-size="8" fill="#6B7280">h[0,3]</text>
+
+  <!-- ── VERTICAL CONNECTIONS ───────────────────────────────────────────── -->
+  <!-- L0 → L1 -->
+  <line x1="110" y1="239" x2="110" y2="201" stroke="#2563EB" stroke-width="1.8" marker-end="url(#arr-blue)"/>
+  <line x1="220" y1="239" x2="220" y2="201" stroke="#9CA3AF" stroke-width="1.5" marker-end="url(#arr-gray)"/>
+  <line x1="330" y1="239" x2="330" y2="201" stroke="#9CA3AF" stroke-width="1.5" marker-end="url(#arr-gray)"/>
+  <line x1="440" y1="239" x2="440" y2="201" stroke="#9CA3AF" stroke-width="1.5" marker-end="url(#arr-gray)"/>
+  <!-- L1 → L2 -->
+  <line x1="110" y1="139" x2="110" y2="101" stroke="#2563EB" stroke-width="1.8" marker-end="url(#arr-blue)"/>
+  <line x1="220" y1="139" x2="220" y2="101" stroke="#9CA3AF" stroke-width="1.5" marker-end="url(#arr-gray)"/>
+  <line x1="330" y1="139" x2="330" y2="101" stroke="#9CA3AF" stroke-width="1.5" marker-end="url(#arr-gray)"/>
+  <line x1="440" y1="139" x2="440" y2="101" stroke="#9CA3AF" stroke-width="1.5" marker-end="url(#arr-gray)"/>
+
+  <!-- ── INTER-COLUMN ATTENTION ARCS ───────────────────────────────────── -->
+  <!-- L0: above the cells (y=272) -->
+  <path d="M 110,299 C 110,272 440,272 440,299"
+        fill="none" stroke="#7C3AED" stroke-width="1.5" stroke-dasharray="5,3"
+        marker-end="url(#arr-attn)"/>
+  <path d="M 440,299 C 440,272 110,272 110,299"
+        fill="none" stroke="#7C3AED" stroke-width="1.5" stroke-dasharray="5,3"
+        marker-end="url(#arr-attn)"/>
+
+  <!-- L1: above the cells (y=172) -->
+  <path d="M 110,199 C 110,172 440,172 440,199"
+        fill="none" stroke="#7C3AED" stroke-width="1.5" stroke-dasharray="5,3"
+        marker-end="url(#arr-attn)"/>
+  <path d="M 440,199 C 440,172 110,172 110,199"
+        fill="none" stroke="#7C3AED" stroke-width="1.5" stroke-dasharray="5,3"
+        marker-end="url(#arr-attn)"/>
+  <!-- Label for L1 arc -->
+  <text x="275" y="166" text-anchor="middle" font-size="9" fill="#7C3AED" font-style="italic">MHA + identity keys</text>
+
+  <!-- L2: above the cells (y=72) -->
+  <path d="M 110,99 C 110,72 440,72 440,99"
+        fill="none" stroke="#7C3AED" stroke-width="1.5" stroke-dasharray="5,3"
+        marker-end="url(#arr-attn)"/>
+  <path d="M 440,99 C 440,72 110,72 110,99"
+        fill="none" stroke="#7C3AED" stroke-width="1.5" stroke-dasharray="5,3"
+        marker-end="url(#arr-attn)"/>
+
+  <!-- ── INPUT ──────────────────────────────────────────────────────────── -->
+  <rect x="72" y="390" width="76" height="30" rx="5" fill="#FEF3C7" stroke="#D97706" stroke-width="1.5"/>
+  <text x="110" y="409" text-anchor="middle" font-size="10" font-weight="bold" fill="#92400E">token x_t</text>
+
+  <rect x="72" y="354" width="76" height="26" rx="4" fill="#FFFBEB" stroke="#F59E0B" stroke-width="1.5"/>
+  <text x="110" y="371" text-anchor="middle" font-size="9.5" fill="#78350F">Embedding</text>
+
+  <line x1="110" y1="390" x2="110" y2="381" stroke="#D97706" stroke-width="1.5" marker-end="url(#arr-orange)"/>
+  <line x1="110" y1="354" x2="110" y2="341" stroke="#D97706" stroke-width="1.8" marker-end="url(#arr-orange)"/>
+
+  <!-- Zero inputs -->
+  <text x="220" y="362" text-anchor="middle" font-size="9" fill="#9CA3AF" font-style="italic">0</text>
+  <text x="330" y="362" text-anchor="middle" font-size="9" fill="#9CA3AF" font-style="italic">0</text>
+  <text x="440" y="362" text-anchor="middle" font-size="9" fill="#9CA3AF" font-style="italic">0</text>
+  <line x1="220" y1="356" x2="220" y2="341" stroke="#D1D5DB" stroke-width="1" stroke-dasharray="3,2" marker-end="url(#arr-gray)"/>
+  <line x1="330" y1="356" x2="330" y2="341" stroke="#D1D5DB" stroke-width="1" stroke-dasharray="3,2" marker-end="url(#arr-gray)"/>
+  <line x1="440" y1="356" x2="440" y2="341" stroke="#D1D5DB" stroke-width="1" stroke-dasharray="3,2" marker-end="url(#arr-gray)"/>
+
+  <!-- ── OUTPUT ─────────────────────────────────────────────────────────── -->
+  <rect x="72" y="54" width="76" height="28" rx="5" fill="#D1FAE5" stroke="#059669" stroke-width="1.5"/>
+  <text x="110" y="72" text-anchor="middle" font-size="10" font-weight="bold" fill="#065F46">Output o_t</text>
+  <line x1="110" y1="99" x2="110" y2="84" stroke="#059669" stroke-width="1.8" marker-end="url(#arr-out)"/>
+
+  <!-- ════════════════════════════════════════════════════════════════════ -->
+  <!-- RIGHT PANEL: Legend (top half) + Process steps (bottom half)        -->
+  <!-- Panel: x=510, y=60, width=182, height=335                           -->
+  <!-- ════════════════════════════════════════════════════════════════════ -->
+  <rect x="510" y="60" width="182" height="335" rx="6"
+        fill="white" stroke="#D1D5DB" stroke-width="1.2"/>
+
+  <!-- ── LEGEND SECTION ─────────────────────────────────────────────────── -->
+  <text x="601" y="77" text-anchor="middle" font-size="9" font-weight="bold"
+        letter-spacing="0.5" fill="#374151">LEGEND</text>
+  <line x1="518" y1="82" x2="684" y2="82" stroke="#E5E7EB" stroke-width="1"/>
+
+  <!-- Col 0 -->
+  <rect x="518" y="90" width="16" height="11" rx="2"
+        fill="#DBEAFE" stroke="#2563EB" stroke-width="1.5"/>
+  <text x="540" y="100" font-size="8.5" fill="#374151">Col 0  (receives data)</text>
+
+  <!-- Col 1-3 -->
+  <rect x="518" y="107" width="16" height="11" rx="2"
+        fill="#F3F4F6" stroke="#9CA3AF" stroke-width="1.5"/>
+  <text x="540" y="117" font-size="8.5" fill="#374151">Col 1&#x2013;3  (zero input)</text>
+
+  <!-- Layer feed arrow -->
+  <line x1="518" y1="132" x2="534" y2="132" stroke="#374151" stroke-width="1.5"
+        marker-end="url(#arr)"/>
+  <text x="540" y="136" font-size="8.5" fill="#374151">Layer-to-layer feed</text>
+
+  <!-- Attention arrow -->
+  <line x1="518" y1="150" x2="534" y2="150" stroke="#7C3AED" stroke-width="1.5"
+        stroke-dasharray="4,2" marker-end="url(#arr-attn)"/>
+  <text x="540" y="154" font-size="8.5" fill="#374151">Cross-col attention</text>
+
+  <!-- Input/Output arrow -->
+  <line x1="518" y1="168" x2="534" y2="168" stroke="#D97706" stroke-width="1.5"
+        marker-end="url(#arr-orange)"/>
+  <text x="540" y="172" font-size="8.5" fill="#374151">Input / Output</text>
+
+  <!-- Zero input arrow -->
+  <line x1="518" y1="186" x2="534" y2="186" stroke="#D1D5DB" stroke-width="1"
+        stroke-dasharray="3,2" marker-end="url(#arr-gray)"/>
+  <text x="540" y="190" font-size="8.5" fill="#374151">Zero dummy input</text>
+
+  <!-- ── PROCESS STEPS SECTION ───────────────────────────────────────────── -->
+  <line x1="518" y1="202" x2="684" y2="202" stroke="#E5E7EB" stroke-width="1"/>
+  <text x="601" y="215" text-anchor="middle" font-size="9" font-weight="bold"
+        letter-spacing="0.5" fill="#374151">PER-TIMESTEP</text>
+  <line x1="518" y1="220" x2="684" y2="220" stroke="#E5E7EB" stroke-width="1"/>
+
+  <!-- Step 1 -->
+  <rect x="518" y="226" width="14" height="14" rx="3"
+        fill="#EEF2FF" stroke="#6366F1" stroke-width="1"/>
+  <text x="525" y="237" text-anchor="middle" font-size="8" font-weight="bold" fill="#4338CA">1</text>
+  <text x="537" y="233" font-size="8.5" font-weight="bold" fill="#374151">Column step</text>
+  <text x="537" y="244" font-size="8" fill="#6B7280">h = f(x, h_prev)</text>
+
+  <!-- Step 2 -->
+  <rect x="518" y="253" width="14" height="14" rx="3"
+        fill="#EEF2FF" stroke="#6366F1" stroke-width="1"/>
+  <text x="525" y="264" text-anchor="middle" font-size="8" font-weight="bold" fill="#4338CA">2</text>
+  <text x="537" y="260" font-size="8.5" font-weight="bold" fill="#374151">Message passing</text>
+  <text x="537" y="271" font-size="8" fill="#6B7280">m = MHA(H, col-id keys)</text>
+
+  <!-- Step 3 -->
+  <rect x="518" y="280" width="14" height="14" rx="3"
+        fill="#EEF2FF" stroke="#6366F1" stroke-width="1"/>
+  <text x="525" y="291" text-anchor="middle" font-size="8" font-weight="bold" fill="#4338CA">3</text>
+  <text x="537" y="287" font-size="8.5" font-weight="bold" fill="#374151">Gated mix</text>
+  <text x="537" y="298" font-size="8" fill="#6B7280">h' = (1-g)h + g*m</text>
+
+  <!-- Step 4 -->
+  <rect x="518" y="307" width="14" height="14" rx="3"
+        fill="#EEF2FF" stroke="#6366F1" stroke-width="1"/>
+  <text x="525" y="318" text-anchor="middle" font-size="8" font-weight="bold" fill="#4338CA">4</text>
+  <text x="537" y="314" font-size="8.5" font-weight="bold" fill="#374151">Output</text>
+  <text x="537" y="325" font-size="8" fill="#6B7280">o_t = h'[top layer, col 0]</text>
+
+  <!-- State dimension note -->
+  <line x1="518" y1="336" x2="684" y2="336" stroke="#E5E7EB" stroke-width="1"/>
+  <text x="601" y="349" text-anchor="middle" font-size="7.5" fill="#6B7280">
+    State H in R^(L x C x B x D)
+  </text>
+  <text x="601" y="360" text-anchor="middle" font-size="7.5" fill="#9CA3AF">
+    L=layers, C=cols, B=batch, D=hidden
+  </text>
+  <text x="601" y="371" text-anchor="middle" font-size="7.5" fill="#9CA3AF">
+    g = sigmoid(W_g [h ; m])
+  </text>
+  <text x="601" y="382" text-anchor="middle" font-size="7.5" fill="#9CA3AF">
+    I_col in R^C  (learnable col IDs)
+  </text>
+
+  <!-- ── TITLE ──────────────────────────────────────────────────────────── -->
+  <text x="255" y="435" text-anchor="middle" font-size="12" font-weight="bold" fill="#111827">
+    Grid RNN: L=3 layers x C=4 columns
+  </text>
+</svg>

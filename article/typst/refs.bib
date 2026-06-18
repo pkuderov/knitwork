@@ -1,0 +1,292 @@
+% ─────────────────────────────────────────────────────────────────────────────
+% Grid RNN paper bibliography — AAAI 2026
+% ─────────────────────────────────────────────────────────────────────────────
+
+% ── Baselines: Standard RNNs ──────────────────────────────────────────────────
+
+@inproceedings{cho2014gru,
+  author    = {Cho, Kyunghyun and van Merrienboer, Bart and Gulcehre, Caglar and Bahdanau, Dzmitry and Bougares, Fethi and Schwenk, Holger and Bengio, Yoshua},
+  title     = {Learning Phrase Representations using {RNN} Encoder-Decoder for Statistical Machine Translation},
+  booktitle = {Proceedings of the 2014 Conference on Empirical Methods in Natural Language Processing (EMNLP)},
+  pages     = {1724--1734},
+  year      = {2014},
+  publisher = {Association for Computational Linguistics},
+}
+
+@article{hochreiter1997lstm,
+  author    = {Hochreiter, Sepp and Schmidhuber, J{\"u}rgen},
+  title     = {Long Short-Term Memory},
+  journal   = {Neural Computation},
+  volume    = {9},
+  number    = {8},
+  pages     = {1735--1780},
+  year      = {1997},
+}
+
+@inproceedings{krueger2017zoneout,
+  author    = {Krueger, David and Maharaj, Tegan and Kram{\'a}r, J{\'a}nos and Pezeshki, Mohammad and Ballas, Nicolas and Ke, Nan Rosemary and Goyal, Anirudh and Bengio, Yoshua and Larochelle, Hugo and Courville, Aaron and Pal, Chris},
+  title     = {Zoneout: Regularizing {RNNs} by Randomly Preserving Hidden Activations},
+  booktitle = {5th International Conference on Learning Representations (ICLR)},
+  year      = {2017},
+}
+
+@inproceedings{trinh2018auxiliary,
+  author    = {Trinh, Trieu H. and Dai, Andrew M. and Luong, Minh-Thang and Le, Quoc V.},
+  title     = {Learning Longer-term Dependencies in {RNNs} with Auxiliary Losses},
+  booktitle = {Proceedings of the 35th International Conference on Machine Learning (ICML)},
+  pages     = {4965--4974},
+  year      = {2018},
+}
+
+% ── Parallel Streams / Independent Columns ───────────────────────────────────
+
+@inproceedings{li2018indrnn,
+  author    = {Li, Shuai and Li, Wanqing and Cook, Chris and Zhu, Ce and Gao, Yanbo},
+  title     = {Independently Recurrent Neural Network ({IndRNN}): Building A Longer and Deeper {RNN}},
+  booktitle = {Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
+  pages     = {5457--5466},
+  year      = {2018},
+}
+
+@inproceedings{zhang2024gsa,
+  author    = {Zhang, Yu and Yang, Songlin and Zhu, Ruijie and Qin, Yue and Ma, Yuming and Zhang, Jianguo and Li, Dong and Qin, Zhen},
+  title     = {Gated Slot Attention for Efficient Linear-Time Sequence Modeling},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  volume    = {37},
+  year      = {2024},
+}
+
+% ── Grid / Multi-Dimensional RNNs ────────────────────────────────────────────
+
+@inproceedings{graves2007mdrnn,
+  author    = {Graves, Alex and Fernandez, Santiago and Schmidhuber, J{\"u}rgen},
+  title     = {Multi-Dimensional Recurrent Neural Networks},
+  booktitle = {Proceedings of the 17th International Conference on Artificial Neural Networks (ICANN)},
+  pages     = {549--558},
+  year      = {2007},
+}
+
+@inproceedings{kalchbrenner2015gridlstm,
+  author    = {Kalchbrenner, Nal and Danihelka, Ivo and Graves, Alex},
+  title     = {Grid Long Short-Term Memory},
+  booktitle = {3rd International Conference on Learning Representations (ICLR)},
+  year      = {2016},
+}
+
+% ── Hierarchical / Multi-Scale RNNs ──────────────────────────────────────────
+
+@inproceedings{chung2017hmrnn,
+  author    = {Chung, Junyoung and Ahn, Sungjin and Bengio, Yoshua},
+  title     = {Hierarchical Multiscale Recurrent Neural Networks},
+  booktitle = {5th International Conference on Learning Representations (ICLR)},
+  year      = {2017},
+}
+
+@inproceedings{mujika2017fastslow,
+  author    = {Mujika, Asier and Meier, Florian and Steger, Angelika},
+  title     = {Fast-Slow Recurrent Neural Networks},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  volume    = {30},
+  year      = {2017},
+}
+
+@inproceedings{qin2023hgrn,
+  author    = {Qin, Zhen and Yang, Songlin and Zhong, Weixuan and He, Xuyang and Wu, Fei and Wang, Yiran and Sun, Weigao and Yin, Shengding and Zhang, Zhiyuan and Zheng, Yubo and Zhao, Xu and Liu, Yang},
+  title     = {{HGRN}: Hierarchically Gated Recurrent Neural Network for Sequence Modeling},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  volume    = {36},
+  year      = {2023},
+}
+
+@inproceedings{qin2024hgrn2,
+  author    = {Qin, Zhen and Yang, Songlin and Sun, Weixuan and Shen, Xuyang and Li, Dong and Li, Weigao and Zheng, Yubo},
+  title     = {{HGRN2}: Gated Linear {RNNs} with State Expansion},
+  booktitle = {Proceedings of the 2024 Conference on Empirical Methods in Natural Language Processing (EMNLP)},
+  year      = {2024},
+}
+
+% ── Linear RNNs / LRU ────────────────────────────────────────────────────────
+
+@inproceedings{orvieto2023lru,
+  author    = {Orvieto, Antonio and Smith, Samuel L. and Gu, Albert and Fernando, Anushan and Gulcehre, Caglar and Pascanu, Razvan and De, Soham},
+  title     = {Resurrecting Recurrent Neural Networks for Long Sequences},
+  booktitle = {Proceedings of the 40th International Conference on Machine Learning (ICML)},
+  pages     = {26670--26698},
+  year      = {2023},
+}
+
+% ── Attention / Transformers ──────────────────────────────────────────────────
+
+@inproceedings{vaswani2017attention,
+  author    = {Vaswani, Ashish and Shazeer, Noam and Parmar, Niki and Uszkoreit, Jakob and Jones, Llion and Gomez, Aidan N. and Kaiser, {\L}ukasz and Polosukhin, Illia},
+  title     = {Attention Is All You Need},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  volume    = {30},
+  year      = {2017},
+}
+
+@inproceedings{dai2019transformerxl,
+  author    = {Dai, Zihang and Yang, Zhilin and Yang, Yiming and Carbonell, Jaime and Le, Quoc V. and Salakhutdinov, Ruslan},
+  title     = {Transformer-{XL}: Attentive Language Models Beyond a Fixed-Length Context},
+  booktitle = {Proceedings of the 57th Annual Meeting of the Association for Computational Linguistics (ACL)},
+  pages     = {2978--2988},
+  year      = {2019},
+}
+
+% ── External Memory Controllers ──────────────────────────────────────────────
+
+@article{graves2014ntm,
+  author    = {Graves, Alex and Wayne, Greg and Danihelka, Ivo},
+  title     = {Neural Turing Machines},
+  journal   = {arXiv preprint arXiv:1410.5401},
+  year      = {2014},
+}
+
+@article{graves2016dnc,
+  author    = {Graves, Alex and Wayne, Greg and Reynolds, Malcolm and Harley, Tim and Danihelka, Ivo and Grabska-Barwi{\'n}ska, Agnieszka and Colmenarejo, Sergio G{\'o}mez and Grefenstette, Edward and Ramalho, Tiago and Agapiou, John and Badia, Adri{\`a} Puigdom{\`e}nech and Hermann, Karl Moritz and Zwols, Yori and Ostrovski, Georg and Cain, Adam and King, Helen and Summerfield, Christopher and Blunsom, Phil and Kavukcuoglu, Koray and Hassabis, Demis},
+  title     = {Hybrid computing using a neural network with dynamic external memory},
+  journal   = {Nature},
+  volume    = {538},
+  pages     = {471--476},
+  year      = {2016},
+}
+
+% ── Associative / Fast Memory ─────────────────────────────────────────────────
+
+@inproceedings{ba2016fastweights,
+  author    = {Ba, Jimmy and Hinton, Geoffrey E. and Mnih, Volodymyr and Leibo, Joel Z. and Ionescu, Catalin},
+  title     = {Using Fast Weights to Attend to the Recent Past},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  volume    = {29},
+  year      = {2016},
+}
+
+@inproceedings{schlag2021fastweight,
+  author    = {Schlag, Imanol and Irie, Kazuki and Schmidhuber, J{\"u}rgen},
+  title     = {Linear Transformers Are Secretly Fast Weight Programmers},
+  booktitle = {Proceedings of the 38th International Conference on Machine Learning (ICML)},
+  pages     = {9355--9366},
+  year      = {2021},
+}
+
+@inproceedings{danihelka2016assoclstm,
+  author    = {Danihelka, Ivo and Wayne, Greg and Uria, Benigno and Kalchbrenner, Nal and Graves, Alex},
+  title     = {Associative Long Short-Term Memory},
+  booktitle = {Proceedings of the 33rd International Conference on Machine Learning (ICML)},
+  pages     = {1986--1994},
+  year      = {2016},
+}
+
+@inproceedings{ramsauer2021hopfield,
+  author    = {Ramsauer, Hubert and Sch{\"a}fl, Bernhard and Lehner, Johannes and Seidl, Philipp and Widrich, Michael and Gruber, Lukas and Holzleitner, Markus and Pavlovic, Milena and Sandve, Geir Kjetil and Greiff, Victor and Kreil, David and Kopp, Michael and Klambauer, G{\"u}nter and Brandstetter, Johannes and Hochreiter, Sepp},
+  title     = {Hopfield Networks Is All You Need},
+  booktitle = {9th International Conference on Learning Representations (ICLR)},
+  year      = {2021},
+}
+
+@article{keller2018fwlstm,
+  author    = {Keller, Thomas A. and Ritter, Samuel and Botvinick, Matthew},
+  title     = {Fast Weight Long Short-Term Memory},
+  journal   = {arXiv preprint arXiv:1809.06592},
+  year      = {2018},
+}
+
+@article{szelogowski2025engram,
+  author    = {Szelogowski, Micha{\l}},
+  title     = {Hebbian Memory-Augmented Recurrent Networks: Engram Neurons in Deep Learning},
+  journal   = {arXiv preprint arXiv:2501.07108},
+  year      = {2025},
+}
+
+@inproceedings{lansner2023hebbian,
+  author    = {Lansner, Anders and Johansson, Christopher and Tully, Philip},
+  title     = {Benchmarking Hebbian Learning Rules for Associative Memory},
+  booktitle = {Proceedings of the International Conference on Artificial Neural Networks (ICANN)},
+  year      = {2023},
+}
+
+@article{boscaglia2023attractor,
+  author    = {Boscaglia, Luca and Sprekeler, Henning},
+  title     = {A dynamic attractor network model of memory formation, reinforcement and forgetting},
+  journal   = {PLOS Computational Biology},
+  volume    = {19},
+  number    = {10},
+  year      = {2023},
+}
+
+% ── Language Modeling Baselines ───────────────────────────────────────────────
+
+@inproceedings{merity2018awdlstm,
+  author    = {Merity, Stephen and Keskar, Nitish Shirish and Socher, Richard},
+  title     = {Regularizing and Optimizing {LSTM} Language Models},
+  booktitle = {6th International Conference on Learning Representations (ICLR)},
+  year      = {2018},
+}
+
+@article{merity2019sharnn,
+  author    = {Merity, Stephen},
+  title     = {Single Headed Attention {RNN}: Stop Thinking With Your Head},
+  journal   = {arXiv preprint arXiv:1911.11423},
+  year      = {2019},
+}
+
+% ── Reinforcement Learning ────────────────────────────────────────────────────
+
+@inproceedings{schulman2017ppo,
+  author    = {Schulman, John and Wolski, Filip and Dhariwal, Prafulla and Radford, Alec and Klimov, Oleg},
+  title     = {Proximal Policy Optimization Algorithms},
+  journal   = {arXiv preprint arXiv:1707.06347},
+  year      = {2017},
+}
+
+@inproceedings{mnih2016a3c,
+  author    = {Mnih, Volodymyr and Badia, Adri{\`a} Puigdom{\`e}nech and Mirza, Mehdi and Graves, Alex and Lillicrap, Timothy and Harley, Tim and Silver, David and Kavukcuoglu, Koray},
+  title     = {Asynchronous Methods for Deep Reinforcement Learning},
+  booktitle = {Proceedings of the 33rd International Conference on Machine Learning (ICML)},
+  pages     = {1928--1937},
+  year      = {2016},
+}
+
+@inproceedings{hausknecht2015drqn,
+  author    = {Hausknecht, Matthew and Stone, Peter},
+  title     = {Deep Recurrent Q-Network},
+  booktitle = {AAAI Workshop on Deep Learning and Artificial Intelligence (AAAI-DL)},
+  year      = {2015},
+}
+
+% ── Memory Benchmarks ─────────────────────────────────────────────────────────
+
+@inproceedings{morad2023popgym,
+  author    = {Morad, Steven D. and Kortvelesy, Ryan and Bettini, Matteo and Liwicki, Stephan and Prorok, Amanda},
+  title     = {{POPGym}: Benchmarking Partially Observable Reinforcement Learning},
+  booktitle = {11th International Conference on Learning Representations (ICLR)},
+  year      = {2023},
+}
+
+@article{cherepanov2025mikasa,
+  author    = {Cherepanov, Egor and Kuznetsov, Sergei and Makarov, Ilya},
+  title     = {{MIKASA}: Memory-Intensive Knowledge Acquisition and Structured Assessment for Reinforcement Learning Agents},
+  journal   = {arXiv preprint arXiv:2501.14346},
+  year      = {2025},
+}
+
+% ── Predictive Coding / Error-Driven Memory ───────────────────────────────────
+
+@article{ali2022predictivecoding,
+  author    = {Ali, Abdullahi and Ahmad, Nasir and de Wit, Elgar and van Gerven, Marcel and Kietzmann, Tim C.},
+  title     = {Predictive Coding Is a Consequence of Energy Efficiency in Recurrent Neural Networks},
+  journal   = {Patterns},
+  volume    = {3},
+  number    = {12},
+  year      = {2022},
+}
+
+% ── Theory of RNN Computation ─────────────────────────────────────────────────
+
+@inproceedings{merrill2020rnns,
+  author    = {Merrill, William and Weiss, Gail and Goldberg, Yoav and Schwartz, Roy and Smith, Noah A. and Yahav, Eran},
+  title     = {A Formal Hierarchy of {RNN} Architectures},
+  booktitle = {Proceedings of the 58th Annual Meeting of the Association for Computational Linguistics (ACL)},
+  pages     = {443--459},
+  year      = {2020},
+}
