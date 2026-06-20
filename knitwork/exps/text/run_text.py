@@ -105,11 +105,10 @@ def update_intra_word_metrics(
 
 
 def main(config):
-    run_name = (
-        config.get('name')
-        or config.get('log', {}).get('name')
-        or datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    )
+    _default_name = f"knitwork_{config['model']}_{config.get('gen', 'text8')}"
+    run_name = config.get('name') or config.get('log', {}).get('name') or _default_name
+    if not run_name.startswith('knitwork_'):
+        run_name = 'knitwork_' + run_name
     config.setdefault('log', {})['name'] = run_name
     print(f'Run name: {run_name}')
 

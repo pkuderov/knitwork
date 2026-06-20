@@ -120,7 +120,11 @@ class CKAVisualizer:
     def log(self, logger, step: int):
         import io
         from PIL import Image as PILImage
-        from aim import Image as AimImage
+        try:
+            from aim import Image as AimImage
+            _wrap = AimImage
+        except ImportError:
+            _wrap = lambda x: x  # Logger.track() accepts PIL directly
 
         cka_matrices = self.compute_cka_matrices()
         col_labels = [f"C{j}" for j in range(self.n_columns)]
@@ -147,7 +151,7 @@ class CKAVisualizer:
             fig.savefig(io_buf, format='png', dpi=120, bbox_inches='tight')
             io_buf.seek(0)
             logger.track(
-                AimImage(PILImage.open(io_buf)),
+                _wrap(PILImage.open(io_buf)),
                 name=f"cka_layer_{layer_idx}",
                 step=step,
             )

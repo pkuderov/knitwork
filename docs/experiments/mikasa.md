@@ -182,3 +182,35 @@ uv run knitwork/exps/mikasa/run_mikasa.py knitwork/exps/mikasa/config_mikasa.yam
 ## Логирование
 
 AIM проект: `grid-rnn-mikasa`. Метрики по умолчанию: `MeanReward`, `ep_return`, `ep_length`, `PolicyLoss`, `ValueLoss`, `Entropy`, `fps`.
+
+---
+
+## Результаты экспериментов
+
+### grnn_harmonic — MIKASA v6 (2026-06-17, запущено)
+
+Модель: `HarmonicGridRNN 3L×4C LRU + 0Res | hidden=128 heads=4 mem=(32×128) ema=0.9` (2.11M params)
+
+Алгоритм: PPO | n_envs=64 | rollout_len=32 | LR=8e-4 (warmup+cosine) | 200M шагов
+
+| # | Env | Прогресс | LR | PL | VL | H | R | EpRet | Статус |
+|---|---|---|---|---|---|---|---|---|---|
+| #076 | RepeatFirstEasy | 20.5M/200M (10%) | 80% | -0.000 | 0.007 | 1.32 | -0.009 | -0.499 | RUNNING |
+| #077 | RepeatFirstMedium | 20.5M/200M (10%) | 80% | -0.002 | 0.000 | 1.33 | -0.001 | -0.496 | RUNNING |
+| #078 | MultiarmedBanditEasy | 20.0M/200M (10%) | 79% | -0.002 | 0.244 | **2.27** | **0.000** | **+0.021** | RUNNING |
+| #079 | MultiarmedBanditMedium | — | — | — | — | — | — | — | PENDING |
+
+**Наблюдения (20M шагов):**
+- BanditEasy (#078) показывает лучшее поведение: энтропия 2.27 (активное исследование), EpRet чуть положительный (+0.021). Модель осваивает задачу исследования.
+- RepeatFirst Easy/Medium (#076, #077) застряли в отрицательных EpRet ≈ -0.5. Энтропия умеренная (1.32–1.33). Задача на долгосрочную память — модель пока не освоила.
+
+### grnn_harmonic — MIKASA v5 (2026-06-17, прервано)
+
+Прогресс до 29M/200M шагов перед прерыванием (exit=-15, SIGTERM):
+
+| # | Env | Прогресс | H | R | EpRet |
+|---|---|---|---|---|---|
+| #074 | RepeatFirstEasy | 29M/200M | 0.78 | -0.009 | -0.555 |
+| #075 | RepeatFirstMedium | 29M/200M | 0.22 | -0.001 | -0.529 |
+
+**Наблюдения v5:** энтропия резко упала (0.78 и 0.22) — модель схлопывается в одну стратегию, не выучив задачу. Это мотивировало правки в v6 (entropy_coef, warmup, Hopfield gate init).

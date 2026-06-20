@@ -85,7 +85,11 @@ class AttnFlowVisualizer:
     def log(self, logger, step: int):
         import io
         from PIL import Image as PILImage
-        from aim import Image as AimImage
+        try:
+            from aim import Image as AimImage
+            _wrap = AimImage
+        except ImportError:
+            _wrap = lambda x: x  # Logger.track() accepts PIL directly
 
         for layer_idx in range(self.n_layers):
             buf = self._buffers[layer_idx]
@@ -117,7 +121,7 @@ class AttnFlowVisualizer:
             fig.savefig(io_buf, format='png', dpi=120, bbox_inches='tight')
             io_buf.seek(0)
             logger.track(
-                AimImage(PILImage.open(io_buf)),
+                _wrap(PILImage.open(io_buf)),
                 name=f"attn_flow_layer_{layer_idx}",
                 step=step,
             )

@@ -20,7 +20,7 @@ from knitwork.common.utils import (
     to_numpy, to_torch,
 )
 from knitwork.env.mikasa_wrapper import MikasakWrapper
-from knitwork.exps.sdq._viz import log_figure, plot_hidden_norm_heatmap
+from knitwork.exps.sdq._viz import VizManager
 
 # ---------------------------------------------------------------------------
 # Model registries
@@ -114,11 +114,12 @@ def compute_gae(
 # Main
 
 def main(config):
-    run_name = (
-        config.get('name', None)
-        or config.get('log', {}).get('name', None)
-        or datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    )
+    env_id = config['env']
+    _env_slug = env_id.replace('popgym-', '').replace('-v0', '').replace('-', '_')
+    _default_name = f"knitwork_{config['model']}_{_env_slug}"
+    run_name = config.get('name') or config.get('log', {}).get('name') or _default_name
+    if not run_name.startswith('knitwork_'):
+        run_name = 'knitwork_' + run_name
     config.setdefault('log', {})['name'] = run_name
     print(f'Run name: {run_name}')
 
@@ -179,7 +180,6 @@ def main(config):
     n_steps      = int(config['n_steps'])
     vis_interval = int(config.get('vis_interval', 10_000_000))
     step         = 0
-    next_vis     = vis_interval
 
     log_stats_schedule   = create_scheduler(config['log']['schedule'])
     print_stats_schedule = create_scheduler(config['log']['print_schedule'])
@@ -210,8 +210,8 @@ def main(config):
     reset_buf = torch.zeros(rollout_len, n_envs, dtype=dtype, device=device)
     val_buf   = torch.zeros(rollout_len, n_envs, dtype=dtype, device=device)
 
-    # Column-norm visualisation buffers (Grid models only)
-    vis_norm_buf: list[dict] = []
+    viz = VizManager(rnn.n_layers, rnn.n_columns, vis_interval=vis_interval) if (is_grid and logger is not None) else None
+    ep_step = torch.zeros(n_envs, dtype=torch.long, device=device)
 
     while step < n_steps:
         h_init = rnn_state
@@ -245,16 +245,17 @@ def main(config):
                 reset_buf[t] = reset_mask.to(dtype)
                 val_buf[t]   = value
 
-                # accumulate column norms for visualisation
-                if is_grid and logger is not None:
-                    h = rnn_state[0] if isinstance(rnn_state, tuple) else rnn_state
-                    if h.ndim == 4:  # [L, C, B, H]
-                        n_l, n_c = h.shape[:2]
-                        entry = {}
-                        for li in range(n_l):
-                            for ci in range(n_c):
-                                entry[f'hidden_norm/L{li}_C{ci}'] = h[li, ci].float().norm(dim=-1).mean().item()
-                        vis_norm_buf.append(entry)
+                if viz is not None:
+                    # RepeatFirst phases: step-0 = store, terminal = query, middle = distract
+                    if ep_step[0].item() == 0:
+                        phase = 'store'
+                    elif dones[0].bool():
+                        phase = 'query'
+                    else:
+                        phase = 'distract'
+                    viz.update(step, {}, rnn_state, has_hgrn=False, has_fusion=False, rnn=rnn)
+                    viz.update_specialisation(phase, rnn_state, None)
+                    ep_step = (ep_step + 1) * (1 - dones.long())
 
                 step += n_envs
 
@@ -311,17 +312,8 @@ def main(config):
 
         rnn_state = rnn.detach_state(rnn_state)
 
-        # column-norm visualisation flush
-        if step >= next_vis and is_grid and vis_norm_buf and logger is not None:
-            try:
-                n_l = rnn_state[0].shape[0] if isinstance(rnn_state, tuple) else rnn_state.shape[0]
-                n_c = rnn_state[0].shape[1] if isinstance(rnn_state, tuple) else rnn_state.shape[1]
-                fig = plot_hidden_norm_heatmap(vis_norm_buf, n_l, n_c, step)
-                log_figure(logger, fig, 'vis/col_norm_heatmap', step)
-            except Exception as e:
-                print(f'[VIS] col_norm: {e}')
-            vis_norm_buf.clear()
-            next_vis += vis_interval
+        if viz is not None and step >= viz.next_step and logger is not None:
+            viz.flush(logger, step, has_hgrn=False, has_reservoir=False, reservoir_sr_info={})
 
         lr.step()
 
