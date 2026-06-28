@@ -16,6 +16,7 @@ dependencies = [
     "ryaml>=0.5.1",
     "popgym>=1.0.6",
     "comet-ml>=3.58.3",
+    "python-dotenv>=1.0",
 ]
 
 [build-system]

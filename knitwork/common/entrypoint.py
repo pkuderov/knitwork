@@ -9,6 +9,15 @@ from typing import Any
 from knitwork.common.config import TKeyPathValue, load_config, override_config
 
 
+def _load_dotenv():
+    try:
+        from dotenv import load_dotenv
+        load_dotenv()
+    except ImportError:
+        pass
+
+
+
 def run_experiment(*, runner, arg_parser: ArgumentParser | None = None):
     """
     THE MAIN entry point for starting a program.
@@ -17,6 +26,7 @@ def run_experiment(*, runner, arg_parser: ArgumentParser | None = None):
         3) sets any execution params
         4) passes execution handling to the runner.
     """
+    _load_dotenv()
     arg_parser = arg_parser or default_run_arg_parser()
     args, unknown_args = arg_parser.parse_known_args()
 

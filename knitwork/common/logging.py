@@ -59,10 +59,12 @@ class Logger:
         try:
             from aim import Image as AimImage
             if isinstance(value, AimImage):
-                img = getattr(value, 'img', None)
-                if img is not None:
-                    _step = None if step is _UNSET else step
-                    self._run.log_image(img, name=name, step=_step)
+                _step = None if step is _UNSET else step
+                try:
+                    pil_img = value.to_pil_image()
+                    self._run.log_image(pil_img, name=name, step=_step)
+                except Exception:
+                    pass
                 return
         except ImportError:
             pass
@@ -85,7 +87,10 @@ class Logger:
             else:
                 flat.pop('global_step', None)
                 _step = step
-            self._run.log_metrics(flat, step=_step)
+            # filter NaN/Inf which Comet silently drops but may cause issues
+            flat = {k: v for k, v in flat.items() if v == v and abs(v) != float('inf')}
+            if flat:
+                self._run.log_metrics(flat, step=_step)
             return
 
         # scalar
