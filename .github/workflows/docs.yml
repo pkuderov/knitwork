@@ -1,0 +1,54 @@
+name: Deploy docs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - "shiroa/book.typ"
+      - "shiroa/templates/**"
+      - "shiroa/build-content.sh"
+      - "shiroa/fix_for_shiroa.py"
+
+  workflow_dispatch:  # allow manual trigger
+
+permissions:
+  contents: write   # needed to push to gh-pages
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pandoc
+        run: sudo apt-get install -y pandoc
+
+      - name: Install shiroa
+        run: |
+          curl -L https://github.com/Myriad-Dreamin/shiroa/releases/download/v0.3.0/shiroa-x86_64-unknown-linux-gnu.tar.gz \
+            | tar xz
+          sudo mv shiroa-x86_64-unknown-linux-gnu/shiroa /usr/local/bin/shiroa
+          shiroa --version
+
+      - name: Generate Shiroa content + build
+        run: bash shiroa/build-content.sh --build
+
+      - name: Assemble final site
+        run: |
+          mkdir -p _site/typst
+          # Docsify: copy docs/ to site root (keeps index.html, _sidebar.md, methods/, experiments/)
+          cp -r docs/. _site/
+          # Shiroa: deploy under /typst/
+          cp -r shiroa/dist/. _site/typst/
+          # Add a simple redirect at site root if needed
+          touch _site/.nojekyll
+
+      - name: Deploy to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./_site
+          force_orphan: true  # keep gh-pages clean (no history bloat from binary assets)
