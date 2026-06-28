@@ -42,6 +42,10 @@ _REGISTRY_DISCRETE: dict[str, tuple[str, str]] = {
     'grnn_ema_mem':   ('knitwork.models.grnn_ema_mem',   'GridRnnEmaMem'),
     'grnn_delta':     ('knitwork.models.grnn_delta',     'GridDelta'),
     'grnn_harmonic':  ('knitwork.models.grnn_harmonic',  'HarmonicGridRNN'),
+    # external baselines
+    'delta_net':      ('knitwork.models.baseline.delta_net', 'DeltaNet'),
+    'hgrn2':          ('knitwork.models.baseline.hgrn2',     'HGRN2'),
+    'mlstm':          ('knitwork.models.baseline.mlstm',     'mLSTM'),
 }
 
 # For MultiDiscrete / Box / Tuple observation spaces — linear encoder replaces Embedding
@@ -164,14 +168,29 @@ def main(config):
 
     def extract_h_top(state) -> torch.Tensor:
         # normalize heterogeneous state shapes to [B, actor_hidden]
+        if hasattr(rnn, 'get_top_h'):
+            return rnn.get_top_h(state)[:, :actor_hidden]
         h = state[0] if isinstance(state, tuple) else state
         if h.ndim == 3:
-            # GRU: [layers, B, H]
             return h[-1][:, :actor_hidden]
-        # Grid: [layers, cols, B, H or 2H]
         return h[-1, 0, :, :actor_hidden]
 
-    all_params = list(rnn.parameters()) + list(critic.parameters())
+    # Aux observation-reconstruction head for a specific column (anti-collapse regulariser)
+    aux_col_idx = int(config.get('aux_col_idx', 2))
+    aux_loss_w  = float(config.get('aux_col_weight', 0.0))
+    _n_cols     = getattr(rnn, 'n_columns', 0)
+    aux_enabled = aux_loss_w > 0 and _n_cols > aux_col_idx
+    if aux_enabled:
+        _obs_out = gen.n_tokens if gen.obs_type == 'discrete' else gen.obs_dim
+        aux_head = nn.Linear(actor_hidden, _obs_out).to(device=device, dtype=dtype)
+        print(f'Aux col loss enabled: col={aux_col_idx}  weight={aux_loss_w}  out={_obs_out}')
+    else:
+        aux_head = None
+
+    all_params = (
+        list(rnn.parameters()) + list(critic.parameters())
+        + (list(aux_head.parameters()) if aux_head is not None else [])
+    )
     lr = DynamicLearningRate(name=f'LR', **config['lr'])
     optim = torch.optim.RMSprop(all_params, lr=lr.val, eps=1e-5)
     lr.connect_to_optimiser(optim)
@@ -273,7 +292,7 @@ def main(config):
         advs = (advs - advs.mean()) / (advs.std() + 1e-8)
 
         # PPO update
-        total_policy_loss = total_value_loss = total_entropy = 0.0
+        total_policy_loss = total_value_loss = total_entropy = total_aux_loss = 0.0
         n_updates = 0
 
         for _ in range(PPO_EPOCHS):
@@ -298,6 +317,17 @@ def main(config):
                 v_loss = F.mse_loss(value_new, returns[t])
 
                 loss = p_loss + VALUE_COEF * v_loss - entropy_coef * entropy
+
+                if aux_head is not None:
+                    # reconstruct current obs from column aux_col_idx of last layer
+                    col_h = h[-1, aux_col_idx, :, :actor_hidden]  # [B, H] real part
+                    if is_discrete:
+                        aux_loss = F.cross_entropy(aux_head(col_h), obs_buf[t].squeeze(-1))
+                    else:
+                        aux_loss = F.mse_loss(aux_head(col_h), obs_buf[t].to(dtype))
+                    loss = loss + aux_loss_w * aux_loss
+                    total_aux_loss += aux_loss.item()
+
                 optim.zero_grad()
                 loss.backward()
                 nn.utils.clip_grad_norm_(all_params, MAX_GRAD_NORM)
@@ -317,13 +347,16 @@ def main(config):
 
         lr.step()
 
-        stats.put({
+        _stat = {
             'PolicyLoss' : total_policy_loss / max(n_updates, 1),
             'ValueLoss'  : total_value_loss  / max(n_updates, 1),
             'Entropy'    : total_entropy     / max(n_updates, 1),
             'MeanReward' : to_numpy(rew_buf.mean()),
             'LR'         : lr.val,
-        })
+        }
+        if aux_head is not None:
+            _stat['AuxLoss'] = total_aux_loss / max(n_updates, 1)
+        stats.put(_stat)
 
         if print_stats_schedule.tick(n_envs * rollout_len):
             m   = stats.get()

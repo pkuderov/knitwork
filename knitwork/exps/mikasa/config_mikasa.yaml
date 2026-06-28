@@ -12,7 +12,7 @@ log:
 
 device: cuda
 dtype: float32
-async_envs: true
+async_envs: false
 vis_interval: 5.0e+6
 
 # Среда POPGym — менять через --env=<gym_id>
@@ -38,7 +38,7 @@ model: grnn_lru
 rollout_len: 128
 n_envs: 128
 n_steps: 2.0e+8
-entropy_coef: 0.05   # 0.01 too low — policy collapses during warmup before LR kicks in
+entropy_coef: 0.005
 
 # Конфигурации моделей
 models:
@@ -207,9 +207,9 @@ models:
     lru_r_per_col: true
 
   grnn_harmonic:
-    embedding_size: 64
-    hidden_size: 128
-    n_layers: 3
+    embedding_size: 40
+    hidden_size: 76
+    n_layers: 2
     n_columns: 4
     n_attn_heads: 4
     messaging: post
@@ -230,6 +230,28 @@ models:
     r_res_max: 0.999
     multi_col_head: false    # col0 only — focused policy representation for RL
 
+  # --- external baselines ---
+
+  delta_net:
+    embedding_size: 64
+    hidden_size: 128
+    n_layers: 3
+
+  hgrn2:
+    embedding_size: 64
+    hidden_size: 128
+    n_layers: 3
+    expand: 4
+
+  mlstm:
+    embedding_size: 64
+    hidden_size: 128
+    n_layers: 3
+
+# Auxiliary column loss (anti-collapse regulariser for grid models)
+aux_col_idx: 2
+aux_col_weight: 0.0  # set > 0 to enable, e.g. 0.1
+
 # LR schedule
 lr:
   val: 8.0e-4
@@ -238,5 +260,5 @@ lr:
   schedule: 2000
   warmup:
     val: 1e-9
-    n_linear_steps: 5    # was 50 → 10.24M steps warmup; now ~1M
-    schedule: 100
+    n_linear_steps: 1    # 1 × 20 × 16384 ≈ 330K steps warmup
+    schedule: 20
