@@ -1,10 +1,10 @@
 # GridRnn
 
-GridRnn решает задачу ассоциативной памяти и языкового моделирования, организуя рекуррентные ячейки в двумерную сетку «слои × колонки». Вместо одного скрытого вектора модель поддерживает матрицу состояний `[layers, cols, batch, hidden]`, где колонки на каждом слое обмениваются информацией через механизм внимания (post- или pre-messaging). Входной токен поступает только в нулевую колонку первого слоя; остальные колонки в первом слое получают нулевой фиктивный вход, но обогащаются через attention. Предсказание строится из состояния верхнего слоя, нулевой колонки.
+GridRnn addresses associative memory and language modeling by organizing recurrent cells into a two-dimensional grid of "layers × columns". Instead of a single hidden vector, the model maintains a state matrix `[layers, cols, batch, hidden]`, where columns at each layer exchange information through an attention mechanism (post- or pre-messaging). The input token is fed only to the zeroth column of the first layer; other columns in the first layer receive a zero dummy input but are enriched through attention. Predictions are built from the state of the top layer, zeroth column.
 
-## Ключевой механизм
+## Key mechanism
 
-Post-messaging: после независимого шага GRU по всем колонкам запускается attention, результат которого примешивается через обучаемые ворота.
+Post-messaging: after an independent GRU step across all columns, attention is run and its result is blended in via learnable gates.
 
 ```python
 # hl_n: [cols, batch, hidden] — states after GRU step
@@ -16,11 +16,11 @@ g = torch.sigmoid(attn_gate(torch.cat([hl_n, msg], dim=-1)))
 hl_n = (1 - g) * hl_n + g * msg          # gated mixing
 ```
 
-Ворота `g` позволяют каждой колонке самостоятельно решать, насколько учитывать агрегированное сообщение от соседей.
+Gate `g` allows each column to independently decide how much to incorporate the aggregated message from neighbors.
 
-## Важные детали реализации
+## Important implementation details
 
-`MessagePassingLayer` добавляет обучаемые идентификаторы колонок к запросам и ключам, чтобы attention мог различать участников:
+`MessagePassingLayer` adds learnable column identifiers to queries and keys, so attention can distinguish participants:
 
 ```python
 # ids: [n_cols, 1, dim] — learnable per-column bias
@@ -30,11 +30,11 @@ h_mixed, attn_w = self.mha(qh, kh, vh, average_attn_weights=True)
 return self.norm(h_mixed), attn_w
 ```
 
-Инициализация `out_proj` близкой к нулю делает начальные сообщения незначительными, что стабилизирует старт обучения.
+Initializing `out_proj` close to zero makes initial messages negligible, stabilizing the start of training.
 
 ---
 
-Вход первого слоя хранится как список (разные размерности на разных колонках), а со второго слоя — как плотный тензор `[cols, batch, hidden]`:
+The first-layer input is stored as a list (different dimensionalities across columns), while from the second layer onward it is a dense tensor `[cols, batch, hidden]`:
 
 ```python
 def _prepare_grid_input(self, x):
@@ -45,36 +45,36 @@ def _prepare_grid_input(self, x):
     return xl
 ```
 
-Это позволяет иметь разные размеры входа для первой колонки (embedding) и всех остальных.
+This allows different input sizes for the first column (embedding) and all others.
 
-## Гиперпараметры
+## Hyperparameters
 
-| Параметр | Описание |
+| Parameter | Description |
 |---|---|
-| `base_hidden_size` | Опорный размер скрытого состояния однослойного GRU; `hidden_size` выбирается автоматически так, чтобы число параметров совпадало |
-| `n_columns` | Число колонок в сетке; должно быть > 1 |
-| `messaging` | `"post"` — attention после GRU-шага (с воротами); `"pre"` — attention до GRU-шага (конкатенация) |
-| `col_identities` | Добавлять ли обучаемые идентификаторы колонок в attention |
-| `n_attn_heads` | `hidden_size` округляется вниз до кратного этому числу |
+| `base_hidden_size` | Reference hidden size for a single-layer GRU; `hidden_size` is chosen automatically to match the parameter count |
+| `n_columns` | Number of columns in the grid; must be > 1 |
+| `messaging` | `"post"` — attention after GRU step (with gates); `"pre"` — attention before GRU step (concatenation) |
+| `col_identities` | Whether to add learnable column identifiers to attention |
+| `n_attn_heads` | `hidden_size` is rounded down to the nearest multiple of this number |
 
-## Результаты
+## Results
 
-GridRnn тестировалась в двух основных конфигурациях: малой (~78K параметров, 2 колонки / 1 слой) и полной (H=128, 4–5 колонок / 3 слоя).
+GridRnn was tested in two main configurations: small (~78K parameters, 2 columns / 1 layer) and full (H=128, 4–5 columns / 3 layers).
 
 ### SDQ (Store-Distract-Query, hard)
 
-| Конфигурация | H | Столб. / Слоёв | Acc | Acc++ | Loss | Шагов |
+| Configuration | H | Col. / Layers | Acc | Acc++ | Loss | Steps |
 |---|---|---|---|---|---|---|
-| 2 кол., 1 сл. (`grid-rnn-sdq`) | 115 | 2 / 1 | 0.734 | 0.494 | 0.686 | ~85м |
-| 4 кол., 3 сл. (`sdq-gru`) | 128 | 4 / 3 | **0.960** | **0.917** | **0.107** | ~57м |
+| 2 col., 1 layer (`grid-rnn-sdq`) | 115 | 2 / 1 | 0.734 | 0.494 | 0.686 | ~85M |
+| 4 col., 3 layers (`sdq-gru`) | 128 | 4 / 3 | **0.960** | **0.917** | **0.107** | ~57M |
 
-### Текстовые эксперименты
+### Text experiments
 
-| Конфигурация | H | Столб. / Слоёв | Датасет | Acc | BPC | PPL | Шагов |
+| Configuration | H | Col. / Layers | Dataset | Acc | BPC | PPL | Steps |
 |---|---|---|---|---|---|---|---|
-| 2 кол., 1 сл. (`grid-rnn-text`) | 128 | 2 / 1 | text8 | 0.553 | 2.088 | 4.25 | ~34м |
-| 2 кол., 1 сл. (`grid-rnn-text`) | 128 | 2 / 1 | shakespeare | 0.589 | 1.954 | 3.88 | ~146м |
-| 4 кол., 3 сл. (`text-gru`) | 128 | 4 / 3 | shakespeare | **0.629** | **1.721** | **3.30** | ~70м |
-| 5 кол., 3 сл. (`text-gru`) | 116 | 5 / 3 | shakespeare | 0.622 | 1.756 | 3.38 | ~70м |
+| 2 col., 1 layer (`grid-rnn-text`) | 128 | 2 / 1 | text8 | 0.553 | 2.088 | 4.25 | ~34M |
+| 2 col., 1 layer (`grid-rnn-text`) | 128 | 2 / 1 | shakespeare | 0.589 | 1.954 | 3.88 | ~146M |
+| 4 col., 3 layers (`text-gru`) | 128 | 4 / 3 | shakespeare | **0.629** | **1.721** | **3.30** | ~70M |
+| 5 col., 3 layers (`text-gru`) | 116 | 5 / 3 | shakespeare | 0.622 | 1.756 | 3.38 | ~70M |
 
-Переход от 2 к 4 колонкам при сопоставимом числе параметров даёт +0.42 по Acc++ на SDQ и снижение BPC с 1.954 до 1.721 на shakespeare (PPL: 3.88→3.30). Рост числа колонок важнее роста числа слоёв: добавление 5-й колонки при уменьшении H почти не влияет на качество.
+Moving from 2 to 4 columns with a comparable parameter count yields +0.42 in Acc++ on SDQ and a BPC drop from 1.954 to 1.721 on shakespeare (PPL: 3.88→3.30). Increasing the number of columns matters more than increasing the number of layers: adding a 5th column while reducing H barely affects quality.

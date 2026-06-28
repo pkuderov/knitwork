@@ -1,8 +1,8 @@
 # EquilibriumGridRnnCoT (grnn_eq)
 
-Модель решает проблему ограниченной «глубины мышления» за один шаг времени: стандартный Grid RNN делает ровно по одному проходу через каждый слой, тогда как некоторые входы требуют большего числа вычислительных шагов. Основная идея объединяет три механизма: `EquilibriumCell` ищет приближённую неподвижную точку GRU итеративным применением `h* = GRU(x, h*)` до сходимости; `ACT` (Adaptive Computation Time) динамически решает, когда остановить итерации для каждого примера в батче; `ChainOfThoughtGRU` накапливает отдельное «мысленное» состояние `thought` поверх верхнего слоя сетки, давая модели явный рабочий буфер для многошаговых рассуждений.
+The model addresses the problem of limited "thinking depth" within a single time step: a standard Grid RNN makes exactly one pass through each layer, while some inputs require more computation steps. The core idea combines three mechanisms: `EquilibriumCell` searches for an approximate fixed point of a GRU by iteratively applying `h* = GRU(x, h*)` until convergence; `ACT` (Adaptive Computation Time) dynamically decides when to stop iterations for each example in the batch; `ChainOfThoughtGRU` accumulates a separate "thought" state on top of the upper grid layer, giving the model an explicit working buffer for multi-step reasoning.
 
-## Ключевой механизм
+## Key Mechanism
 
 ```python
 # iterative equilibrium search with ACT halting
@@ -23,11 +23,11 @@ for act_step in range(self.max_eq_iters):
         break
 ```
 
-На каждом шаге ACT взвешивает выходы ячеек по вероятности остановки `p_use`; промежуточные шаги детачируются — только финальный шаг несёт градиент, что экономит память.
+At each step, ACT weights cell outputs by halting probability `p_use`; intermediate steps are detached — only the final step carries gradient, saving memory.
 
-## Важные детали реализации
+## Important Implementation Details
 
-**Chain-of-Thought буфер:**
+**Chain-of-Thought buffer:**
 
 ```python
 # thought state accumulates across time steps
@@ -36,7 +36,7 @@ thought = self.cot(h_top, thought)               # [batch, thought_size]
 y       = self.head(torch.cat([h_top, thought], dim=-1))
 ```
 
-`ChainOfThoughtGRU` — отдельная GRUCell с LayerNorm, которая обновляет вектор `thought` от шага к шагу. Голова читает конкатенацию `[h_top; thought]`, что позволяет модели использовать информацию из предыдущих «мыслей».
+`ChainOfThoughtGRU` is a separate GRUCell with LayerNorm that updates the `thought` vector from step to step. The head reads the concatenation `[h_top; thought]`, allowing the model to use information from previous "thoughts".
 
 **HaltingUnit:**
 
@@ -47,9 +47,9 @@ nn.init.zeros_(self.proj.weight)
 nn.init.constant_(self.proj.bias, -2.0)
 ```
 
-Инициализация смещения `-2` соответствует стартовой вероятности остановки `sigmoid(-2) ≈ 0.12`, побуждая модель делать несколько итераций до схождения.
+The bias initialization of `-2` corresponds to a starting halting probability of `sigmoid(-2) ≈ 0.12`, encouraging the model to perform several iterations before converging.
 
-**ACT лосс:**
+**ACT loss:**
 
 ```python
 # ponder penalty: minimizes unnecessary computation steps
@@ -58,24 +58,24 @@ def act_loss(self, act_iters_list) -> torch.Tensor:
     return self.act_loss_weight * total
 ```
 
-Штраф пропорционален среднему числу итераций по всем слоям и примерам — компромисс между точностью и вычислительными затратами.
+The penalty is proportional to the average number of iterations across all layers and examples — a trade-off between accuracy and computational cost.
 
-## Гиперпараметры
+## Hyperparameters
 
-| Параметр | Описание |
+| Parameter | Description |
 |---|---|
-| `max_eq_iters` | Максимальное число итераций поиска неподвижной точки; ограничивает глубину вычислений |
-| `eq_tol` | Порог сходимости по норме разности `‖h_new − h‖`; используется только в `EquilibriumCell.forward`, не в ACT-цикле основного grid step |
-| `act_eps` | Допуск ACT: остановка при `halt_acc ≥ 1 − eps`; меньшее значение → строже |
-| `act_loss_weight` | Вес штрафа за количество итераций; типично `1e-3` |
-| `thought_size` | Размер вектора `thought`; по умолчанию равен `hidden_size`; можно уменьшить для экономии параметров |
+| `max_eq_iters` | Maximum number of fixed-point search iterations; limits computation depth |
+| `eq_tol` | Convergence threshold on the difference norm `‖h_new − h‖`; used only in `EquilibriumCell.forward`, not in the ACT loop of the main grid step |
+| `act_eps` | ACT tolerance: stop when `halt_acc ≥ 1 − eps`; smaller value → stricter |
+| `act_loss_weight` | Weight of the iteration count penalty; typically `1e-3` |
+| `thought_size` | Size of the `thought` vector; defaults to `hidden_size`; can be reduced to save parameters |
 
-## Результаты
+## Results
 
-### Текстовые эксперименты (shakespeare)
+### Text experiments (shakespeare)
 
-| Эксперимент | H | Столб. / Слоёв | max\_eq\_iters | Acc | BPC | PPL | Шагов |
+| Experiment | H | Cols / Layers | max\_eq\_iters | Acc | BPC | PPL | Steps |
 |---|---|---|---|---|---|---|---|
-| grnn\_eq H=128 text (`text-gru-eq`) | 128 | 4 / 3 | 4 | **0.588** | **1.950** | **3.86** | ~19м |
+| grnn\_eq H=128 text (`text-gru-eq`) | 128 | 4 / 3 | 4 | **0.588** | **1.950** | **3.86** | ~19M |
 
-Запуск завершён досрочно (19м из 70м шагов). BPC=1.950 сопоставим с базовым grnn 2/1 на shakespeare (BPC=1.954 за 146м шагов) — схожее качество при значительно меньших шагах, но с большими вычислительными затратами на шаг из-за ACT-цикла. Второй запуск (`69f2a083`) не записал метрики.
+Run terminated early (19M out of 70M steps). BPC=1.950 is comparable to the baseline grnn 2/1 on shakespeare (BPC=1.954 over 146M steps) — similar quality with significantly fewer steps, but higher per-step compute due to the ACT loop. The second run (`69f2a083`) recorded no metrics.

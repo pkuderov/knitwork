@@ -1,10 +1,10 @@
 # GridRnnFusion
 
-GridRNN Fusion v3 — гибридная архитектура, объединяющая обучаемые HGRN-ячейки с замороженными резервуарными колонками. Решает проблему однородности скрытых представлений: резервуарные колонки с разными спектральными радиусами создают богатую многомасштабную динамику без дополнительных параметров, а cross-attention позволяет обучаемым колонкам явно читать из резервуара. Diversity loss принуждает обучаемые колонки к различию представлений. Батчевые операции над колонками устраняют Python-цикл и дают 3–5× ускорение.
+GridRNN Fusion v3 — a hybrid architecture combining trainable HGRN cells with frozen reservoir columns. Addresses the problem of hidden representation homogeneity: reservoir columns with different spectral radii create rich multi-scale dynamics without additional parameters, while cross-attention lets trainable columns explicitly read from the reservoir. Diversity loss forces trainable columns to maintain diverse representations. Batched column operations eliminate the Python loop and provide a 3–5× speedup.
 
-## Ключевой механизм
+## Key Mechanism
 
-На каждом слое: HGRN-колонки → cross-attention с резервуаром → совместный message passing → gated merge:
+At each layer: HGRN columns → cross-attention with reservoir → joint message passing → gated merge:
 
 ```python
 # x_cols: (batch, n_cols, emb/hidden) — each column sees its own projection
@@ -25,9 +25,9 @@ g = sigmoid(gate_logit)
 h_t_merged = (1.0 - g) * h_t_seq + g * msg_t
 ```
 
-## Важные детали реализации
+## Important Implementation Details
 
-**Батчевые HGRN-ячейки** — формула HGRN без Python-цикла по колонкам:
+**Batched HGRN cells** — HGRN formula without a Python loop over columns:
 
 ```python
 # batched HGRN update  [n_t, batch, hidden]
@@ -37,9 +37,9 @@ lam  = sigmoid(gx(W_f, b_f) + gh(U_f)) * (1 - betas) + betas  # forget (λ)
 h_new = lam * h_p + (1.0 - lam) * c_t           # HGRN recurrence
 ```
 
-Бета (`β`) — нижняя граница ворот забывания, растёт от нижних слоёв к верхним, давая нижним слоям более быструю, а верхним — более медленную динамику.
+Beta (`β`) is the lower bound of the forget gate, increasing from lower to upper layers, giving lower layers faster and upper layers slower dynamics.
 
-**Резервуарные колонки** с разными спектральными радиусами для многомасштабной памяти:
+**Reservoir columns** with different spectral radii for multi-scale memory:
 
 ```python
 # spectral_radii assigned per reservoir column, e.g. [0.7, 0.95]
@@ -47,7 +47,7 @@ h_new = lam * h_p + (1.0 - lam) * c_t           # HGRN recurrence
 # GRU-like update without backprop through reservoir weights
 ```
 
-**Diversity loss** — три компоненты для разнообразия колонок:
+**Diversity loss** — three components for column diversity:
 
 ```python
 # cosine: penalizes cosine similarity > margin between column pairs
@@ -57,30 +57,30 @@ h_new = lam * h_p + (1.0 - lam) * c_t           # HGRN recurrence
 total = (cos_t + cov_t + var_t + gate_t) * cfg.total_weight
 ```
 
-## Гиперпараметры
+## Hyperparameters
 
-| Параметр | Описание |
+| Parameter | Description |
 |---|---|
-| `n_reservoir_cols` | Число замороженных резервуарных колонок; по умолчанию 2 из `n_columns` |
-| `spectral_radii` | Список спектральных радиусов для каждой резервуарной колонки; если None — назначаются автоматически (например, `[0.7, 0.95]`) |
-| `reservoir_scale` | Масштаб входных весов резервуара |
-| `beta_min / beta_max` | Диапазон нижней границы λ в HGRN; `beta_min` у нижних слоёв, `beta_max` у верхних |
-| `learnable_beta` | Если True — `β` обучается, иначе фиксировано |
-| `use_cross_attention` | Включает cross-attention обучаемых колонок к резервуарным |
-| `all_cols_get_input` | Все колонки получают вход через разные ортогональные проекции (не только первая) |
-| `diversity_loss.total_weight` | Общий масштаб diversity loss; по умолчанию 0.05 |
-| `diversity_loss.compute_every_n` | Вычислять diversity loss каждые N шагов для ускорения |
-| `use_final_output_gate` | Sigmoid-гейт поверх выхода верхнего слоя перед головой |
+| `n_reservoir_cols` | Number of frozen reservoir columns; default 2 out of `n_columns` |
+| `spectral_radii` | List of spectral radii for each reservoir column; if None — assigned automatically (e.g., `[0.7, 0.95]`) |
+| `reservoir_scale` | Scale of reservoir input weights |
+| `beta_min / beta_max` | Range of λ lower bound in HGRN; `beta_min` for lower layers, `beta_max` for upper layers |
+| `learnable_beta` | If True — `β` is learned, otherwise fixed |
+| `use_cross_attention` | Enables cross-attention of trainable columns to reservoir columns |
+| `all_cols_get_input` | All columns receive input through different orthogonal projections (not just the first) |
+| `diversity_loss.total_weight` | Overall scale of diversity loss; default 0.05 |
+| `diversity_loss.compute_every_n` | Compute diversity loss every N steps for speedup |
+| `use_final_output_gate` | Sigmoid gate on top of the upper layer output before the head |
 
-## Результаты
+## Results
 
 ### SDQ (Store-Distract-Query, hard)
 
-Оба запуска в проекте `grid-rnn-sdq`, конфигурация H=192:
+Both runs in project `grid-rnn-sdq`, configuration H=192:
 
-| Версия | all\_cols\_get\_input | diversity\_loss.total\_weight | Acc | Acc++ | Loss | Шагов |
+| Version | all\_cols\_get\_input | diversity\_loss.total\_weight | Acc | Acc++ | Loss | Steps |
 |---|---|---|---|---|---|---|
-| grnn\_fusion v1 | `false` | 1.0 | **0.831** | **0.708** | 0.437 | ~101м |
-| grnn\_fusion v2 | `true` | 0.05 | 0.823 | 0.646 | 0.437 | ~96м |
+| grnn\_fusion v1 | `false` | 1.0 | **0.831** | **0.708** | 0.437 | ~101M |
+| grnn\_fusion v2 | `true` | 0.05 | 0.823 | 0.646 | 0.437 | ~96M |
 
-Обе версии Fusion работают на одном уровне (~Loss=0.437). Вариант v1 с более сильным diversity\_loss (1.0 vs 0.05) и без широкого ввода показал чуть лучший Acc++. Введение `all_cols_get_input=True` в v2 не дало улучшения и снизило Acc++. По сравнению с базовым grnn 4/3 (Acc=0.960), Fusion с H=192 значительно уступает, что указывает на трудности балансировки многокомпонентного лосса.
+Both Fusion versions perform at the same level (~Loss=0.437). Variant v1 with stronger diversity\_loss (1.0 vs 0.05) and without wide input showed slightly better Acc++. Introducing `all_cols_get_input=True` in v2 provided no improvement and reduced Acc++. Compared to the baseline grnn 4/3 (Acc=0.960), Fusion with H=192 falls significantly short, indicating difficulties in balancing the multi-component loss.

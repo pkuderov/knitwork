@@ -1,8 +1,8 @@
 # ColumnDiversityLoss
 
-`ColumnDiversityLoss` решает проблему коллапса представлений в Grid RNN: без специального регуляризатора столбцы сети склонны сходиться к похожим скрытым состояниям и перестают специализироваться. Модуль одновременно минимизирует косинусное сходство между парами столбцов, подавляет ковариацию внутри каждого столбца (аналог VICReg), поощряет достаточную дисперсию активаций и максимизирует энтропию гейтов агрегации — итого четыре взвешенных компонента, суммируемых в `total`.
+`ColumnDiversityLoss` addresses the representation collapse problem in Grid RNN: without a special regularizer, the network's columns tend to converge to similar hidden states and stop specializing. The module simultaneously minimizes cosine similarity between column pairs, suppresses covariance within each column (analogous to VICReg), encourages sufficient activation variance, and maximizes the entropy of aggregation gates — four weighted components summed into `total`.
 
-## Ключевой механизм
+## Key mechanism
 
 ```python
 # h: [cols, B, H] — hidden states of all columns at one layer
@@ -14,18 +14,18 @@ def cosine_diversity(self, h, lw):
     return lw * self.cfg.cosine_weight * (loss / n_pairs)
 ```
 
-Штраф накапливается только для пар, чьё сходство превышает порог `cosine_margin`, что позволяет колонкам сохранять умеренную корреляцию, не требуя ортогональности.
+The penalty accumulates only for pairs whose similarity exceeds the `cosine_margin` threshold, allowing columns to maintain moderate correlation without requiring orthogonality.
 
-## Важные детали реализации
+## Important implementation details
 
-**Взвешивание по слоям.** `layer_weights` — буфер формы `[n_layers]`, позволяющий усиливать потерю на верхних слоях, где специализация важнее:
+**Layer weighting.** `layer_weights` is a buffer of shape `[n_layers]`, allowing stronger loss on upper layers where specialization matters more:
 
 ```python
 lw = self.layer_weights[i].item()
 cos += self.cosine_diversity(h, lw)
 ```
 
-**Ковариационная потеря (VICReg-стиль).** Подавляет некалибровочные корреляции между измерениями скрытого вектора одного столбца:
+**Covariance loss (VICReg-style).** Suppresses off-diagonal correlations between dimensions of a single column's hidden vector:
 
 ```python
 z   = h[c] - h[c].mean(dim=0, keepdim=True)       # [B, H] centered
@@ -33,30 +33,30 @@ cov = (z.T @ z) / (bsz - 1)                        # [H, H]
 loss += (cov * (1.0 - eye)).pow(2).sum() / d        # off-diagonal only
 ```
 
-**Потеря энтропии гейтов.** Штрафует за слишком уверенные (близкие к 0 или 1) гейты агрегации, поощряя более равномерное смешение:
+**Gate entropy loss.** Penalizes overly confident (near 0 or 1) aggregation gates, encouraging more uniform mixing:
 
 ```python
 H = -(gc * gc.log() + (1.0 - gc) * (1.0 - gc).log())
 total -= H.mean()   # negative entropy = positive loss
 ```
 
-## Гиперпараметры
+## Hyperparameters
 
-| Параметр | Описание |
+| Parameter | Description |
 |---|---|
-| `cosine_margin` | Порог, ниже которого косинусное сходство не штрафуется. Позволяет столбцам оставаться умеренно похожими |
-| `var_threshold` | Целевое стандартное отклонение активаций; потеря активируется только при std < threshold (hinge-форма) |
-| `layer_weights` | Список весов по слоям; если `None` — все слои равнозначны |
-| `gate_entropy_weight` | Вес энтропийного штрафа гейтов; обычно наименьший из четырёх, т.к. гейты могут законно быть насыщены |
+| `cosine_margin` | Threshold below which cosine similarity is not penalized. Allows columns to remain moderately similar |
+| `var_threshold` | Target standard deviation of activations; loss activates only when std < threshold (hinge form) |
+| `layer_weights` | List of per-layer weights; if `None` — all layers are equal |
+| `gate_entropy_weight` | Weight of gate entropy penalty; typically the smallest of the four, since gates may legitimately be saturated |
 
-## Результаты
+## Results
 
-`ColumnDiversityLoss` является модулем-компонентом. Результаты моделей, использующих этот лосс:
+`ColumnDiversityLoss` is a component module. Results of models using this loss:
 
-| Модель | SDQ Acc | SDQ Acc++ | Примечание |
+| Model | SDQ Acc | SDQ Acc++ | Note |
 |---|---|---|---|
-| [grnn\_loss](grnn_loss.md) | **0.862** | **0.743** | лучший из diversity-семейства |
+| [grnn\_loss](grnn_loss.md) | **0.862** | **0.743** | best of the diversity family |
 | [grnn\_fusion](grnn_fusion.md) | 0.831 | 0.708 | diversity + HGRN + reservoir |
-| [grnn\_adv\_loss](grnn_adv_loss.md) | 0.807 | 0.629 | ColumnSpecializationLoss (4 компоненты) |
+| [grnn\_adv\_loss](grnn_adv_loss.md) | 0.807 | 0.629 | ColumnSpecializationLoss (4 components) |
 
-Автоматически настраиваемые веса по слоям в `grnn_loss` превосходят ручные настройки в других подходах. Diversity loss на задаче языкового моделирования не улучшает качество относительно базового grnn.
+Automatically tuned per-layer weights in `grnn_loss` outperform manual tuning in other approaches. Diversity loss on language modeling tasks does not improve quality relative to baseline grnn.

@@ -1,10 +1,10 @@
-# GridRnn (с сигналом ошибки)
+# GridRnn (with error signal)
 
-Эта версия GridRnn решает ту же задачу последовательного предсказания, но явно вводит в сетку сигнал предсказательной ошибки. Вместо одного входного потока (истинный токен) нулевая колонка получает эмбеддинг предсказанного токена с предыдущего шага (`x_pred`), а первая колонка — разность `x_true - x_pred`, представляющую ошибку предсказания. Это позволяет модели разделить роли: одна колонка накапливает «что я ожидал», другая — «насколько я ошибся».
+This version of GridRnn solves the same sequential prediction task, but explicitly introduces a prediction error signal into the grid. Instead of a single input stream (the true token), column zero receives the embedding of the predicted token from the previous step (`x_pred`), and the first column receives the difference `x_true - x_pred`, representing the prediction error. This allows the model to separate roles: one column accumulates "what I expected", the other — "how much I was wrong".
 
-## Ключевой механизм
+## Key Mechanism
 
-Входной тензор для первого слоя формируется из двух компонент — предсказания и ошибки — вместо одного истинного эмбеддинга:
+The input tensor for the first layer is formed from two components — prediction and error — instead of a single true embedding:
 
 ```python
 def _prepare_grid_input(self, x_true, x_pred):
@@ -16,11 +16,11 @@ def _prepare_grid_input(self, x_true, x_pred):
     return xl
 ```
 
-Колонка 0 видит предсказание прошлого шага, колонка 1 — разность (ошибку); остальные — нулевой фиктивный вход.
+Column 0 sees the previous step's prediction, column 1 sees the difference (error); the rest receive a zero dummy input.
 
-## Важные детали реализации
+## Important Implementation Details
 
-Предсказание `x_pred` вычисляется из логитов предыдущего шага через softmax и взвешенную сумму строк матрицы эмбеддингов:
+The prediction `x_pred` is computed from the previous step's logits via softmax and a weighted sum of the embedding matrix rows:
 
 ```python
 if self._y_last is not None:
@@ -30,11 +30,11 @@ else:
     x_pred = torch.zeros_like(x_true)
 ```
 
-На первом шаге эпизода `_y_last` равен `None`, поэтому `x_pred` — нулевой вектор.
+On the first episode step, `_y_last` is `None`, so `x_pred` is a zero vector.
 
 ---
 
-Состояние `_y_last` сбрасывается вместе со скрытым состоянием при поступлении маски сброса:
+The `_y_last` state is reset together with the hidden state when a reset mask is received:
 
 ```python
 if self._y_last is not None:
@@ -42,31 +42,31 @@ if self._y_last is not None:
     self._y_last[:, ixs, :] *= 0.0   # reset finished episodes
 ```
 
-Аналогично скрытому состоянию, `_y_last` отсоединяется от графа при `detach_state`.
+Similarly to the hidden state, `_y_last` is detached from the graph on `detach_state`.
 
-## Гиперпараметры
+## Hyperparameters
 
-| Параметр | Описание |
+| Parameter | Description |
 |---|---|
-| `n_columns` | Минимум 2: колонка 0 — предсказание, колонка 1 — ошибка; остальные получают нулевой вход |
-| `messaging` | Поддерживается только `"post"` (атрибут `use_postmsg`); `"pre"` не переопределён в этой версии |
+| `n_columns` | Minimum 2: column 0 — prediction, column 1 — error; the rest receive zero input |
+| `messaging` | Only `"post"` is supported (attribute `use_postmsg`); `"pre"` is not overridden in this version |
 
-## Результаты
+## Results
 
-Оба эксперимента — малая конфигурация (~78K параметров, 2 колонки / 1 слой).
+Both experiments use the small configuration (~78K parameters, 2 columns / 1 layer).
 
 ### SDQ (Store-Distract-Query, hard)
 
-| Эксперимент | H | Acc | Acc++ | Loss | Шагов |
+| Experiment | H | Acc | Acc++ | Loss | Steps |
 |---|---|---|---|---|---|
-| grnn\_err sdq ~78K (`grid-rnn-sdq`) | 110 | 0.695 | 0.434 | 0.785 | ~87м |
+| grnn\_err sdq ~78K (`grid-rnn-sdq`) | 110 | 0.695 | 0.434 | 0.785 | ~87M |
 
-Для сравнения: базовый `grnn` с аналогичной конфигурацией (H=115, 2/1) даёт Acc=0.734, Acc++=0.494. Явный сигнал ошибки предсказания не улучшает ассоциативную память — колонка разности `x_true − x_pred` не несёт информации, полезной сверх самого истинного токена.
+For comparison: the baseline `grnn` with an analogous configuration (H=115, 2/1) gives Acc=0.734, Acc++=0.494. The explicit prediction error signal does not improve associative memory — the difference column `x_true − x_pred` carries no information beyond the true token itself.
 
-### Текстовые эксперименты
+### Text experiments
 
-| Эксперимент | H | Датасет | Acc | BPC | PPL | Шагов |
+| Experiment | H | Dataset | Acc | BPC | PPL | Steps |
 |---|---|---|---|---|---|---|
-| grnn\_err text8 ~78K (`grid-rnn-text`) | 115 | text8 | 0.547 | 2.131 | 4.38 | ~34м |
+| grnn\_err text8 ~78K (`grid-rnn-text`) | 115 | text8 | 0.547 | 2.131 | 4.38 | ~34M |
 
-На text8 результат также ниже базового grnn (BPC=2.088 за те же 34м шагов), что подтверждает отсутствие преимущества сигнала ошибки на задаче текстового предсказания.
+On text8, the result is also below the baseline grnn (BPC=2.088 over the same 34M steps), confirming no advantage from the error signal on the text prediction task.

@@ -1,10 +1,10 @@
 # HGRN_GridRnn
 
-Модель решает проблему однородной «забывчивости» стандартного GRU в контексте Grid RNN: все слои сети сбрасывают состояние с одинаковой скоростью, что мешает одновременно хранить локальные и долгосрочные паттерны. Ключевая идея — заменить GRUCell на HGRUCell (Hierarchically Gated Recurrent Unit), где forget-гейт λ имеет обучаемую нижнюю границу β, специфичную для каждого слоя. Нижние слои (β ≈ 0) работают как обычный GRU и быстро переписывают состояние, тогда как верхние слои (β → 1) практически никогда не забывают — в духе иерархических рекуррентных сетей HGRN.
+The model addresses the problem of uniform "forgetting" in a standard GRU within the Grid RNN context: all network layers reset state at the same rate, which hinders simultaneous storage of local and long-term patterns. The key idea is to replace GRUCell with HGRUCell (Hierarchically Gated Recurrent Unit), where the forget gate λ has a learnable lower bound β specific to each layer. Lower layers (β ≈ 0) behave like a standard GRU and quickly overwrite state, while upper layers (β → 1) almost never forget — in the spirit of hierarchical recurrent networks HGRN.
 
-## Ключевой механизм
+## Key mechanism
 
-HGRUCell вводит три гейта вместо двух в GRU: output gate `o_t`, content candidate `c_t` и forget gate `λ_t` с нижней границей β.
+HGRUCell introduces three gates instead of two in GRU: output gate `o_t`, content candidate `c_t`, and forget gate `λ_t` with lower bound β.
 
 ```python
 # output gate controls how much of h_{t-1} enters content computation  [B, H]
@@ -18,11 +18,11 @@ lam_t = raw_f * (1.0 - self.beta) + self.beta
 h_new = lam_t * h + (1.0 - lam_t) * c_t
 ```
 
-β хранится как `beta_raw` в пространстве до сигмоиды (`β = sigmoid(beta_raw)`), что гарантирует β ∈ (0, 1) при любых значениях параметра.
+β is stored as `beta_raw` in pre-sigmoid space (`β = sigmoid(beta_raw)`), guaranteeing β ∈ (0, 1) for any parameter value.
 
-## Важные детали реализации
+## Important implementation details
 
-**Иерархическое назначение β по слоям.** При инициализации β линейно распределяются от `beta_min` (нижний слой) до `beta_max` (верхний слой):
+**Hierarchical β assignment per layer.** During initialization β values are linearly distributed from `beta_min` (bottom layer) to `beta_max` (top layer):
 
 ```python
 # layer 0 -> beta_min, layer L-1 -> beta_max
@@ -32,9 +32,9 @@ betas = [
 ]
 ```
 
-Это жёстко задаёт иерархию временны́х горизонтов: нижние слои следят за текущим токеном, верхние — за долгосрочным контекстом.
+This hard-codes the hierarchy of temporal horizons: lower layers track the current token, upper layers track long-term context.
 
-**Output gate на выходе всей сетки.** Поверх финального состояния добавлен `final_output_gate` — дополнительный sigmoid-блок, масштабирующий представление перед головой:
+**Output gate at the top of the full grid.** On top of the final state a `final_output_gate` is added — an additional sigmoid block that scales the representation before the head:
 
 ```python
 gate = self.final_output_gate(z)   # [B, H]
@@ -42,40 +42,40 @@ z = gate * z
 y = self.head(z)
 ```
 
-**Post-messaging с гейтом слияния.** После атention-обмена сообщениями между колонками исходное состояние и сообщение смешиваются через обучаемый гейт:
+**Post-messaging with a merge gate.** After attention-based message passing between columns, the original state and message are mixed via a learnable gate:
 
 ```python
 g = torch.sigmoid(attn_gate(torch.cat([hl_n, msg], dim=-1)))   # [cols, B, 1]
 hl_n = (1.0 - g) * hl_n + g * msg
 ```
 
-## Гиперпараметры
+## Hyperparameters
 
-| Параметр | Описание |
+| Parameter | Description |
 |---|---|
-| `beta_min` | Нижняя граница λ для самого нижнего слоя (≈ 0 — высокая забывчивость) |
-| `beta_max` | Нижняя граница λ для самого верхнего слоя (≈ 0.99 — долгосрочная память) |
-| `messaging` | `"post"` — атention после шага ячейки; `"pre"` — до шага (меняет размерность входа) |
-| `col_identities` | Добавлять ли обучаемые позиционные bias в атention для различения колонок |
+| `beta_min` | Lower bound of λ for the bottom layer (≈ 0 — high forgetting rate) |
+| `beta_max` | Lower bound of λ for the top layer (≈ 0.99 — long-term memory) |
+| `messaging` | `"post"` — attention after cell step; `"pre"` — before step (changes input dimension) |
+| `col_identities` | Whether to add learnable positional bias in attention to distinguish columns |
 
-## Результаты
+## Results
 
 ### SDQ (Store-Distract-Query, hard)
 
-| Конфигурация | H | Столб. / Слоёв | β диапазон | Acc | Acc++ | Loss | Шагов |
+| Configuration | H | Cols / Layers | β range | Acc | Acc++ | Loss | Steps |
 |---|---|---|---|---|---|---|---|
-| grnn\_hgru H=128 (`sdq-hgru`) | 128 | 4 / 3 | 0.0–0.99 | **0.965** | **0.930** | **0.092** | ~45м |
-| grnn\_hgru 5col H=116 (`sdq-hgru`) | 116 | 5 / 3 | 0.0–0.99 | 0.717 | 0.416 | 0.765 | ~14м |
-| grnn\_hgrn H=160 4col 5l (`grid-rnn-sdq`) | 160 | 4 / 5 | 0.0–0.99 | 0.738 | 0.604 | 0.640 | ~210м |
+| grnn\_hgru H=128 (`sdq-hgru`) | 128 | 4 / 3 | 0.0–0.99 | **0.965** | **0.930** | **0.092** | ~45M |
+| grnn\_hgru 5col H=116 (`sdq-hgru`) | 116 | 5 / 3 | 0.0–0.99 | 0.717 | 0.416 | 0.765 | ~14M |
+| grnn\_hgrn H=160 4col 5l (`grid-rnn-sdq`) | 160 | 4 / 5 | 0.0–0.99 | 0.738 | 0.604 | 0.640 | ~210M |
 
-Конфигурация 4 кол. / 3 сл. показывает лучший результат среди всех протестированных моделей (Acc=0.965), незначительно превосходя базовый grnn 4/3 (Acc=0.960) при тех же шагах. Иерархическое распределение β (нижние слои — быстрая память, верхние — медленная) эффективнее однородного GRU для ассоциативных задач. Вариант с 5 столбцами (14м шагов) не завершён, результаты предварительные.
+The 4 col / 3 layer configuration shows the best result among all tested models (Acc=0.965), slightly outperforming the base grnn 4/3 (Acc=0.960) at the same number of steps. Hierarchical β distribution (lower layers — fast memory, upper layers — slow memory) is more effective than uniform GRU for associative tasks. The 5-column variant (14M steps) is not complete; results are preliminary.
 
-### Текстовые эксперименты (shakespeare)
+### Text experiments (shakespeare)
 
-| Конфигурация | H | Столб. / Слоёв | Acc | BPC | PPL | Шагов |
+| Configuration | H | Cols / Layers | Acc | BPC | PPL | Steps |
 |---|---|---|---|---|---|---|
-| grnn\_hgru H=128 (`text-hgru`) | 128 | 4 / 3 | 0.635 | 1.686 | 3.22 | ~70м |
-| grnn\_hgru 5col H=116 (`text-hgru`) | 116 | 5 / 3 | **0.636** | **1.680** | **3.20** | ~70м |
-| grnn\_hgru\_reservoir H=128 (`text-hgru`) | 128 | 5 / 3 (3+2 рез.) | 0.628 | 1.730 | 3.32 | ~70м |
+| grnn\_hgru H=128 (`text-hgru`) | 128 | 4 / 3 | 0.635 | 1.686 | 3.22 | ~70M |
+| grnn\_hgru 5col H=116 (`text-hgru`) | 116 | 5 / 3 | **0.636** | **1.680** | **3.20** | ~70M |
+| grnn\_hgru\_reservoir H=128 (`text-hgru`) | 128 | 5 / 3 (3+2 res.) | 0.628 | 1.730 | 3.32 | ~70M |
 
-На shakespeare HGRN-ячейки превосходят GRU-аналог той же глубины (BPC=1.686 vs 1.721, PPL=3.22 vs 3.30). 5-колоночный вариант (H=116) даже немного лучше (BPC=1.680, PPL=3.20), несмотря на меньший hidden size. Добавление резервуарных столбцов к HGRU снижает качество (BPC=1.730 vs 1.686).
+On shakespeare HGRN cells outperform the GRU counterpart of the same depth (BPC=1.686 vs 1.721, PPL=3.22 vs 3.30). The 5-column variant (H=116) is slightly better (BPC=1.680, PPL=3.20) despite the smaller hidden size. Adding reservoir columns to HGRU reduces quality (BPC=1.730 vs 1.686).

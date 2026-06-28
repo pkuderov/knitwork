@@ -1,10 +1,10 @@
 # GruBaseline
 
-`GruBaseline` — это стандартный многослойный GRU-рекуррент, служащий базовой линией для сравнения с GridRNN. Модель решает задачи последовательного предсказания (ассоциативная память, языковое моделирование): токены проходят через эмбеддинг, затем через стек GRU-слоёв, и наконец через линейную голову, которая выдаёт логиты. Размер скрытого слоя может задаваться явно или вычисляться автоматически из `base_hidden_size` так, чтобы общее число параметров совпадало с однослойным GRU-референсом.
+`GruBaseline` is a standard multi-layer GRU recurrent network serving as a baseline for comparison with GridRNN. The model solves sequential prediction tasks (associative memory, language modeling): tokens pass through an embedding, then through a stack of GRU layers, and finally through a linear head that produces logits. The hidden size can be set explicitly or computed automatically from `base_hidden_size` so that the total parameter count matches a single-layer GRU reference.
 
-## Ключевой механизм
+## Key mechanism
 
-Прямой проход добавляет размерность последовательности, прогоняет через `nn.GRU` и убирает её обратно, чтобы интерфейс совпадал с остальными моделями:
+The forward pass adds a sequence dimension, runs through `nn.GRU`, and removes it again so the interface matches the other models:
 
 ```python
 tokens = tokens.unsqueeze(0)           # [1, batch, 1]
@@ -14,11 +14,11 @@ y, hN = self.rnn(x, h0)
 logits = self.head(y).squeeze(0)       # [batch, output_size]
 ```
 
-Это позволяет обрабатывать один токен за шаг при работе в авторегрессивном режиме.
+This allows processing one token per step in autoregressive mode.
 
-## Важные детали реализации
+## Important implementation details
 
-Сброс скрытого состояния реализован через умножение на маску, а не индексированное присваивание — это работает корректно с autograd:
+Hidden state reset is implemented via multiplication by a mask rather than indexed assignment — this works correctly with autograd:
 
 ```python
 def reset_state(self, state, reset_mask):
@@ -28,31 +28,31 @@ def reset_state(self, state, reset_mask):
     return state * keep_mask[None, :, None]   # [layers, batch, hidden]
 ```
 
-В отличие от GridRNN, здесь `state` — плотный тензор `[layers, batch, hidden]`, поэтому достаточно одного broadcast-умножения.
+Unlike GridRNN, here `state` is a dense tensor `[layers, batch, hidden]`, so a single broadcast multiplication suffices.
 
-## Гиперпараметры
+## Hyperparameters
 
-| Параметр | Описание |
+| Parameter | Description |
 |---|---|
-| `base_hidden_size` | Опорный размер скрытого состояния; если `hidden_size` не задан явно, модель подбирает `hidden_size` так, чтобы число параметров совпадало с однослойным GRU с этим размером |
-| `dropout` | Автоматически обнуляется при `n_layers == 1`, так как `nn.GRU` не применяет dropout к последнему слою |
+| `base_hidden_size` | Reference hidden state size; if `hidden_size` is not set explicitly, the model selects `hidden_size` so that the parameter count matches a single-layer GRU with this size |
+| `dropout` | Automatically zeroed when `n_layers == 1`, since `nn.GRU` does not apply dropout to the last layer |
 
-## Результаты
+## Results
 
-GRU Baseline служит базовой линией для сравнения всех Grid RNN моделей.
+GRU Baseline serves as the baseline for comparing all Grid RNN models.
 
 ### SDQ (Store-Distract-Query, hard)
 
-| Конфигурация | H | Слоёв | Acc | Acc++ | Loss | Шагов |
+| Configuration | H | Layers | Acc | Acc++ | Loss | Steps |
 |---|---|---|---|---|---|---|
-| rnn H=128 SDQ (`sdq-gru`) | 128 | 1 | 0.689 | 0.471 | 0.847 | ~100м |
+| rnn H=128 SDQ (`sdq-gru`) | 128 | 1 | 0.689 | 0.471 | 0.847 | ~100M |
 
-LSTM-вариант из той же серии: lstm H=128 SDQ (`sdq-lstm`) — Acc=0.683, Acc++=0.455, Loss=0.847 за ~100м шагов. GRU и LSTM ведут себя практически одинаково.
+LSTM variant from the same series: lstm H=128 SDQ (`sdq-lstm`) — Acc=0.683, Acc++=0.455, Loss=0.847 at ~100M steps. GRU and LSTM behave almost identically.
 
-### Текстовые эксперименты (text8)
+### Text experiments (text8)
 
-| Конфигурация | H | Слоёв | Датасет | Acc | BPC | PPL | Шагов |
+| Configuration | H | Layers | Dataset | Acc | BPC | PPL | Steps |
 |---|---|---|---|---|---|---|---|
-| rnn H=128 (`grid-rnn-text`) | 128 | 1 | text8 | 0.569 | 2.024 | 4.07 | ~79м |
+| rnn H=128 (`grid-rnn-text`) | 128 | 1 | text8 | 0.569 | 2.024 | 4.07 | ~79M |
 
-Базовый GRU устанавливает нижнюю планку: Acc=0.689 на SDQ, BPC=2.024 / PPL=4.07 на text8. Все Grid RNN модели с 4+ колонками / 3+ слоями превосходят его на обеих задачах.
+The baseline GRU sets the lower bound: Acc=0.689 on SDQ, BPC=2.024 / PPL=4.07 on text8. All Grid RNN models with 4+ columns / 3+ layers outperform it on both tasks.

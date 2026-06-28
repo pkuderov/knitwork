@@ -1,10 +1,10 @@
 # HopfieldGridLRU
 
-Модель объединяет три идеи для улучшения Grid RNN на задачах ассоциативной памяти и языкового моделирования: (1) Linear Recurrent Unit (LRU) с диагональной параметризацией вместо LSTM — меньше параметров, стабильный градиент на длинных последовательностях; (2) Modern Hopfield Network для обмена сообщениями между колонками; (3) вспомогательный контрастный ассоциативный лосс, явно обучающий сеть разделять паттерны «запись» и «чтение». LRU работает в комплексном пространстве: состояние хранится как `[Re | Im]` — компактная форма, из которой Hopfield-слой видит только Re-часть.
+The model combines three ideas to improve Grid RNN on associative memory and language modeling tasks: (1) Linear Recurrent Unit (LRU) with diagonal parameterization instead of LSTM — fewer parameters, stable gradients on long sequences; (2) Modern Hopfield Network for message passing between columns; (3) an auxiliary contrastive associative loss that explicitly trains the network to separate "write" and "read" patterns. LRU operates in complex state space: state is stored as `[Re | Im]` — a compact form from which the Hopfield layer sees only the Re part.
 
-## Ключевой механизм
+## Key mechanism
 
-LRUCell параметризует диагональную матрицу перехода через `nu_log` и `theta_log`, обеспечивая |λ| ∈ (0,1) по построению:
+LRUCell parameterizes the diagonal transition matrix via `nu_log` and `theta_log`, ensuring |λ| ∈ (0,1) by construction:
 
 ```python
 # stable reparametrization of lambda: |lambda| = exp(-exp(nu)), angle = exp(theta)
@@ -22,18 +22,18 @@ new_im = lam_re * h_im + lam_im * h_re + gamma * bx_im  # [B, H]
 y = self.C_re(new_re) - self.C_im(new_im) + self.D(x)
 ```
 
-`gamma = sqrt(1 - |λ|²)` — ключевое отличие от S4: чем сильнее «память» (|λ| → 1), тем слабее влияние нового входа.
+`gamma = sqrt(1 - |λ|²)` — the key difference from S4: the stronger the "memory" (|λ| → 1), the weaker the influence of the new input.
 
-## Важные детали реализации
+## Important implementation details
 
-**Detach Im-части при сборке состояния.** Im-часть не участвует в Hopfield-обмене и gate, поэтому её градиент уже учтён внутри LRUCell. Накопление графа через Im на длинных роллаутах привело бы к OOM:
+**Detach Im part when assembling state.** The Im part does not participate in the Hopfield exchange and gate, so its gradient is already accounted for inside LRUCell. Accumulating the graph through Im on long rollouts would lead to OOM:
 
 ```python
 hl_im_stop  = hl_full[:, :, self.hidden_size:].detach()   # Im-part detached
 hl_full_new = torch.cat([hl_re_gated, hl_im_stop], dim=-1)
 ```
 
-**Ассоциативный контрастный лосс.** Штрафует за близость представлений случайных пар «запись/чтение» и поощряет близость соответствующих пар:
+**Associative contrastive loss.** Penalizes closeness of representations for random "write/read" pairs and encourages closeness for matching pairs:
 
 ```python
 sim_matrix = torch.matmul(h_query, h_store.T)   # (n, n) cosine similarity
@@ -42,7 +42,7 @@ cos_neg    = sim_matrix.masked_fill(eye_mask, -1.0).max(dim=-1).values
 loss       = (-cos_pos + F.relu(cos_neg + margin)).mean()
 ```
 
-**PositionwiseFFN после каждого LRU.** LRUCell — линейная рекуррентность. FFN с Pre-LN и GELU добавляет нелинейность блока, как в Orvieto et al. 2023:
+**PositionwiseFFN after each LRU.** LRUCell is linear recurrence. FFN with Pre-LN and GELU adds block nonlinearity, as in Orvieto et al. 2023:
 
 ```python
 # Pre-LN + GELU FFN with residual connection
@@ -52,50 +52,50 @@ self.net = nn.Sequential(nn.LayerNorm(dim), nn.Linear(dim, dim * expansion),
 def forward(self, x): return x + self.net(x)
 ```
 
-**reset_state без clone.** Сброс состояния реализован через умножение на keep-маску — дешевле, чем `clone()` + индексирование:
+**reset_state without clone.** State reset is implemented via multiplication by a keep mask — cheaper than `clone()` + indexing:
 
 ```python
 keep = (~reset_mask).to(dtype=state.dtype, device=state.device)
 return state * keep.view(1, 1, -1, 1)   # broadcast over (layers, cols, batch, 2*hid)
 ```
 
-## Гиперпараметры
+## Hyperparameters
 
-| Параметр | Описание |
+| Parameter | Description |
 |---|---|
-| `lru_r_min`, `lru_r_max` | Диапазон |λ| при инициализации; нижняя граница 0.4 обеспечивает минимальную «память» |
-| `lru_max_phase` | Максимальный начальный угол θ; 2π/3 даёт разнообразие начальных частот |
-| `ffn_expansion` | Множитель расширения в FFN (обычно 2–4) |
-| `attn_dropout` | Dropout на attention-весах Hopfield-слоя |
-| `log_beta` | Обучаемый масштаб attention (один на голову); инициализируется как `log(1/√d_k)` |
+| `lru_r_min`, `lru_r_max` | |λ| range at initialization; lower bound 0.4 ensures minimum "memory" |
+| `lru_max_phase` | Maximum initial angle θ; 2π/3 gives diversity of initial frequencies |
+| `ffn_expansion` | Expansion factor in FFN (usually 2–4) |
+| `attn_dropout` | Dropout on Hopfield layer attention weights |
+| `log_beta` | Learnable attention scale (one per head); initialized as `log(1/√d_k)` |
 
-## Результаты
+## Results
 
 ### SDQ (Store-Distract-Query, hard)
 
-| Конфигурация | H | Столб. / Слоёв | Acc | Acc++ | Loss | Шагов |
+| Configuration | H | Cols / Layers | Acc | Acc++ | Loss | Steps |
 |---|---|---|---|---|---|---|
-| grnn\_hopfield H=128 (`sdq-hgru-hopfield`) | 128 | 4 / 3 | **0.967** | **0.932** | **0.087** | ~40м |
-| grnn\_hopfield 5col H=116 (`sdq-hgru-hopfield`) | 116 | 5 / 3 | 0.628 | 0.284 | 0.974 | ~12м |
+| grnn\_hopfield H=128 (`sdq-hgru-hopfield`) | 128 | 4 / 3 | **0.967** | **0.932** | **0.087** | ~40M |
+| grnn\_hopfield 5col H=116 (`sdq-hgru-hopfield`) | 116 | 5 / 3 | 0.628 | 0.284 | 0.974 | ~12M |
 
-Конфигурация 4 кол. / 3 сл. — лучший результат среди всех протестированных моделей на SDQ: Acc=0.967, Acc++=0.932 всего за 40м шагов, опережая grnn\_hgru (0.965 за 45м) и базовый grnn (0.960 за 57м). Комбинация LRU (диагональная рекуррентность) + Hopfield-attention (обучаемый β) + контрастный лосс обеспечивает максимальный Acc++. 5-колоночный запуск остановлен досрочно (12м).
+The 4 col / 3 layer configuration is the best result among all tested models on SDQ: Acc=0.967, Acc++=0.932 in just 40M steps, outpacing grnn\_hgru (0.965 at 45M) and the base grnn (0.960 at 57M). The combination of LRU (diagonal recurrence) + Hopfield attention (learnable β) + contrastive loss delivers the maximum Acc++. The 5-column run was stopped early (12M).
 
-### Текстовые эксперименты (shakespeare)
+### Text experiments (shakespeare)
 
-| Конфигурация | H | Столб. / Слоёв | Acc | BPC | PPL | Шагов |
+| Configuration | H | Cols / Layers | Acc | BPC | PPL | Steps |
 |---|---|---|---|---|---|---|
-| grnn\_hopfield H=128 (`text-hgru-hopfield`) | 128 | 4 / 3 | **0.636** | **1.686** | **3.22** | ~70м |
-| grnn\_hopfield 5col H=116 (`text-hgru-hopfield`) | 116 | 5 / 3 | 0.635 | 1.690 | 3.23 | ~70м |
-| grnn\_lru\_hop H=104 (`text-lru`) | 104 | 3 / 3 | 0.330 | 3.844 | 14.35 | ~17м |
+| grnn\_hopfield H=128 (`text-hgru-hopfield`) | 128 | 4 / 3 | **0.636** | **1.686** | **3.22** | ~70M |
+| grnn\_hopfield 5col H=116 (`text-hgru-hopfield`) | 116 | 5 / 3 | 0.635 | 1.690 | 3.23 | ~70M |
+| grnn\_lru\_hop H=104 (`text-lru`) | 104 | 3 / 3 | 0.330 | 3.844 | 14.35 | ~17M |
 
-На shakespeare результаты 4/3 конфигурации (BPC=1.686, PPL=3.22) практически идентичны grnn\_hgru (BPC=1.686) — Hopfield vs стандартный attention не даёт разницы в текстовых экспериментах. Вариант grnn\_lru\_hop в `text-lru` завершён очень рано и расходился (BPC=3.844, PPL=14.35).
+On shakespeare the 4/3 configuration results (BPC=1.686, PPL=3.22) are nearly identical to grnn\_hgru (BPC=1.686) — Hopfield vs standard attention shows no difference in text experiments. The grnn\_lru\_hop variant in `text-lru` was stopped very early and diverged (BPC=3.844, PPL=14.35).
 
-### MIKASA / POPGym (остановлено на 15M/200M, ~7.5%)
+### MIKASA / POPGym (stopped at 15M/200M, ~7.5%)
 
-| Среда | Тип памяти | EpRet | H | FPS | Итог |
+| Environment | Memory type | EpRet | H | FPS | Result |
 |---|---|---|---|---|---|
-| RepeatFirstEasy | Object | ~−0.4…−0.6 | 1.18 | 338 | осциллирует, остановлено |
+| RepeatFirstEasy | Object | ~−0.4…−0.6 | 1.18 | 338 | oscillates, stopped |
 
-EpRet осциллирует с большой амплитудой (−0.4 ↔ −0.6) без выраженного тренда. Энтропия H=1.18 стабильно высокая — модель активно исследует. Высокая энтропия по сравнению с grnn_lru (H=1.07) объясняется Hopfield-attention: обучаемый β медленнее детерминизирует распределение attention. Тем не менее прогресса в EpRet за 7.5% обучения нет.
+EpRet oscillates with large amplitude (−0.4 ↔ −0.6) with no clear trend. Entropy H=1.18 is consistently high — the model actively explores. The high entropy compared to grnn_lru (H=1.07) is explained by Hopfield attention: learnable β is slower to determinize the attention distribution. Nevertheless, no progress in EpRet over 7.5% of training.
 
-Запуск остановлен досрочно. RepeatPreviousEasy (#024) не запустился (был pending).
+Run stopped early. RepeatPreviousEasy (#024) did not start (was pending).

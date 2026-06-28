@@ -1,37 +1,37 @@
-# Curriculum Scheduling в SDQ
+# Curriculum Scheduling in SDQ
 
-## Общая идея
+## General idea
 
-В эксперименте SDQ сложность задачи нарастает постепенно: увеличивается длина последовательности (`T`), уменьшаются вероятности store/query операций (больше дистракторов). Планировщик curriculum решает, когда переходить на следующий уровень сложности, опираясь на текущее качество модели.
+In the SDQ experiment, task difficulty increases gradually: sequence length (`T`) grows, store/query operation probabilities decrease (more distractors). The curriculum scheduler decides when to advance to the next difficulty level based on the model's current performance.
 
-Планировщик проверяет метрики каждые `schedule` шагов (по умолчанию 200к). Он также адаптивно изменяет частоту проверок: ускоряет (×0.97) при стабильном прогрессе, замедляет (×1.25) при стагнации. Диапазон изменений — от 0.25× до 4× базового расписания.
+The scheduler checks metrics every `schedule` steps (default 200k). It also adaptively adjusts the check frequency: speeds up (×0.97) with stable progress, slows down (×1.25) during stagnation. The adjustment range is 0.25× to 4× the base schedule.
 
-При каждом принятом шаге curriculum:
+At each accepted curriculum step:
 ```
 T       += 0.1
 p_store  = max(p_store - 0.00014, 0.10)
 p_query  = max(p_query - 0.00005, 0.25)
 ```
 
-Настройка в конфиге — секция `curriculum:` в `extend_config.yaml`.
+Configuration in the config — `curriculum:` section in `extend_config.yaml`.
 
 ---
 
-## Режимы
+## Modes
 
-### `mode: speed` (по умолчанию)
+### `mode: speed` (default)
 
-Оригинальный режим. Принимает шаг curriculum, если скользящая средняя скорости улучшения метрики (`avg_speed`) положительна — то есть метрика в среднем улучшается.
+Original mode. Accepts a curriculum step if the exponential moving average of the metric improvement rate (`avg_speed`) is positive — i.e., the metric is improving on average.
 
 ```python
-speed = sign * (val - last_val)   # улучшение за один интервал
+speed = sign * (val - last_val)   # improvement over one interval
 avg_speed += lr * (speed - avg_speed)
 accept = avg_speed > 0.0
 ```
 
-**Проблема**: Loss почти всегда убывает в начале тренинга, поэтому curriculum фактически тикает по расписанию, не глядя на реальное качество.
+**Problem**: Loss almost always decreases at the start of training, so curriculum effectively ticks on schedule without looking at actual quality.
 
-**Когда использовать**: быстрые прогоны, отладка, сравнение baseline.
+**When to use**: quick runs, debugging, baseline comparison.
 
 ```yaml
 curriculum:
@@ -44,16 +44,16 @@ curriculum:
 
 ### `mode: threshold`
 
-Добавляет минимальный порог компетентности: curriculum не продвигается вперёд, пока модель не достигла заданного уровня метрики.
+Adds a minimum competence threshold: curriculum does not advance until the model reaches the specified metric level.
 
 ```python
 at_threshold = (sign * val) >= (sign * threshold)
 accept = avg_speed > 0.0 and at_threshold
 ```
 
-**Эффект**: модель обязана показать Acc ≥ threshold на текущем уровне сложности, прежде чем перейти на следующий.
+**Effect**: The model must show Acc ≥ threshold at the current difficulty level before advancing to the next.
 
-**Когда использовать**: основной режим для осмысленного curriculum — устраняет эффект "пропорционального роста по времени".
+**When to use**: the primary mode for meaningful curriculum — eliminates the "proportional time advance" effect.
 
 ```yaml
 curriculum:
@@ -64,24 +64,24 @@ curriculum:
   threshold: 0.75
 ```
 
-Если `threshold` слишком высок и curriculum не двигается — снизить до 0.65. Для трудных моделей можно начать с 0.60.
+If `threshold` is too high and curriculum stalls — lower to 0.65. For difficult models, start at 0.60.
 
 ---
 
 ### `mode: plateau`
 
-Продвигает curriculum только когда метрика стабилизировалась вблизи порогового значения. Вместо мгновенного speed-сравнения отслеживает историю последних N проверок.
+Advances curriculum only when the metric has stabilized near the threshold value. Instead of instant speed comparison, tracks the history of the last N checks.
 
 ```python
-# history: последние plateau_len значений метрики
+# history: last plateau_len metric values
 std = sqrt(mean((x - mean(history))^2 for x in history))
 is_plateau = std < plateau_tol
 accept = is_plateau and (sign * val >= sign * threshold)
 ```
 
-**Эффект**: advance происходит только когда модель устойчиво работает на текущем уровне (не только "в среднем улучшается"). Исключает случайные всплески метрики.
+**Effect**: Advance happens only when the model operates stably at the current level (not just "improving on average"). Eliminates random metric spikes.
 
-**Когда использовать**: при нестабильном обучении или когда важно убедиться, что прогресс не случайный.
+**When to use**: with unstable training or when it's important to confirm that progress is not accidental.
 
 ```yaml
 curriculum:
@@ -90,21 +90,21 @@ curriculum:
   key: Acc
   minimization: false
   threshold: 0.72
-  plateau_len: 5      # число проверок в истории (5 × 200k = 1M шагов)
-  plateau_tol: 0.02   # допустимое std (2% абсолютных единиц Acc)
+  plateau_len: 5      # number of checks in history (5 × 200k = 1M steps)
+  plateau_tol: 0.02   # acceptable std (2% absolute Acc units)
 ```
 
-Замечание: первые `plateau_len - 2` проверок всегда возвращают False (история ещё не накоплена).
+Note: the first `plateau_len - 2` checks always return False (history not yet accumulated).
 
 ---
 
 ### `mode: multiaxis`
 
-Каждая ось сложности продвигается независимо по своей метрике точности:
+Each difficulty axis advances independently based on its own accuracy metric:
 
-| Ось | Метрика | Дефолтный порог |
+| Axis | Metric | Default threshold |
 |---|---|---|
-| `T` (длина последовательности) | `Acc` | 0.75 |
+| `T` (sequence length) | `Acc` | 0.75 |
 | `p_store` | `Acc/store` | 0.80 |
 | `p_query` | `Acc/query` | 0.70 |
 
@@ -116,54 +116,54 @@ axes = {
 }
 ```
 
-**Эффект**: если модель хорошо делает store, но плохо query — только p_store увеличится. Позволяет точечно давить на слабое место.
+**Effect**: If the model handles store well but query poorly — only p_store increases. Allows targeted pressure on the weak point.
 
-**Когда использовать**: при анализе где именно модель проседает; когда оси имеют разную динамику обучения.
+**When to use**: when analyzing exactly where the model underperforms; when axes have different training dynamics.
 
 ```yaml
 curriculum:
   schedule: 2e+5
   mode: multiaxis
-  key: Acc            # используется только для адаптации расписания
+  key: Acc            # used only for adaptive schedule tempo
   minimization: false
   t_threshold: 0.75
   store_threshold: 0.80
   query_threshold: 0.70
 ```
 
-**Замечание**: параметр `key` в multiaxis-режиме по-прежнему используется для адаптации частоты проверок (adaptive schedule tempo), но не влияет на решение о продвижении осей.
+**Note**: the `key` parameter in multiaxis mode is still used for adaptive check frequency (adaptive schedule tempo), but does not affect the axis advance decision.
 
 ---
 
-## Сравнение режимов
+## Mode comparison
 
-| Режим | Условие advance | Требует порог | Per-axis |
+| Mode | Advance condition | Requires threshold | Per-axis |
 |---|---|---|---|
-| `speed` | avg скорость > 0 | нет | нет |
-| `threshold` | скорость > 0 + метрика ≥ порога | да | нет |
-| `plateau` | стабильность + метрика ≥ порога | да | нет |
-| `multiaxis` | per-axis accuracy порог | да | да |
+| `speed` | avg speed > 0 | no | no |
+| `threshold` | speed > 0 + metric ≥ threshold | yes | no |
+| `plateau` | stability + metric ≥ threshold | yes | no |
+| `multiaxis` | per-axis accuracy threshold | yes | yes |
 
-## Результаты экспериментов (SDQ, grnn, 42M шагов)
+## Experiment results (SDQ, grnn, 42M steps)
 
-Три режима сравнивались на модели `grnn` в эксперименте SDQ (hard: `count_queried=True`, `count_stored=True`, `n_keys=5`, `n_vals=10`). Все прогоны по 42M шагов, 64 env, `schedule=2e5`.
+Three modes were compared on the `grnn` model in the SDQ experiment (hard: `count_queried=True`, `count_stored=True`, `n_keys=5`, `n_vals=10`). All runs for 42M steps, 64 envs, `schedule=2e5`.
 
-| Режим | Acc ↑ | Acc/query ↑ | Acc/distract ↑ | Loss ↓ | curr_step |
+| Mode | Acc ↑ | Acc/query ↑ | Acc/distract ↑ | Loss ↓ | curr_step |
 |---|---|---|---|---|---|
 | `speed` | 0.677 | 0.406 | 0.945 | 0.886 | 58 |
 | `threshold` (0.75) | 0.786 | 0.543 | 0.965 | 0.639 | 18 |
 | `plateau` (0.72, len=5) | **0.790** | **0.596** | 0.943 | **0.536** | 27 |
 
-**Наблюдения:**
+**Observations:**
 
-- `speed` даёт наибольшее число advance-шагов (58) — curriculum тикает почти механически по убыванию Loss, не гарантируя реальное освоение уровня. Итоговый Acc (0.677) заметно ниже.
-- `threshold` с порогом 0.75 делает лишь 18 шагов и достигает Acc 0.786 — модель надёжнее осваивает каждый уровень.
-- `plateau` с порогом 0.72 и `plateau_len=5` показывает лучший итоговый Acc (0.790) и Acc/query (0.596) при умеренном числе шагов (27). Стабилизация перед advance помогает глубже освоить текущий уровень сложности.
+- `speed` produces the highest number of advance steps (58) — curriculum ticks almost mechanically as Loss decreases, without guaranteeing real level mastery. Final Acc (0.677) is noticeably lower.
+- `threshold` at 0.75 takes only 18 steps and achieves Acc 0.786 — the model reliably masters each level.
+- `plateau` at threshold 0.72 and `plateau_len=5` shows the best final Acc (0.790) and Acc/query (0.596) with a moderate step count (27). Stabilization before advancing helps achieve deeper mastery of the current difficulty level.
 
-**Вывод:** `plateau` является предпочтительным режимом для осмысленного curriculum при нестабильном обучении. `threshold` проще настраивать и даёт близкие результаты. `speed` пригоден только для быстрого smoke-теста.
+**Conclusion:** `plateau` is the preferred mode for meaningful curriculum with unstable training. `threshold` is easier to tune and gives close results. `speed` is suitable only for quick smoke tests.
 
 ---
 
-## Код
+## Code
 
-`knitwork/common/curriculum.py` — класс `CurriculumScheduler`
+`knitwork/common/curriculum.py` — class `CurriculumScheduler`

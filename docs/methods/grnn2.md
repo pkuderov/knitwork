@@ -1,10 +1,10 @@
 # GridRnn2
 
-GridRnn2 расширяет базовую GridRnn тремя независимо включаемыми механизмами для улучшения обобщения и стабильности обучения. VAE-bottleneck на входе заменяет детерминированный эмбеддинг вероятностным: вместо точного вектора сеть получает сэмпл из гауссовского распределения, параметры которого предсказываются из эмбеддинга, — это регуляризует представления и добавляет штраф KL к лоссу. Column Time-Gate позволяет каждой колонке примешивать состояние левой соседней колонки с предыдущего шага, создавая «волну» обработки слева направо. Column Dropout случайно обнуляет целые колонки во время обучения, вынуждая каждую колонку быть полезной независимо от соседей.
+GridRnn2 extends the base GridRnn with three independently toggleable mechanisms to improve generalization and training stability. The VAE bottleneck on input replaces the deterministic embedding with a probabilistic one: instead of an exact vector, the network receives a sample from a Gaussian distribution whose parameters are predicted from the embedding — this regularizes representations and adds a KL penalty to the loss. Column Time-Gate allows each column to blend in the state of its left neighbor column from the previous step, creating a "wave" of left-to-right processing. Column Dropout randomly zeros out entire columns during training, forcing each column to be useful independently of its neighbors.
 
-## Ключевой механизм
+## Key mechanism
 
-VAE-эмбеддинг через трюк репараметризации позволяет градиентам проходить через стохастическое сэмплирование:
+VAE embedding via the reparameterization trick allows gradients to flow through stochastic sampling:
 
 ```python
 def reparameterize(self, mu, log_var):
@@ -19,11 +19,11 @@ kl = -0.5 * torch.mean(1 + log_var - mu.pow(2) - log_var.exp())
 return x, kl * self.kl_weight
 ```
 
-На инференсе возвращается детерминированное `mu` — без шума.
+At inference, deterministic `mu` is returned — without noise.
 
-## Важные детали реализации
+## Important implementation details
 
-Column Time-Gate смешивает свежее состояние колонки `j` с состоянием колонки `j-1` с предыдущего шага через обучаемые элементарные ворота:
+Column Time-Gate mixes the fresh state of column `j` with the state of column `j-1` from the previous step via learnable element-wise gates:
 
 ```python
 # h_new, h_prev: [cols, batch, hidden]
@@ -32,11 +32,11 @@ g = torch.sigmoid(gate_fn(combined))           # [batch, hidden]
 mixed = (1.0 - g) * h_new[j] + g * h_prev[j - 1]
 ```
 
-Bias ворот инициализируется отрицательным числом (`delay_scale=-2.0`), поэтому изначально ворота почти закрыты и не мешают обучению.
+Gate bias is initialized to a negative value (`delay_scale=-2.0`), so initially the gates are nearly closed and do not interfere with training.
 
 ---
 
-Column Dropout масштабирует оставшиеся колонки на `1/(1-p)`, чтобы ожидаемое значение не изменялось:
+Column Dropout scales the remaining columns by `1/(1-p)` to keep the expected value unchanged:
 
 ```python
 scale = 1.0 / (1.0 - self.drop_prob + 1e-8)
@@ -47,36 +47,36 @@ for i, col_idx in enumerate(range(start, self.n_columns)):
         result[col_idx] = result[col_idx] * scale
 ```
 
-Нулевая (внешняя) колонка всегда сохраняется (`keep_first=True`).
+The zeroth (outer) column is always preserved (`keep_first=True`).
 
 ---
 
-`forward` возвращает тройку `(logits, h, kl_loss)` вместо пары, поэтому вызывающий код должен суммировать `kl_loss` с основным cross-entropy:
+`forward` returns a triple `(logits, h, kl_loss)` instead of a pair, so the calling code must sum `kl_loss` with the main cross-entropy:
 
 ```python
 y, h, kl_loss = model(tokens, h)
 loss = ce_loss + kl_loss   # kl_loss already scaled by kl_weight
 ```
 
-## Гиперпараметры
+## Hyperparameters
 
-| Параметр | Описание |
+| Parameter | Description |
 |---|---|
-| `vae_latent_dim` | Размерность латентного пространства VAE; `None` отключает VAE и использует стандартный `nn.Embedding` |
-| `vae_kl_weight` | Вес KL-штрафа; малое значение (1e-4..1e-2) не даёт регуляризации подавлять основной лосс |
-| `use_time_gate` | Включает Column Time-Gate; `False` — поведение идентично базовой GridRnn |
-| `time_gate_delay_scale` | Начальный bias ворот задержки; отрицательное значение = ворота почти закрыты на старте |
-| `col_drop_prob` | Вероятность обнуления одной колонки за шаг; `0.0` отключает Column Dropout |
+| `vae_latent_dim` | Dimensionality of VAE latent space; `None` disables VAE and uses standard `nn.Embedding` |
+| `vae_kl_weight` | KL penalty weight; a small value (1e-4..1e-2) prevents regularization from dominating the main loss |
+| `use_time_gate` | Enables Column Time-Gate; `False` — behavior identical to base GridRnn |
+| `time_gate_delay_scale` | Initial bias of the delay gate; negative value = gates nearly closed at start |
+| `col_drop_prob` | Probability of zeroing one column per step; `0.0` disables Column Dropout |
 
-## Результаты
+## Results
 
-### Текстовые эксперименты (text8)
+### Text experiments (text8)
 
-Оба запуска в `grid-rnn-text`, конфигурация 3 колонки / 2 слоя:
+Both runs in `grid-rnn-text`, configuration 3 columns / 2 layers:
 
-| Вариант | vae\_latent\_dim | use\_time\_gate | col\_drop\_prob | Acc | BPC | PPL | Шагов |
+| Variant | vae\_latent\_dim | use\_time\_gate | col\_drop\_prob | Acc | BPC | PPL | Steps |
 |---|---|---|---|---|---|---|---|
-| grnn vae 64 | 64 | `false` | 0.01 | 0.557 | 2.152 | 4.44 | ~28м |
-| grnn vae 48 + time gate | 48 | `true` | 0.01 | **0.590** | **1.954** | **3.88** | ~181м |
+| grnn vae 64 | 64 | `false` | 0.01 | 0.557 | 2.152 | 4.44 | ~28M |
+| grnn vae 48 + time gate | 48 | `true` | 0.01 | **0.590** | **1.954** | **3.88** | ~181M |
 
-Вариант с time gate и меньшим латентным пространством (48 vs 64) при длительном обучении (181м шагов) достигает BPC=1.954, PPL=3.88 — результат, сопоставимый с базовым grnn 2/1 на shakespeare. Версия без time gate (BPC=2.152) хуже базового grnn на text8 (BPC=2.088). VAE-bottleneck без time gate скорее мешает: стохастика эмбеддинга не компенсирует потерю точности при малом числе шагов.
+The variant with time gate and a smaller latent space (48 vs 64) under long training (181M steps) achieves BPC=1.954, PPL=3.88 — a result comparable to baseline grnn 2/1 on shakespeare. The version without time gate (BPC=2.152) is worse than baseline grnn on text8 (BPC=2.088). VAE bottleneck without time gate is more of a hindrance: stochastic embedding does not compensate for accuracy loss with a small number of steps.

@@ -1,8 +1,8 @@
 # BatchedHGRUColumns
 
-`BatchedHGRUColumns` решает задачу эффективного параллельного вычисления нескольких HGRU-столбцов Grid RNN без Python-цикла по колонкам. Вместо `n_cols` отдельных `nn.Linear` все весовые матрицы упакованы в трёхмерные параметры формы `[n_cols, out, in]`, что позволяет обработать все столбцы одним вызовом `torch.bmm` с ускорением ~3–5× относительно поэлементного цикла. Каждый столбец использует собственный обучаемый параметр `beta` — нижнюю границу forget-gate, задающую временной масштаб.
+`BatchedHGRUColumns` solves the problem of efficient parallel computation of multiple HGRU columns in Grid RNN without a Python loop over columns. Instead of `n_cols` separate `nn.Linear` modules, all weight matrices are packed into three-dimensional parameters of shape `[n_cols, out, in]`, allowing all columns to be processed in a single `torch.bmm` call with ~3–5× speedup over an element-wise loop. Each column uses its own learnable parameter `beta` — a lower bound on the forget gate that defines its temporal scale.
 
-## Ключевой механизм
+## Key mechanism
 
 ```python
 # x: (B, in)  h: (B, n_cols, hid)
@@ -18,18 +18,18 @@ lam_t = torch.sigmoid(gate_x(W_f, b_f) + gate_h(U_f)) * (1.0 - betas) + betas
 return (lam_t * h_perm + (1.0 - lam_t) * c_t).permute(1, 0, 2)   # (B, n_cols, hid)
 ```
 
-`beta` параметризован через logit (`beta_raw`), что гарантирует значение в `(0, 1)` и позволяет каждому столбцу обучить свою временну́ю нишу.
+`beta` is parameterized via logit (`beta_raw`), guaranteeing a value in `(0, 1)` and allowing each column to learn its own temporal niche.
 
-## Важные детали реализации
+## Important implementation details
 
-**Иерархическая структура forget gate.** Формула `λ = sigmoid(...) * (1 - β) + β` обеспечивает нижнюю границу λ на уровне β: даже при максимальном "забывании" столбец удерживает долю β предыдущего состояния, что создаёт иерархию временных масштабов:
+**Hierarchical forget gate structure.** The formula `λ = sigmoid(...) * (1 - β) + β` ensures a lower bound of λ at level β: even with maximum "forgetting", the column retains fraction β of its previous state, creating a hierarchy of temporal scales:
 
 ```python
 betas = torch.sigmoid(self.beta_raw).view(n_cols, 1, 1)
 lam_t = torch.sigmoid(gate_x(W_f, b_f) + gate_h(U_f)) * (1.0 - betas) + betas
 ```
 
-**Инициализация весов.** Каждая матрица каждого столбца инициализируется ортогонально независимо, что снижает начальную корреляцию между столбцами:
+**Weight initialization.** Each weight matrix of each column is initialized orthogonally and independently, reducing initial correlation between columns:
 
 ```python
 for name in ['W_f', 'W_o', 'W_c', 'U_f', 'U_o', 'U_c']:
@@ -38,17 +38,17 @@ for name in ['W_f', 'W_o', 'W_c', 'U_f', 'U_o', 'U_c']:
         nn.init.orthogonal_(p[i])
 ```
 
-**`BatchedReservoirColumns`.** Второй класс файла реализует замороженные GRU-столбцы с нормировкой спектрального радиуса рекуррентных матриц. Параметры `requires_grad=False` — сеть работает как эхо-состояние (ESN), добавляя нелинейное разнообразие без обучения.
+**`BatchedReservoirColumns`.** The second class in the file implements frozen GRU columns with spectral radius normalization of recurrent matrices. Parameters have `requires_grad=False` — the network operates as an echo state machine (ESN), adding nonlinear diversity without training.
 
-## Гиперпараметры
+## Hyperparameters
 
-| Параметр | Описание |
+| Parameter | Description |
 |---|---|
-| `beta_inits` | Начальные значения β для каждого столбца; разные значения задают разные временные масштабы с первого шага |
-| `learnable_beta` | Если `False` — β фиксированы и иерархия задаётся вручную через `beta_inits` |
-| `use_layer_norm` | LayerNorm применяется к candidate state `c_raw` до `tanh`, стабилизируя динамику при больших скрытых размерах |
-| `spectral_radii` | (для `BatchedReservoirColumns`) Спектральный радиус рекуррентной матрицы каждого резервуарного столбца; значения < 1 обеспечивают эхо-состояние |
+| `beta_inits` | Initial β values for each column; different values define different temporal scales from the first step |
+| `learnable_beta` | If `False` — β is fixed and the hierarchy is set manually via `beta_inits` |
+| `use_layer_norm` | LayerNorm applied to candidate state `c_raw` before `tanh`, stabilizing dynamics with large hidden sizes |
+| `spectral_radii` | (for `BatchedReservoirColumns`) Spectral radius of the recurrent matrix for each reservoir column; values < 1 ensure echo-state behavior |
 
-## Результаты
+## Results
 
-`BatchedHGRUColumns` и `BatchedReservoirColumns` — компоненты, используемые внутри `grnn_fusion`. Самостоятельных экспериментов не проводилось. Результаты интегрированной модели приведены в [grnn\_fusion.md](grnn_fusion.md): SDQ Acc=0.831, Acc++=0.708.
+`BatchedHGRUColumns` and `BatchedReservoirColumns` are components used inside `grnn_fusion`. No standalone experiments were conducted. Results for the integrated model are given in [grnn\_fusion.md](grnn_fusion.md): SDQ Acc=0.831, Acc++=0.708.

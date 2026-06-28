@@ -1,8 +1,8 @@
 # GridRnnReservoir
 
-GridRnnReservoir — это Grid RNN с Echo State Network (ESN)-подобными резервуарными столбцами. Идея: часть столбцов в каждом слое замораживается после инициализации (веса не обновляются), а их рекуррентная матрица масштабируется к заданному спектральному радиусу. Это создаёт богатое случайное проекционное пространство с контролируемой динамикой памяти, которую обучаемые столбцы могут читать через механизм межколоночного message passing.
+GridRnnReservoir is a Grid RNN with Echo State Network (ESN)-like reservoir columns. The idea: some columns in each layer are frozen after initialization (weights are not updated), and their recurrent matrix is scaled to a target spectral radius. This creates a rich random projection space with controlled memory dynamics, which trainable columns can read through the inter-column message passing mechanism.
 
-## Ключевой механизм
+## Key Mechanism
 
 ```python
 # scale recurrent weight_hh of each GRU gate to target spectral radius
@@ -15,11 +15,11 @@ for param in cell.parameters():
     param.requires_grad = False
 ```
 
-Функция `_scale_to_spectral_radius` использует `torch.linalg.eigvals` для матриц до 512×512 и степенную итерацию для больших, после чего умножает веса на `target / current_radius`.
+The function `_scale_to_spectral_radius` uses `torch.linalg.eigvals` for matrices up to 512×512 and power iteration for larger ones, then multiplies weights by `target / current_radius`.
 
-## Важные детали реализации
+## Important Implementation Details
 
-**Разделение на обучаемые и резервуарные столбцы.** Первые `n_trainable_cols` столбцов обучаются обычно, последние `n_reservoir_cols` — заморожены:
+**Split into trainable and reservoir columns.** The first `n_trainable_cols` columns train normally, the last `n_reservoir_cols` are frozen:
 
 ```python
 first_reservoir = self.n_trainable_cols   # = n_columns - n_reservoir_cols
@@ -29,7 +29,7 @@ for icol in range(first_reservoir, self.n_columns):
         param.requires_grad = False
 ```
 
-**Инициализация резервуарной ячейки.** Входные веса масштабируются равномерно к `reservoir_scale`, смещения обнуляются для стабильности:
+**Reservoir cell initialization.** Input weights are uniformly scaled to `reservoir_scale`, biases are zeroed for stability:
 
 ```python
 nn.init.uniform_(cell.weight_ih, -scale, scale)
@@ -37,35 +37,35 @@ nn.init.zeros_(cell.bias_ih)
 nn.init.zeros_(cell.bias_hh)
 ```
 
-**Мониторинг спектральных радиусов.** Метод `reservoir_info()` возвращает фактические спектральные радиусы всех гейтов резервуарных ячеек — полезно для проверки корректности инициализации.
+**Spectral radius monitoring.** The `reservoir_info()` method returns the actual spectral radii of all gates in reservoir cells — useful for verifying correct initialization.
 
-## Гиперпараметры
+## Hyperparameters
 
-| Параметр | Описание |
+| Parameter | Description |
 |---|---|
-| `n_reservoir_cols` | Число замороженных столбцов (< n_columns). Резервуарные столбцы — последние по индексу |
-| `spectral_radius` | Спектральный радиус рекуррентной матрицы. < 1 — затухающая память, ≈ 1 — критический режим (рекомендуется 0.9) |
-| `reservoir_scale` | Масштаб инициализации входных весов резервуара. Малые значения (0.1) обеспечивают слабое влияние входа на резервуар |
+| `n_reservoir_cols` | Number of frozen columns (< n_columns). Reservoir columns are last by index |
+| `spectral_radius` | Spectral radius of the recurrent matrix. < 1 — fading memory, ≈ 1 — critical regime (0.9 recommended) |
+| `reservoir_scale` | Input weight initialization scale. Small values (0.1) ensure weak input influence on the reservoir |
 
-## Результаты
+## Results
 
 ### SDQ (Store-Distract-Query, hard)
 
-Два запуска в `grid-rnn-sdq` с разным числом столбцов и размером hidden:
+Two runs in `grid-rnn-sdq` with different numbers of columns and hidden sizes:
 
-| Конфигурация | H | Обуч. / Рез. столб. | Слоёв | Acc | Acc++ | Loss | Шагов |
+| Configuration | H | Train / Res. cols | Layers | Acc | Acc++ | Loss | Steps |
 |---|---|---|---|---|---|---|---|
-| 2 сл., 4 кол. (3+1 рез.) | 145 | 3 / 1 | 2 | 0.693 | 0.354 | 0.826 | ~47м |
-| 3 сл., 5 кол. (3+2 рез.), bs=300 | 300 | 3 / 2 | 3 | **0.925** | **0.851** | **0.187** | ~84м |
+| 2 layers, 4 cols (3+1 res.) | 145 | 3 / 1 | 2 | 0.693 | 0.354 | 0.826 | ~47M |
+| 3 layers, 5 cols (3+2 res.), bs=300 | 300 | 3 / 2 | 3 | **0.925** | **0.851** | **0.187** | ~84M |
 
-Большой резервуарный вариант (H=300, 5 кол., 3 слоя) достигает уровня hgrnn (~0.950), что говорит о том, что богатая многомасштабная динамика замороженных столбцов эффективно заменяет обучаемые параметры. Малый вариант (2 слоя) существенно хуже — резервуар без достаточной глубины не раскрывает потенциал.
+The large reservoir variant (H=300, 5 cols, 3 layers) reaches the level of hgrnn (~0.950), suggesting that the rich multi-scale dynamics of frozen columns effectively substitute for trainable parameters. The small variant (2 layers) is significantly worse — a reservoir without sufficient depth does not realize its potential.
 
-### Текстовые эксперименты
+### Text experiments
 
-| Конфигурация | H | Обуч. / Рез. столб. | Датасет | Acc | BPC | PPL | Шагов |
+| Configuration | H | Train / Res. cols | Dataset | Acc | BPC | PPL | Steps |
 |---|---|---|---|---|---|---|---|
-| 5 кол. (3+2 рез.), 3 сл. (`text-gru-reservoir`) | 128 | 3 / 2 | shakespeare | 0.617 | 1.780 | 3.43 | ~70м |
-| 5 кол. (3+2 рез.), 3 сл. (`text-hgru`) | 128 | 3 / 2 | shakespeare | 0.628 | **1.730** | **3.32** | ~70м |
-| 5 кол. (3+2 рез.), 3 сл. (`grid-rnn-text`) | — | 3 / 2 | shakespeare | 0.612 | 1.820 | 3.53 | ~156м |
+| 5 cols (3+2 res.), 3 layers (`text-gru-reservoir`) | 128 | 3 / 2 | shakespeare | 0.617 | 1.780 | 3.43 | ~70M |
+| 5 cols (3+2 res.), 3 layers (`text-hgru`) | 128 | 3 / 2 | shakespeare | 0.628 | **1.730** | **3.32** | ~70M |
+| 5 cols (3+2 res.), 3 layers (`grid-rnn-text`) | — | 3 / 2 | shakespeare | 0.612 | 1.820 | 3.53 | ~156M |
 
-На shakespeare резервуарный вариант с 5 колонками (BPC=1.730–1.820) немного уступает чисто обучаемому grnn 4/3 (BPC=1.721), но значительно превосходит базовый 2/1 (BPC=1.954). HGRU-ячейки в резервуарной конфигурации немного лучше GRU (BPC=1.730 vs 1.780).
+On shakespeare, the reservoir variant with 5 columns (BPC=1.730–1.820) slightly falls behind the fully trainable grnn 4/3 (BPC=1.721), but significantly outperforms the baseline 2/1 (BPC=1.954). HGRU cells in the reservoir configuration are slightly better than GRU (BPC=1.730 vs 1.780).

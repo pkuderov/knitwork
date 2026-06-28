@@ -1,15 +1,15 @@
-- **Эксперименты**
+- **Experiments**
   - [SDQ](experiments/sdq.md)
   - [Text Modeling](experiments/text.md)
   - [TreasureHunt](experiments/treasure.md)
   - [MIKASA / POPGym](experiments/mikasa.md)
 
-- **Базовые**
+- **Basics**
   - [GRU baseline](methods/gru.md)
   - [GridRNN](methods/grnn.md)
   - [GridRNN-err](methods/grnn_err.md)
 
-- **Модификации ячейки**
+- **Cell Modifications**
   - [GridRNN2 + VAE](methods/grnn2.md)
   - [HGRNN](methods/hgrnn.md)
   - [HGRN-GridRNN](methods/hgrn_grnn.md)
@@ -17,7 +17,7 @@
   - [GridLRU](methods/grnn_lru.md)
   - [HopfieldGridLRU](methods/hgrnn_lru.md)
 
-- **Память и ассоциации**
+- **Memory and Associations**
   - [DeltaGrid (NEW)](methods/grnn_delta.md)
   - [Engram](methods/engram_grnn.md)
   - [Fast Weights](methods/grnn_fw.md)
@@ -25,22 +25,22 @@
   - [PrecDelta](methods/grnn_prec_delta.md)
   - [EmaMem](methods/grnn_ema_mem.md)
 
-- **Итеративные методы**
+- **Iterative Methods**
   - [Equilibrium](methods/grnn_eq.md)
   - [Equilibrium v2](methods/grnn_eq1.md)
 
-- **Регуляризация и loss**
+- **Regularization and Loss**
   - [DiversityLoss](methods/diversity.md)
   - [GridRNN-Loss](methods/grnn_loss.md)
   - [GridRNN-AdvLoss](methods/grnn_adv_loss.md)
   - [GridRNN-Disc](methods/grnn_disc.md)
 
-- **Гармонические**
+- **Harmonic**
   - [HarmonicGridRNN](methods/grnn_harmonic.md)
 
 - **Fusion**
   - [Fusion cells](methods/fusion_cells.md)
   - [GridRNN-Fusion](methods/grnn_fusion.md)
 
-- **Инфраструктура**
+- **Infrastructure**
   - [Curriculum Scheduling](methods/curriculum_scheduling.md)

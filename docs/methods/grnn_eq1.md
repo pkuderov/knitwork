@@ -1,10 +1,10 @@
 # EquilibriumGridRnnCoT
 
-GridRNN с Adaptive Computation Time (ACT) и Chain-of-Thought (CoT). Решает проблему фиксированной глубины вычислений: вместо одного прохода через сетку каждый слой выполняет переменное число итераций до достижения неподвижной точки (equilibrium). ACT-механизм динамически определяет, когда остановиться, а CoT-GRU накапливает «мысли» поверх верхнего слоя как медленная долгосрочная память. Три вспомогательных лосса принуждают сеть к равновесию (MSE-невязка), экономии вычислений (ponder cost) и равномерному участию всех колонок в attention (энтропийный регуляризатор).
+GridRNN with Adaptive Computation Time (ACT) and Chain-of-Thought (CoT). Addresses the problem of fixed computation depth: instead of a single pass through the grid, each layer performs a variable number of iterations until reaching a fixed point (equilibrium). The ACT mechanism dynamically decides when to stop, and the CoT-GRU accumulates "thoughts" on top of the upper layer as slow long-term memory. Three auxiliary losses drive the network toward equilibrium (MSE residual), computational efficiency (ponder cost), and uniform participation of all columns in attention (entropy regularizer).
 
-## Ключевой механизм
+## Key Mechanism
 
-ACT-цикл с взвешенной аккумуляцией состояний и адаптивной остановкой:
+ACT loop with weighted state accumulation and adaptive halting:
 
 ```python
 # ACT loop per layer  [cols, batch, hidden]
@@ -32,11 +32,11 @@ for act_step in range(self.max_eq_iters):
         break
 ```
 
-На каждом шаге ACT вычисляется вероятность остановки `p_halt`, и состояния взвешенно суммируются в `h_acc`. Цикл завершается, когда все примеры в батче остановились или исчерпан `max_eq_iters`.
+At each ACT step, the halting probability `p_halt` is computed and states are weighted-summed into `h_acc`. The loop terminates when all examples in the batch have halted or `max_eq_iters` is exhausted.
 
-## Важные детали реализации
+## Important Implementation Details
 
-**Equilibrium residual loss** — прямой сигнал для достижения неподвижной точки:
+**Equilibrium residual loss** — a direct signal for reaching the fixed point:
 
 ```python
 # penalty: one more GRU step from h_acc should not change it  [cols, batch, hidden]
@@ -45,7 +45,7 @@ h_check = stack([cell(x_in[ic], h_acc_detached[ic]) for ic, cell in enumerate(ce
 residual_loss = F.mse_loss(h_check, h_acc_detached)
 ```
 
-**Ponder cost (FIX-1)** — нормированное число итераций, а не накопленная вероятность (которая всегда = 1.0):
+**Ponder cost (FIX-1)** — normalized iteration count, not accumulated probability (which always equals 1.0):
 
 ```python
 # n_iters counts real steps per example  [batch,]
@@ -53,7 +53,7 @@ n_iters += (~halt_mask).float()
 ponder_cost = n_iters.mean() / self.max_eq_iters   # range [1/max .. 1]
 ```
 
-**Chain-of-Thought** — отдельный GRUCell поверх верхнего слоя, выход конкатенируется с `h_top` перед головой:
+**Chain-of-Thought** — a separate GRUCell on top of the upper layer, output concatenated with `h_top` before the head:
 
 ```python
 h_top   = h_new[-1, 0]                            # (batch, hidden)
@@ -61,7 +61,7 @@ thought = self.cot(h_top, thought)                 # GRUCell + LayerNorm
 y       = self.head(cat([h_top, thought], dim=-1))
 ```
 
-**Column participation loss (FIX-5)** — штраф за неравномерное внимание между колонками:
+**Column participation loss (FIX-5)** — penalty for non-uniform attention between columns:
 
 ```python
 # maximize entropy of mean attention weights → uniform column participation
@@ -70,33 +70,33 @@ col_entropy  = -(attn_w_mean * (attn_w_mean + 1e-8).log()).sum(-1).mean()
 participation_loss = -col_entropy                  # minimize negative entropy
 ```
 
-## Гиперпараметры
+## Hyperparameters
 
-| Параметр | Описание |
+| Parameter | Description |
 |---|---|
-| `max_eq_iters` | Максимальное число equilibrium-итераций на слой; по умолчанию 12 |
-| `eq_tol` | Порог нормы невязки для логирования сходимости (не влияет на остановку — ею управляет ACT) |
-| `act_eps` | Эпсилон ACT: остановка, когда `halt_acc >= 1 - eps`; по умолчанию 0.01 |
-| `act_loss_weight` | Вес ponder cost в суммарном лоссе |
-| `eq_residual_weight` | Вес MSE-невязки equilibrium; по умолчанию 1e-2 |
-| `col_participation_weight` | Вес энтропийного регуляризатора колонок; по умолчанию 1e-3 |
-| `anderson_beta` | Коэффициент Anderson mixing для ускорения сходимости; 0.0 = отключено |
-| `attn_every` | Attention применяется каждые N итераций внутри ACT-цикла |
-| `thought_size` | Размер CoT-состояния; по умолчанию равен `hidden_size` |
+| `max_eq_iters` | Maximum number of equilibrium iterations per layer; default 12 |
+| `eq_tol` | Residual norm threshold for convergence logging (does not affect halting — that is controlled by ACT) |
+| `act_eps` | ACT epsilon: halt when `halt_acc >= 1 - eps`; default 0.01 |
+| `act_loss_weight` | Weight of ponder cost in total loss |
+| `eq_residual_weight` | Weight of equilibrium MSE residual; default 1e-2 |
+| `col_participation_weight` | Weight of column entropy regularizer; default 1e-3 |
+| `anderson_beta` | Anderson mixing coefficient for faster convergence; 0.0 = disabled |
+| `attn_every` | Attention is applied every N iterations inside the ACT loop |
+| `thought_size` | Size of the CoT state; defaults to `hidden_size` |
 
-## Результаты
+## Results
 
 ### SDQ (Store-Distract-Query, hard)
 
-Шесть запусков в `grid-rnn-sdq`, конфигурация H=128, 4 колонки, 4 слоя, max\_eq\_iters=12:
+Six runs in `grid-rnn-sdq`, configuration H=128, 4 columns, 4 layers, max\_eq\_iters=12:
 
-| Запуск | Acc | Acc++ | Loss | Шагов | Примечание |
+| Run | Acc | Acc++ | Loss | Steps | Note |
 |---|---|---|---|---|---|
-| grnn equilibr v.2 sdq eq metric | 0.636 | 0.323 | 1.014 | ~76м | лучший из серии |
-| grnn equilibr v.2 sdq eq iters=12 (3b26dae3) | 0.623 | 0.296 | 1.022 | ~47м | |
-| grnn equilibr v.2 sdq eq iters=12 (48ba7c7d) | 0.394 | 0.102 | 1.640 | ~6м | ранняя остановка |
-| grnn equilibr v.2 sdq eq iters=12 (67748060) | 0.336 | 0.101 | 1.821 | ~3м | ранняя остановка |
-| grnn equilibr v.1 sdq (3f16bb52) | 0.429 | 0.105 | 1.572 | ~11м | |
-| grnn equilibr v.1 sdq (c07d8d61) | 0.414 | 0.106 | 1.609 | ~8м | |
+| grnn equilibr v.2 sdq eq metric | 0.636 | 0.323 | 1.014 | ~76M | best in series |
+| grnn equilibr v.2 sdq eq iters=12 (3b26dae3) | 0.623 | 0.296 | 1.022 | ~47M | |
+| grnn equilibr v.2 sdq eq iters=12 (48ba7c7d) | 0.394 | 0.102 | 1.640 | ~6M | early stop |
+| grnn equilibr v.2 sdq eq iters=12 (67748060) | 0.336 | 0.101 | 1.821 | ~3M | early stop |
+| grnn equilibr v.1 sdq (3f16bb52) | 0.429 | 0.105 | 1.572 | ~11M | |
+| grnn equilibr v.1 sdq (c07d8d61) | 0.414 | 0.106 | 1.609 | ~8M | |
 
-Все варианты существенно хуже базового grnn 2/1 (Acc=0.734). Лучший результат — Acc=0.636 за 76м шагов — не достигает даже порога базовой конфигурации. Многочисленные ранние остановки свидетельствуют о нестабильности обучения с ACT+CoT+несколькими auxiliary-лоссами. Механизм адаптивного числа итераций не даёт преимущества на SDQ, где важна не «глубина мышления», а качество ассоциативного хранения.
+All variants are significantly worse than the baseline grnn 2/1 (Acc=0.734). The best result — Acc=0.636 at 76M steps — does not even reach the baseline configuration threshold. Numerous early stops indicate training instability with ACT+CoT+multiple auxiliary losses. The adaptive iteration count mechanism provides no advantage on SDQ, where the key factor is associative storage quality, not "thinking depth".

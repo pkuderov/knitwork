@@ -1,10 +1,10 @@
 # EngramGridRnn
 
-Grid RNN, где каждая ячейка дополнена ассоциативной памятью (`EngramMemory`). На каждом шаге ячейка сначала извлекает из памяти релевантный вектор через разреженное косинусное внимание, конкатенирует его с входом и передаёт в GRU. После обновления скрытого состояния память перезаписывается по правилу Хебба. Сообщения между столбцами передаются через многоголовое внимание (режимы `post` и `pre`).
+Grid RNN where each cell is augmented with associative memory (`EngramMemory`). At each step, the cell first retrieves a relevant vector from memory via sparse cosine attention, concatenates it with the input, and passes it to GRU. After updating the hidden state, the memory is rewritten using Hebbian rule. Messages between columns are passed through multi-head attention (`post` and `pre` modes).
 
-## Ключевой механизм
+## Key mechanism
 
-Чтение из памяти и запись по Хеббу реализованы в `EngramMemory.forward`:
+Memory read and Hebbian write are implemented in `EngramMemory.forward`:
 
 ```python
 # read → hebbian write  [B, H], [B, S, H]
@@ -13,11 +13,11 @@ def forward(self, h, M):
     return r, self.write(h, M, attn), attn
 ```
 
-`read` вычисляет разреженное косинусное внимание по слотам, агрегирует значения взвешенной суммой и применяет read-gate. `write` сдвигает слоты к текущему скрытому состоянию пропорционально весам внимания.
+`read` computes sparse cosine attention over slots, aggregates values by weighted sum, and applies a read gate. `write` shifts slots toward the current hidden state proportional to attention weights.
 
-## Важные детали реализации
+## Important implementation details
 
-**Разреженное косинусное внимание** — top-K маскирование нулит слабые слоты перед softmax:
+**Sparse cosine attention** — top-K masking zeros out weak slots before softmax:
 
 ```python
 # sparse cosine attention over memory slots  [B, S]
@@ -28,7 +28,7 @@ scores = scores.masked_fill(scores < threshold, float('-inf'))
 attn = torch.softmax(scores, dim=-1)
 ```
 
-**Hebbian write** с гейтом и нормализацией слотов:
+**Hebbian write** with gate and slot normalization:
 
 ```python
 # Hebbian delta rule; w in [0,1] from write_gate  [B, S, H]
@@ -38,9 +38,9 @@ M_new = M + lr * attn.unsqueeze(-1) * delta
 return M_new / M_new.norm(dim=-1, keepdim=True).clamp(min=1.0)
 ```
 
-Нормализация `clamp(min=1.0)` не сжимает короткие векторы, но предотвращает взрывной рост длинных.
+Normalization `clamp(min=1.0)` does not shrink short vectors, but prevents explosive growth of long ones.
 
-**Вход GRU** — конкатенация входного токена/сообщения и вектора извлечения `r`:
+**GRU input** — concatenation of the input token/message and the retrieval vector `r`:
 
 ```python
 # augment cell input with engram retrieval  [B, input_dim + H]
@@ -49,7 +49,7 @@ x_aug = torch.cat([x_input[col_i], r], dim=-1)
 h_new = cells[col_i](x_aug, h_prev)
 ```
 
-**Post-message gate** смешивает исходное скрытое состояние со столбцовыми сообщениями:
+**Post-message gate** mixes the original hidden state with column messages:
 
 ```python
 # gated message mixing across columns  [cols, B, H]
@@ -58,33 +58,33 @@ g = torch.sigmoid(attn_gate(torch.cat([hl_n, msg], dim=-1)))
 hl_n = (1.0 - g) * hl_n + g * msg
 ```
 
-## Гиперпараметры
+## Hyperparameters
 
-| Параметр | Описание |
+| Parameter | Description |
 |---|---|
-| `n_engram_slots` | Количество слотов памяти на ячейку; больше слотов — выше ёмкость, но дороже внимание |
-| `engram_top_k` | Сколько слотов участвует в softmax; управляет разреженностью извлечения |
-| `engram_hebb_lr` | Скорость обновления памяти по Хеббу; при высоких значениях память быстро перезаписывается |
-| `engram_gate_write` | Включает write-gate: ячейка может подавить запись, если текущий вход нерелевантен |
-| `messaging` | `post` — сообщения после GRU-шага (с gate); `pre` — перед GRU-шагом (без gate) |
-| `col_identities` | Добавляет позиционные эмбеддинги столбцов в механизм внимания |
+| `n_engram_slots` | Number of memory slots per cell; more slots — higher capacity, but more expensive attention |
+| `engram_top_k` | How many slots participate in softmax; controls retrieval sparsity |
+| `engram_hebb_lr` | Memory update rate via Hebbian rule; at high values memory is quickly overwritten |
+| `engram_gate_write` | Enables write gate: the cell can suppress writing if the current input is irrelevant |
+| `messaging` | `post` — messages after GRU step (with gate); `pre` — before GRU step (without gate) |
+| `col_identities` | Adds column positional embeddings to the attention mechanism |
 
-## Результаты
+## Results
 
-Конфигурация: H=128, 4 колонки, 4 слоя, 16 engram-слотов, hebb\_lr=0.1, top\_k=4.
+Configuration: H=128, 4 columns, 4 layers, 16 engram slots, hebb\_lr=0.1, top\_k=4.
 
 ### SDQ (Store-Distract-Query, hard)
 
-| Эксперимент | Acc | Acc++ | Loss | Шагов |
+| Experiment | Acc | Acc++ | Loss | Steps |
 |---|---|---|---|---|
-| grnn engram sdq (`grid-rnn-sdq`) | **0.819** | **0.664** | **0.439** | ~116м |
+| grnn engram sdq (`grid-rnn-sdq`) | **0.819** | **0.664** | **0.439** | ~116M |
 
-Engram-память даёт заметный рост по сравнению с базовым grnn 2/1 (Acc=0.734), но уступает глубоким конфигурациям без Engram: grnn 4/3 достигает Acc=0.960, а grnn\_loss 4/4 — Acc=0.862. Гебианский механизм записи полезен, однако выигрыш от явных слотов памяти нивелируется ростом числа параметров сетки.
+Engram memory gives a noticeable improvement over baseline grnn 2/1 (Acc=0.734), but falls short of deeper configurations without Engram: grnn 4/3 reaches Acc=0.960, and grnn\_loss 4/4 — Acc=0.862. The Hebbian write mechanism is useful, but the gain from explicit memory slots is offset by the growth in grid parameter count.
 
-### Текстовые эксперименты
+### Text experiments
 
-| Эксперимент | Датасет | Acc | BPC | PPL | Шагов |
+| Experiment | Dataset | Acc | BPC | PPL | Steps |
 |---|---|---|---|---|---|
-| engram 4×4 text (`grid-rnn-text`) | text8 | 0.571 | 2.077 | 4.22 | ~60м |
+| engram 4×4 text (`grid-rnn-text`) | text8 | 0.571 | 2.077 | 4.22 | ~60M |
 
-На text8 результат близок к базовому grnn 2/1 (BPC=2.088). Engram-механизм не даёт значимого улучшения на текстовых задачах при данном бюджете обучения.
+On text8 the result is close to baseline grnn 2/1 (BPC=2.088). The Engram mechanism does not give meaningful improvement on text tasks within this training budget.

@@ -1,8 +1,8 @@
 # GridRnnLoss
 
-GridRnnLoss расширяет базовый GridRnn вспомогательными функциями потерь разнообразия колонок. Проблема, которую он решает: столбцы сетки могут коллапсировать в однородные представления, теряя потенциал параллельной специализации. Идея метода — вычислять косинусную, ковариационную и энтропийную потери по скрытым состояниям и гейтам всех слоёв и добавлять их взвешенную сумму к основному кросс-энтропийному лоссу, тем самым явно поощряя разнообразие между столбцами.
+GridRnnLoss extends the base GridRnn with auxiliary column diversity loss functions. The problem it addresses: grid columns can collapse into homogeneous representations, losing the potential for parallel specialization. The method computes cosine, covariance, and entropy losses over hidden states and gates across all layers, adding their weighted sum to the main cross-entropy loss, thereby explicitly encouraging diversity between columns.
 
-## Ключевой механизм
+## Key Mechanism
 
 ```python
 # collect per-layer hidden states and gates during grid_step_postmsg
@@ -14,11 +14,11 @@ div_losses = model.compute_diversity_loss(extras)
 total_loss = ce_loss + div_losses['total']
 ```
 
-Метод `grid_step_postmsg` переопределён так, что к стандартному словарю `extras` добавляется `h_layers` — список скрытых состояний по каждому слою. Далее `compute_diversity_loss` передаёт их в `ColumnDiversityLoss`, которая агрегирует несколько компонент потерь.
+The `grid_step_postmsg` method is overridden so that the standard `extras` dictionary is augmented with `h_layers` — a list of hidden states per layer. Then `compute_diversity_loss` passes them to `ColumnDiversityLoss`, which aggregates several loss components.
 
-## Важные детали реализации
+## Important Implementation Details
 
-**Автоматическая конфигурация весов по слоям.** Если `diversity_cfg` не передана явно, веса слоёв линейно растут от 0.5 до 2.0 — глубокие слои штрафуются сильнее:
+**Automatic layer weight configuration.** If `diversity_cfg` is not provided explicitly, layer weights increase linearly from 0.5 to 2.0 — deeper layers are penalized more:
 
 ```python
 # layer weights grow linearly: 0.5 (first) .. 2.0 (last)
@@ -26,7 +26,7 @@ layer_w = [0.5 + 1.5 * i / max(n_layers - 1, 1) for i in range(n_layers)]
 diversity_cfg = DiversityLossConfig(layer_weights=layer_w)
 ```
 
-**Безопасный возврат нулей.** Если `extras` не содержит `h_layers` (например, при вызове без `return_attn`), метод возвращает нулевые тензоры по всем компонентам без ошибки:
+**Safe zero return.** If `extras` does not contain `h_layers` (e.g., when called without `return_attn`), the method returns zero tensors for all components without error:
 
 ```python
 if not h_layers:
@@ -34,28 +34,28 @@ if not h_layers:
     return {k: zero for k in ('cosine', 'covariance', 'variance', 'gate_entropy', 'total')}
 ```
 
-## Гиперпараметры
+## Hyperparameters
 
-| Параметр | Описание |
+| Parameter | Description |
 |---|---|
-| `diversity_cfg` | Конфигурация потерь разнообразия (`DiversityLossConfig`). Если `None` — создаётся автоматически с линейным ростом весов по слоям |
+| `diversity_cfg` | Diversity loss configuration (`DiversityLossConfig`). If `None` — created automatically with linearly increasing layer weights |
 
-## Результаты
+## Results
 
-Конфигурация: H=128, 4 колонки, 4 слоя.
+Configuration: H=128, 4 columns, 4 layers.
 
 ### SDQ (Store-Distract-Query, hard)
 
-| Эксперимент | Acc | Acc++ | Loss | Шагов |
+| Experiment | Acc | Acc++ | Loss | Steps |
 |---|---|---|---|---|
-| grnn with loss sdq (`grid-rnn-sdq`) | **0.862** | **0.743** | **0.338** | ~120м |
+| grnn with loss sdq (`grid-rnn-sdq`) | **0.862** | **0.743** | **0.338** | ~120M |
 
-Лучший результат среди вариантов с явным diversity loss: превосходит grnn\_adv\_loss (Acc=0.807) и grnn\_fusion (Acc=0.831). Автоматически настраиваемые весовые коэффициенты по слоям (линейный рост 0.5→2.0) оказались эффективнее ручных настроек в других подходах. Тем не менее модель уступает grnn 4/3 без дополнительных потерь (Acc=0.960), что указывает на то, что колонки и без явного регуляризатора специализируются достаточно при правильной топологии.
+Best result among variants with explicit diversity loss: outperforms grnn\_adv\_loss (Acc=0.807) and grnn\_fusion (Acc=0.831). Automatically configured per-layer weight coefficients (linear growth 0.5→2.0) proved more effective than manual tuning in other approaches. However, the model still falls short of grnn 4/3 without additional losses (Acc=0.960), indicating that columns specialize sufficiently at the right topology even without an explicit regularizer.
 
-### Текстовые эксперименты
+### Text experiments
 
-| Эксперимент | Датасет | Acc | BPC | PPL | Шагов |
+| Experiment | Dataset | Acc | BPC | PPL | Steps |
 |---|---|---|---|---|---|
-| grnn loss text (`grid-rnn-text`) | text8 | 0.570 | 2.093 | 4.27 | ~100м |
+| grnn loss text (`grid-rnn-text`) | text8 | 0.570 | 2.093 | 4.27 | ~100M |
 
-На text8 diversity loss не приносит улучшения относительно базового grnn 2/1 (BPC=2.088). Компоненты потерь разнообразия полезны в контексте SDQ, но нейтральны для текстовых экспериментов.
+On text8, diversity loss brings no improvement over the baseline grnn 2/1 (BPC=2.088). The diversity loss components are useful in the SDQ context but neutral for text experiments.

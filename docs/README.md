@@ -1,16 +1,16 @@
 # knitwork — methods
 
-Документация к методам и архитектурам из `knitwork/models/`.
+Documentation for methods and architectures from `knitwork/models/`.
 
-Выберите модель в боковой панели слева.
+Select a model in the sidebar on the left.
 
-## Категории
+## Categories
 
-| Категория | Модели |
+| Category | Models |
 |---|---|
-| Базовые | GRU, GridRNN, GridRNN-err |
-| Модификации ячейки | GridRNN2+VAE, HGRNN, HGRN-GridRNN, LRU, GridLRU, HopfieldGridLRU |
-| Память | Engram, Fast Weights, Reservoir |
-| Итеративные | Equilibrium, Equilibrium v2 |
-| Регуляризация | DiversityLoss, GridRNN-Loss, GridRNN-AdvLoss, GridRNN-Disc |
+| Basics | GRU, GridRNN, GridRNN-err |
+| Cell Modifications | GridRNN2+VAE, HGRNN, HGRN-GridRNN, LRU, GridLRU, HopfieldGridLRU |
+| Memory | Engram, Fast Weights, Reservoir |
+| Iterative | Equilibrium, Equilibrium v2 |
+| Regularization | DiversityLoss, GridRNN-Loss, GridRNN-AdvLoss, GridRNN-Disc |
 | Fusion | Fusion cells, GridRNN-Fusion |

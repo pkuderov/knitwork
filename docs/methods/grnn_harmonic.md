@@ -1,47 +1,47 @@
 # HarmonicGridRNN
 
-## Описание
+## Description
 
-**HarmonicGridRNN** — гармоническая Grid RNN, объединяющая четыре смысловых блока в единую архитектуру. Название отражает идею «гармоник»: каждый блок работает на своей «частоте» и усиливает остальные. Цель — преодолеть ограничения существующих архитектур: `hgrnn_lru` нестабильна в RL; `grnn_ema_mem` слабее в ассоциативных задачах; `grnn_delta` не обучается из-за сложности оптимизации.
+**HarmonicGridRNN** — a harmonic Grid RNN combining four semantic blocks into a unified architecture. The name reflects the "harmonics" idea: each block operates at its own "frequency" and amplifies the others. The goal is to overcome limitations of existing architectures: `hgrnn_lru` is unstable in RL; `grnn_ema_mem` is weaker on associative tasks; `grnn_delta` fails to train due to optimization complexity.
 
-## Четыре блока
+## Four Blocks
 
-| # | Блок | Обучаем? | Роль |
+| # | Block | Trainable? | Role |
 |---|------|---------|------|
-| 1 | Spectral LRU | ✓ | 2D иерархия временны́х масштабов |
-| 2 | Surprise-Delta Memory | ✓ | Адаптивная KV-память без интерференции |
-| 3 | Frozen Reservoir | ✗ | Долгосрочный контекст (текст), отключён для SDQ/RL |
-| 4 | Hopfield Integration | ✓ | Резкая кросс-колоночная ассоциативная выборка |
+| 1 | Spectral LRU | ✓ | 2D hierarchy of temporal scales |
+| 2 | Surprise-Delta Memory | ✓ | Adaptive KV memory without interference |
+| 3 | Frozen Reservoir | ✗ | Long-term context (text), disabled for SDQ/RL |
+| 4 | Hopfield Integration | ✓ | Sharp cross-column associative retrieval |
 
-## Ключевые механизмы
+## Key Mechanisms
 
 ### Block 1: Spectral LRU
-> Реализация: [`hgrnn_lru.py — LRUCell`](https://github.com/pkuderov/knitwork/blob/main/knitwork/models/hgrnn_lru.py#L13)
+> Implementation: [`hgrnn_lru.py — LRUCell`](https://github.com/pkuderov/knitwork/blob/main/knitwork/models/hgrnn_lru.py#L13)
 
-Каждая колонка и каждый слой имеют собственный `r_max`, формируя 2D спектральную сетку:
-- Строки (слои): `r_base_layer` интерполируется от `r_min_layers=0.7` до `r_max_layers=0.999`
-- Столбцы: `r_col = r_min_col + (r_base_layer - r_min_col) * col_frac`
+Each column and each layer has its own `r_max`, forming a 2D spectral grid:
+- Rows (layers): `r_base_layer` interpolated from `r_min_layers=0.7` to `r_max_layers=0.999`
+- Columns: `r_col = r_min_col + (r_base_layer - r_min_col) * col_frac`
 
 ```python
-# r_max[layer=0, col=0] ≈ 0.3   → τ ≈ 1 шаг (самый быстрый)
-# r_max[layer=2, col=3] ≈ 0.999 → τ ≈ 1000 шагов (самый медленный)
+# r_max[layer=0, col=0] ≈ 0.3   → τ ≈ 1 step (fastest)
+# r_max[layer=2, col=3] ≈ 0.999 → τ ≈ 1000 steps (slowest)
 ```
 
-### Block 2: SurpriseDeltaMemory — ключевой новый модуль
-> Реализация: [`grnn_harmonic.py — SurpriseDeltaMemory`](https://github.com/pkuderov/knitwork/blob/main/knitwork/models/grnn_harmonic.py#L30)
+### Block 2: SurpriseDeltaMemory — key new module
+> Implementation: [`grnn_harmonic.py — SurpriseDeltaMemory`](https://github.com/pkuderov/knitwork/blob/main/knitwork/models/grnn_harmonic.py#L30)
 
-EMA-гейт записи + дельта-правило + адаптивное забывание:
+EMA write gate + delta rule + adaptive forgetting:
 
 ```python
-# 1. Параллельное дельта-правило (нет chained Jacobians):
-v = F.normalize(proj_v(y), dim=-1)   # нормировано → ||delta_W||_F ограничен
+# 1. Parallel delta rule (no chained Jacobians):
+v = F.normalize(proj_v(y), dim=-1)   # normalized → ||delta_W||_F bounded
 v_pred = W.T @ k[c]
 error  = v[c] - v_pred               # ∈ [-2, 2]
 delta_W += k[c] ⊗ error              # outer product
 
-# 2. EMA surprise — "насколько неожиданным" был ввод:
+# 2. EMA surprise — how "unexpected" the input was:
 m_new = ema_beta * m + (1-ema_beta) * mean(error²)
-alpha = (m_new / max(m_new + eps)).clamp(0, 1)   # нормировка по батчу
+alpha = (m_new / max(m_new + eps)).clamp(0, 1)   # batch-normalized
 
 # 3. Adaptive forgetting:
 fullness = ||W||_F / sqrt(dk * dv)
@@ -51,85 +51,85 @@ lam = lam_base * fullness.clamp(0, 1)
 W_new = (1-lam) * delta_decay[layer] * W + alpha * delta_W / C
 ```
 
-**Числовая стабилизация (v2):**
-- `delta_W /= C` — без нормировки eigenvalue = `decay - alpha*C` → взрыв
-- `F.normalize(v)` — delta_W ограничен
-- `alpha = m / max(m)` — нет заморозки при m≈0
+**Numerical stabilization (v2):**
+- `delta_W /= C` — without normalization eigenvalue = `decay - alpha*C` → explosion
+- `F.normalize(v)` — delta_W is bounded
+- `alpha = m / max(m)` — no freeze when m≈0
 - `out_norms[l]` — inter-layer LayerNorm
 
 ### Block 3: Frozen Reservoir
-> Реализация: [`grnn_harmonic.py — FrozenReservoir`](https://github.com/pkuderov/knitwork/blob/main/knitwork/models/grnn_harmonic.py#L152)
+> Implementation: [`grnn_harmonic.py — FrozenReservoir`](https://github.com/pkuderov/knitwork/blob/main/knitwork/models/grnn_harmonic.py#L152)
 
-Фиксированные случайные RNN с разными спектральными радиусами. При `r=0.999` τ≈1000 шагов. Для SDQ/RL: `n_reservoir_cols=0`.
+Fixed random RNNs with different spectral radii. At `r=0.999`, τ≈1000 steps. For SDQ/RL: `n_reservoir_cols=0`.
 
 ### Block 4: Hopfield Cross-Column Integration
-> Реализация: [`hgrnn_lru.py — HopfieldMessageLayer`](https://github.com/pkuderov/knitwork/blob/main/knitwork/models/hgrnn_lru.py#L99)
+> Implementation: [`hgrnn_lru.py — HopfieldMessageLayer`](https://github.com/pkuderov/knitwork/blob/main/knitwork/models/hgrnn_lru.py#L99)
 
-Modern Hopfield Networks с learnable β per head. Принимает все обучаемые колонки + проекции резервуара.
+Modern Hopfield Networks with learnable β per head. Takes all trainable columns plus reservoir projections.
 
 ### Embedding Residual Skip
-> Реализация: [`grnn_harmonic.py:299 — embed_skip`](https://github.com/pkuderov/knitwork/blob/main/knitwork/models/grnn_harmonic.py#L299)
+> Implementation: [`grnn_harmonic.py:299 — embed_skip`](https://github.com/pkuderov/knitwork/blob/main/knitwork/models/grnn_harmonic.py#L299)
 
-Прямой путь градиента от output к входному embedding через каждый слой:
+Direct gradient path from output to input embedding through each layer:
 ```python
 y_lru = y_lru + self.embed_skip[l](x_embed).unsqueeze(0)  # [1, B, H] broadcast → [C, B, H]
 ```
-`unsqueeze(0)` + broadcast применяет один skip ко всем C колонкам — embedding не специализируется по колонкам, только по content.
+`unsqueeze(0)` + broadcast applies one skip to all C columns — the embedding does not specialize by column, only by content.
 
-## Версии
+## Versions
 
-| Версия | Дата | Изменение |
+| Version | Date | Change |
 |--------|------|-----------|
-| v1 | 06-09 | Первая реализация, NaN в градиентах |
-| v2 | 06-09 | Числовая стабилизация: delta_W/=C, normalize(v), alpha=m/max(m), out_norms, per-layer delta_decay |
-| v3 | 06-12 | Broadcast x_embed ко всем колонкам, multi-col head, per-layer EMA beta, rollout_len=16 |
-| v3.1 | 06-13 | Revert broadcast (вредило специализации), добавлен multi_col_head param |
+| v1 | 06-09 | First implementation, NaN in gradients |
+| v2 | 06-09 | Numerical stabilization: delta_W/=C, normalize(v), alpha=m/max(m), out_norms, per-layer delta_decay |
+| v3 | 06-12 | Broadcast x_embed to all columns, multi-col head, per-layer EMA beta, rollout_len=16 |
+| v3.1 | 06-13 | Revert broadcast (harmed specialization), added multi_col_head param |
 | v4 | 06-17 | Learned forget gate, Adam preconditioning (v2 buffer), pre-attn LayerNorm (Hopfield norm), col_weights |
-| v5 | 06-17 | Per-batch v2 в HarmonicState (bugfix RL), velocity-based surprise, noise в v, фиксированный lam |
+| v5 | 06-17 | Per-batch v2 in HarmonicState (bugfix RL), velocity-based surprise, noise in v, fixed lam |
 
-## Гиперпараметры
+## Hyperparameters
 
-| Параметр | Значение | Описание |
+| Parameter | Value | Description |
 |----------|---------|----------|
-| `hidden_size` | 128 | Размерность скрытого состояния |
-| `n_layers` | 3 | Число слоёв |
-| `n_columns` | 4 | Число обучаемых колонок |
-| `n_attn_heads` | 4 | Головы Hopfield attention |
-| `dk` | H//4=32 | Размерность ключей памяти |
-| `dv` | H=128 | Размерность значений памяти |
-| `ema_beta` | 0.9 | EMA beta для верхнего слоя (медленная запись) |
-| `ema_beta_min` | 0.7 | EMA beta для нижнего слоя (быстрая запись) — v3 |
-| `delta_decay` | 0.99 | Decay W для верхнего слоя |
-| `delta_decay_min` | 0.95 | Decay W для нижнего слоя |
-| `lam_base` | 0.01 | Базовая скорость забывания |
-| `r_min_col` | 0.3 | r_max для col=0, layer=0 |
-| `r_min_layers` | 0.7 | r_base для layer=0 |
-| `r_max_layers` | 0.999 | r_base для последнего слоя |
-| `multi_col_head` | true/false | mean(all cols) для LM/SDQ; col0 для RL |
-| `n_reservoir_cols` | 0/4 | 0 для SDQ/RL, 4 для text |
+| `hidden_size` | 128 | Hidden state dimensionality |
+| `n_layers` | 3 | Number of layers |
+| `n_columns` | 4 | Number of trainable columns |
+| `n_attn_heads` | 4 | Hopfield attention heads |
+| `dk` | H//4=32 | Memory key dimensionality |
+| `dv` | H=128 | Memory value dimensionality |
+| `ema_beta` | 0.9 | EMA beta for top layer (slow write) |
+| `ema_beta_min` | 0.7 | EMA beta for bottom layer (fast write) — v3 |
+| `delta_decay` | 0.99 | W decay for top layer |
+| `delta_decay_min` | 0.95 | W decay for bottom layer |
+| `lam_base` | 0.01 | Base forgetting rate |
+| `r_min_col` | 0.3 | r_max for col=0, layer=0 |
+| `r_min_layers` | 0.7 | r_base for layer=0 |
+| `r_max_layers` | 0.999 | r_base for last layer |
+| `multi_col_head` | true/false | mean(all cols) for LM/SDQ; col0 for RL |
+| `n_reservoir_cols` | 0/4 | 0 for SDQ/RL, 4 for text |
 
-## Состояние
+## State
 
 ```python
 HarmonicState(
-    h:      [L, C, B, 2H]        # LRU (Re | Im); Im детачится
-    h_res:  [L, C_res, B, H_res] # резервуар; всегда детачится
-    W:      [L, B, dk, dv]       # delta-матрица памяти
+    h:      [L, C, B, 2H]        # LRU (Re | Im); Im is detached
+    h_res:  [L, C_res, B, H_res] # reservoir; always detached
+    W:      [L, B, dk, dv]       # delta memory matrix
     m:      [L, B]               # EMA velocity-surprise per layer (v5)
-    v2:     [L, B, dk]           # per-batch Adam preconditioner (v5, было глобальным в v4)
-    y_prev: [L, C, B, H]         # предыдущий LRU-выход для вычисления velocity (v5)
+    v2:     [L, B, dk]           # per-batch Adam preconditioner (v5, was global in v4)
+    y_prev: [L, C, B, H]         # previous LRU output for velocity computation (v5)
 )
 ```
 
 ---
 
-## Результаты экспериментов
+## Experiment Results
 
-### SDQ v2 (#043) — 2.11M params, 3L×4C, нет резервуара
+### SDQ v2 (#043) — 2.11M params, 3L×4C, no reservoir
 
-Запущен 2026-06-10. Убит вручную на 300M шагах (из 1000M). fps=3k.
+Launched 2026-06-10. Killed manually at 300M steps (out of 1000M). fps=3k.
 
-| Шаг | Loss | Acc | Acc/query | Acc/distract | Acc++ |
+| Step | Loss | Acc | Acc/query | Acc/distract | Acc++ |
 |-----|------|-----|-----------|--------------|-------|
 | 5M  | 1.281 | 0.519 | 0.241 | — | 0.157 |
 | 10M | 0.911 | 0.653 | 0.391 | — | 0.295 |
@@ -144,25 +144,25 @@ HarmonicState(
 | 200M | 0.533 | 0.793 | 0.676 | — | 0.615 |
 | 300M | 0.583 | 0.773 | 0.665 | — | 0.602 |
 
-**Ключевые наблюдения:**
-- Пик на 95M: Aq=0.750, затем нестабильность и регресс
-- На 170M — резкий провал Loss 0.44→0.66, Aq 0.694→0.618, затем частичное восстановление
-- Плато/осцилляция: Aq колеблется между 0.66 и 0.75 после 100M шагов
-- `Acc/store` = NaN на протяжении всего обучения (маска sq_gaps не срабатывает)
-- fps 3k → 2k к концу (другие задачи на GPU)
+**Key observations:**
+- Peak at 95M: Aq=0.750, then instability and regression
+- At 170M — sharp drop: Loss 0.44→0.66, Aq 0.694→0.618, then partial recovery
+- Plateau/oscillation: Aq oscillates between 0.66 and 0.75 after 100M steps
+- `Acc/store` = NaN throughout training (sq_gaps mask does not trigger)
+- fps 3k → 2k toward the end (other tasks on GPU)
 
-**Диагностика памяти (на 300M):**
-- `mem/W_norm`: L0=1.06, L1=1.46, L2=1.88 — монотонный рост по слоям ✓ (медленные слои пишут больше)
-- `mem/alpha`: L0=0.85, L1=0.86, L2=0.87 — высокая и равномерная (surprise высокий, запись активная)
-- `mem/surprise`: L0=0.0075, L1=0.007, L2=0.006 — убывает по слоям (верхние слои менее «удивлены»)
-- `mem/fullness`: L0=0.016, L1=0.023, L2=0.029 — матрица W заполнена на 1.6-2.9%, запас есть
-- `mem/error`: L0=0.087, L1=0.084, L2=0.082 — небольшое убывание, ошибка предсказания стабильна
+**Memory diagnostics (at 300M):**
+- `mem/W_norm`: L0=1.06, L1=1.46, L2=1.88 — monotone growth across layers ✓ (slower layers write more)
+- `mem/alpha`: L0=0.85, L1=0.86, L2=0.87 — high and uniform (surprise is high, writes are active)
+- `mem/surprise`: L0=0.0075, L1=0.007, L2=0.006 — decreases across layers (upper layers are less "surprised")
+- `mem/fullness`: L0=0.016, L1=0.023, L2=0.029 — W matrix is 1.6-2.9% full, plenty of headroom
+- `mem/error`: L0=0.087, L1=0.084, L2=0.082 — slight decrease, prediction error is stable
 
 ### SDQ v3.1 (#055) — 2.11M params, 3L×4C, multi_col_head=True
 
-Запущен 2026-06-12, убит на 110M. fps=1k (делит GPU с text8 #048).
+Launched 2026-06-12, killed at 110M. fps=1k (shares GPU with text8 #048).
 
-| Шаг | Loss | Acc | Acc/query | Acc/distract | Acc++ |
+| Step | Loss | Acc | Acc/query | Acc/distract | Acc++ |
 |-----|------|-----|-----------|--------------|-------|
 | 5M  | 1.310 | 0.513 | 0.237 | — | 0.153 |
 | 10M | 0.968 | 0.641 | 0.380 | — | 0.272 |
@@ -174,23 +174,23 @@ HarmonicState(
 | 100M | 0.475 | 0.814 | 0.699 | — | 0.634 |
 | 110M | 0.453 | 0.822 | **0.715** | 0.981 | 0.653 |
 
-**Диагностика памяти (на 110M):**
-- `mem/W_norm`: L0=1.26, L1=0.93, L2=1.61 — аномалия: L1 < L0 (нижний слой пишет больше верхнего)
-- `mem/alpha`: L0=0.68, L1=0.66, L2=0.74 — ниже чем в v2 (0.85) → запись более избирательная
-- `mem/surprise`: L0=0.0039, L1=0.0022, L2=0.0022 — значительно ниже v2 (0.0075) → меньше «удивления»
-- `mem/fullness`: L0=0.019, L1=0.014, L2=0.024 — норма
-- `mem/error`: L0=0.063, L1=0.046, L2=0.051 — ниже v2 (0.087), ошибка предсказания уменьшилась
+**Memory diagnostics (at 110M):**
+- `mem/W_norm`: L0=1.26, L1=0.93, L2=1.61 — anomaly: L1 < L0 (lower layer writes more than upper)
+- `mem/alpha`: L0=0.68, L1=0.66, L2=0.74 — lower than v2 (0.85) → writes are more selective
+- `mem/surprise`: L0=0.0039, L1=0.0022, L2=0.0022 — significantly lower than v2 (0.0075) → less "surprise"
+- `mem/fullness`: L0=0.019, L1=0.014, L2=0.024 — normal
+- `mem/error`: L0=0.063, L1=0.046, L2=0.051 — lower than v2 (0.087), prediction error decreased
 
-**Диагностика колонок (на 110M) — КРИТИЧНО:**
-- `col/diversity`: L0=2.34, L1=2.80, L2=**7.79** — разнообразие колонок растёт резко к верхним слоям
-- `col/gate`: L0=0.93, L1=0.57, L2=0.66 — gate на L0 почти насыщен
-- `col/col0_norm/L0`: 74.6 vs col1=16.0, col2=16.9, col3=17.3 — **col0 в 4.5x больше остальных на L0**
-- `col/col0_norm/L1`: 38.6, col1=29.8, col2=32.2, col3=**75.1** — **col3 взрывается на L1**
-- `col/col0_norm/L2`: **325.7**, col1=148.8, col2=23.3, col3=18.8 — **катастрофический рост col0 и col1 на L2**
+**Column diagnostics (at 110M) — CRITICAL:**
+- `col/diversity`: L0=2.34, L1=2.80, L2=**7.79** — column diversity grows sharply toward upper layers
+- `col/gate`: L0=0.93, L1=0.57, L2=0.66 — gate at L0 is nearly saturated
+- `col/col0_norm/L0`: 74.6 vs col1=16.0, col2=16.9, col3=17.3 — **col0 is 4.5x larger than others at L0**
+- `col/col0_norm/L1`: 38.6, col1=29.8, col2=32.2, col3=**75.1** — **col3 explodes at L1**
+- `col/col0_norm/L2`: **325.7**, col1=148.8, col2=23.3, col3=18.8 — **catastrophic growth of col0 and col1 at L2**
 
-**Сравнение v2 vs v3.1 по Acc/query:**
+**Comparison v2 vs v3.1 by Acc/query:**
 
-| Шаг | v2 Aq | v3.1 Aq | Δ |
+| Step | v2 Aq | v3.1 Aq | Δ |
 |-----|-------|---------|---|
 | 10M | 0.391 | 0.380 | -0.011 |
 | 30M | 0.656 | 0.625 | -0.031 |
@@ -199,15 +199,15 @@ HarmonicState(
 | 95M | **0.750** | 0.701 | -0.049 |
 | 110M | 0.722 | **0.715** | -0.007 |
 
-**Вывод**: v3.1 МЕДЛЕННЕЕ сходится, чем v2 (на каждом шаге отстаёт ~0.03 Aq). Норма колонок неограниченно растёт — потенциальный взрыв позже.
+**Conclusion**: v3.1 converges SLOWER than v2 (lags ~0.03 Aq at each step). Column norms grow unboundedly — potential explosion later.
 
 ---
 
 ### text8 v3 (#048) — 2.14M params, 3L×4C + 4Res, rollout_len=16
 
-Запущен 2026-06-12, убит на 270M (из 520M). fps=2k.
+Launched 2026-06-12, killed at 270M (out of 520M). fps=2k.
 
-| Шаг | Loss | BPC | Acc | T (context) |
+| Step | Loss | BPC | Acc | T (context) |
 |-----|------|-----|-----|-------------|
 | 5M  | 1.961 | 2.829 | 0.407 | 100 |
 | 10M | 1.783 | 2.572 | 0.458 | 101 |
@@ -224,49 +224,49 @@ HarmonicState(
 | 250M | 1.169 | 1.686 | 0.631 | 224 |
 | 270M | 1.162 | **1.676** | 0.634 | 239 |
 
-**Диагностика памяти (на 270M):**
-- `mem/W_norm`: L0=1.07, L1=1.53, L2=1.90 — монотонный рост ✓
-- `mem/alpha`: L0=0.855, L1=0.873, L2=0.884 — высокие, но стабильные
-- `mem/surprise`: L0=0.0075, L1=0.0069, L2=0.0066 — стабильны, убывают по слоям
-- `mem/fullness`: L0=0.017, L1=0.024, L2=0.030 — малы, W заполнена лишь на 1-3%
-- `mem/error`: L0=0.086, L1=0.083, L2=0.082 — стабильны
+**Memory diagnostics (at 270M):**
+- `mem/W_norm`: L0=1.07, L1=1.53, L2=1.90 — monotone growth ✓
+- `mem/alpha`: L0=0.855, L1=0.873, L2=0.884 — high but stable
+- `mem/surprise`: L0=0.0075, L1=0.0069, L2=0.0066 — stable, decreasing across layers
+- `mem/fullness`: L0=0.017, L1=0.024, L2=0.030 — small, W is only 1-3% full
+- `mem/error`: L0=0.086, L1=0.083, L2=0.082 — stable
 
-**Диагностика колонок (на 270M):**
-- `col/diversity`: L0=1.92, L1=1.80, L2=2.16 — умеренная, НЕТ взрыва (в отличие от SDQ)
-- `col/gate`: L0=0.356, L1=0.428, L2=0.671 — растёт по слоям (верхние слои больше используют Hopfield)
-- `col/col0_norm`: L0=30.3, L1=29.0, L2=47.7 — умеренный рост, без доминирования
+**Column diagnostics (at 270M):**
+- `col/diversity`: L0=1.92, L1=1.80, L2=2.16 — moderate, NO explosion (unlike SDQ)
+- `col/gate`: L0=0.356, L1=0.428, L2=0.671 — grows across layers (upper layers use Hopfield more)
+- `col/col0_norm`: L0=30.3, L1=29.0, L2=47.7 — moderate growth, no dominance
 
-**Сравнение v2 vs v3 text8:**
+**Comparison v2 vs v3 text8:**
 
-| Шаг | v2 BPC (#045) | v3 BPC (#048) | Δ |
+| Step | v2 BPC (#045) | v3 BPC (#048) | Δ |
 |-----|--------------|--------------|---|
-| 50M | **1.811** | 1.895 | +0.084 (v3 хуже!) |
+| 50M | **1.811** | 1.895 | +0.084 (v3 worse!) |
 | 100M | **1.767** | 1.784 | +0.017 |
 | 150M | **1.737** | 1.740 | +0.003 |
 | 215M | 1.687 | — | — |
 | 270M | — | **1.676** | — |
 
-**Вывод**: v3 хуже v2 в начале (broadcast x_embed вредил специализации), но к 150M выравнивается. rollout_len=16 обеспечивает более богатый BPTT-контекст, что помогает на длинных дистанциях. BPC=1.676 при 270M — медленный прогресс (~0.010 BPC/50M на позднем обучении).
+**Conclusion**: v3 is worse than v2 early on (broadcast x_embed harmed specialization), but converges by 150M. rollout_len=16 provides richer BPTT context, which helps at long distances. BPC=1.676 at 270M — slow progress (~0.010 BPC/50M in late training).
 
-**Сравнение с state of the art (char-level text8):**
+**Comparison with state of the art (char-level text8):**
 
-| Модель | Params | BPC | Источник |
+| Model | Params | BPC | Source |
 |--------|--------|-----|---------|
 | Transformer-XL | 277M | 1.06 | Dai et al., ACL 2019 |
 | SHA-RNN | 53M | 1.067 | Merity, arXiv:1911.11423 |
 | AWD-LSTM (3-layer) | 24M | 1.186 | Merity et al., ICLR 2018 |
 | Mogrifier LSTM | 24M | 1.193 | Melis et al., ICLR 2020 |
 | ON-LSTM | 4M | ~1.37 | Shen et al., ICLR 2019 |
-| **grnn_harmonic v3** | **2.11M** | **1.676** | этот репо, #048 |
-| **grnn_harmonic v2** | **2.11M** | 1.687 | этот репо, #045 |
+| **grnn_harmonic v3** | **2.11M** | **1.676** | this repo, #048 |
+| **grnn_harmonic v2** | **2.11M** | 1.687 | this repo, #045 |
 
-*Прямого baseline LSTM при ~2M params на char text8 в литературе нет. AWD-LSTM при 24M → 1.186 — ближайший ориентир, но сравнение некорректно из-за 12× разницы в параметрах.*
+*No direct baseline LSTM at ~2M params on char text8 exists in the literature. AWD-LSTM at 24M → 1.186 is the closest reference, but comparison is invalid due to 12× parameter difference.*
 
 ---
 
-### text8 v2 (#045) — убит досрочно на 215M шагов
+### text8 v2 (#045) — killed early at 215M steps
 
-| Шаг | Loss | BPC | Acc |
+| Step | Loss | BPC | Acc |
 |-----|------|-----|-----|
 | 50M | 1.255 | 1.811 | 0.604 |
 | 100M | 1.225 | 1.767 | 0.611 |
@@ -277,9 +277,9 @@ HarmonicState(
 
 ### Shakespeare v2 (#044) — 2.22M params, 4Res
 
-Убит досрочно на 340M шагов (из 520M).
+Killed early at 340M steps (out of 520M).
 
-| Шаг | Loss | BPC | Acc |
+| Step | Loss | BPC | Acc |
 |-----|------|-----|-----|
 | 50M | 0.930 | 1.342 | 0.749 |
 | 100M | 0.827 | 1.193 | 0.773 |
@@ -287,15 +287,15 @@ HarmonicState(
 | 300M | 0.594 | 0.857 | 0.807 |
 | 340M | 0.547 | **0.788** | 0.823 |
 
-BPC=0.788 — хороший результат. Стабильный линейный спуск без плато.
+BPC=0.788 — a good result. Stable linear descent without plateau.
 
 ---
 
 ### MIKASA RepeatFirstEasy v3.1 (#058) — 2.11M params, 0Res, multi_col_head=False
 
-Убит на 14.5M/200M шагов (7%).
+Killed at 14.5M/200M steps (7%).
 
-| Шаг | PL | VL | H (entropy) | EpRet |
+| Step | PL | VL | H (entropy) | EpRet |
 |-----|----|----|-------------|-------|
 | 1M  | -0.000 | 0.013 | 1.02 | -0.479 |
 | 5M  | 0.001 | 0.014 | 0.97 | -0.566 |
@@ -305,67 +305,67 @@ BPC=0.788 — хороший результат. Стабильный линей
 | 13.5M | 0.002 | 0.012 | 0.79 | -0.308 |
 | 14.5M | 0.002 | 0.011 | 0.83 | -0.419 |
 
-**Наблюдения:**
-- VL=0.011-0.016 — value function обучается (в v3 было VL=0.000 → полная деградация)
-- Entropy снизилась с 1.10 → 0.83 — политика специализируется
-- EpRet остаётся в -0.3 .. -0.6 — положительная награда ещё не достигнута
-- PL медленно растёт 0.001→0.004 — крайне медленный прогресс политики
-- Слишком мало шагов для оценки (RepeatFirstEasy требует 20-50M для начала обучения)
+**Observations:**
+- VL=0.011-0.016 — value function is training (in v3 VL=0.000 → complete degradation)
+- Entropy dropped from 1.10 → 0.83 — policy is specializing
+- EpRet stays in -0.3 .. -0.6 — positive reward not yet reached
+- PL slowly grows 0.001→0.004 — extremely slow policy progress
+- Too few steps for evaluation (RepeatFirstEasy requires 20-50M for learning to begin)
 
-**Для сравнения**: grnn_lru на RepeatFirstEasy достигает EpRet > 0 примерно к 30-50M шагов.
+**For comparison**: grnn_lru on RepeatFirstEasy reaches EpRet > 0 around 30-50M steps.
 
 ---
 
-## Проблемы и гипотезы
+## Issues and Hypotheses
 
-### 1. Неограниченный рост нормы колонок в SDQ
+### 1. Unbounded column norm growth in SDQ
 
 ```
-col0_norm/L2: 50M → 206, 110M → 325  (рост +119 за 60M шагов)
-col3_norm/L1: 50M → 81, 110M → 75    (аномально высокий)
+col0_norm/L2: 50M → 206, 110M → 325  (growth +119 over 60M steps)
+col3_norm/L1: 50M → 81, 110M → 75    (anomalously high)
 ```
 
-Hopfield attention с softmax может резко усиливать одну колонку (режим attractor). LayerNorm после каждого слоя должна была предотвратить это, но работает только на выходе — до Hopfield hidden state может расти.
+Hopfield attention with softmax can sharply amplify one column (attractor mode). LayerNorm after each layer was supposed to prevent this, but it only works on output — before Hopfield, the hidden state can grow.
 
-**Гипотеза**: Hopfield с высоким β (обучаемый) входит в режим «sharp attractor», концентрируя всю информацию в одной колонке. Это деградирует в режим одноколоночного RNN.
+**Hypothesis**: Hopfield with high β (learnable) enters "sharp attractor" mode, concentrating all information in a single column. This degrades to a single-column RNN regime.
 
 ### 2. Acc/store = NaN
 
-Метрика `Acc/store` (точность хранения) = NaN на всём протяжении обучения v2 и v3.1. Причина: маска `sq_gaps < -1.0` не срабатывает. Это означает, что мы не измеряем качество операции хранения — не знаем, записывает ли модель правильно.
+The `Acc/store` metric (store accuracy) = NaN throughout training in v2 and v3.1. Reason: the `sq_gaps < -1.0` mask does not trigger. This means we are not measuring the quality of the store operation — we do not know whether the model is writing correctly.
 
-**Следствие**: неизвестно, проблема в записи (store) или в чтении (query).
+**Implication**: it is unknown whether the problem is in writing (store) or reading (query).
 
-### 3. SDQ v3.1 медленнее v2
+### 3. SDQ v3.1 slower than v2
 
-v3.1 (multi_col_head=True, per-layer EMA) сходится медленнее:
-- На 50M: v3.1 Aq=0.667 vs v2 Aq=0.696
-- На 95M: v3.1 Aq=0.701 vs v2 Aq=0.750
+v3.1 (multi_col_head=True, per-layer EMA) converges slower:
+- At 50M: v3.1 Aq=0.667 vs v2 Aq=0.696
+- At 95M: v3.1 Aq=0.701 vs v2 Aq=0.750
 
-При этом v3.1 работает на 1kfps (делит GPU с text8), а v2 работал на 3kfps одиночно — прямое сравнение по шагам корректно, но время в 3x дольше.
+Note that v3.1 runs at 1kfps (sharing GPU with text8), while v2 ran at 3kfps alone — step comparison is correct, but wall time is 3x longer.
 
-### 4. SDQ v2: нестабильность после 100M
+### 4. SDQ v2: instability after 100M
 
-На 170M — провал Aq 0.694→0.618 (Loss 0.44→0.66). Затем частичное восстановление до ~0.675. Паттерн «разучивания» указывает на катастрофическое забывание в delta-памяти или коллапс LR-schedule.
+At 170M — Aq drop 0.694→0.618 (Loss 0.44→0.66). Then partial recovery to ~0.675. The "unlearning" pattern points to catastrophic forgetting in delta memory or LR schedule collapse.
 
-### 5. text8: медленный прогресс на поздних шагах
+### 5. text8: slow progress in late steps
 
-На 250-270M BPC меняется на 0.010/50M шагов — очень медленно. T (effective context length) вырос до 224-239 шагов, но fullness памяти остаётся мала (1-3%). Память фактически не используется на полную мощность.
+At 250-270M BPC changes by 0.010/50M steps — very slow. T (effective context length) grew to 224-239 steps, but memory fullness remains small (1-3%). Memory is effectively not used at full capacity.
 
-### 6. MIKASA: медленное обучение
+### 6. MIKASA: slow training
 
-14.5M шагов — ещё не решает задачу. Для RepeatFirstEasy ep_len=51, reward_scale=1/50=0.02. Это в пределах нормы — обычно требуется 30-80M шагов. Но текущий прогресс политики (PL~0.002) очень мал.
+14.5M steps — task not solved yet. For RepeatFirstEasy ep_len=51, reward_scale=1/50=0.02. This is within normal range — usually requires 30-80M steps. But current policy progress (PL~0.002) is very small.
 
 ---
 
-## Метрики — интерпретация
+## Metrics — Interpretation
 
-| Метрика | Нормальное значение | Тревожный сигнал |
+| Metric | Normal value | Warning sign |
 |---------|---------------------|-----------------|
-| `mem/W_norm/Ll` | 0.5–2.5, растёт по слоям | > 5 или убывание → память переполнена |
-| `mem/alpha/Ll` | 0.5–0.9 | < 0.1 → запись остановилась; = 1.0 → нет регуляризации |
-| `mem/surprise/Ll` | 0.003–0.01 | → 0 → модель перестала обучать память |
-| `mem/fullness/Ll` | 0.01–0.1 | > 0.5 → матрица насыщена, forgetting слаб |
-| `mem/error/Ll` | 0.05–0.15 | > 0.3 → память не работает; < 0.01 → идеальный ретривал |
-| `col/diversity/Ll` | 1.5–3.0 | > 5 → доминирование одной колонки |
-| `col/gate/Ll` | 0.3–0.7 | > 0.95 → Hopfield насыщен; < 0.1 → игнорируется |
-| `col/col{i}_norm/Ll` | 15–50 | > 100 → взрыв нормы, нестабильность |
+| `mem/W_norm/Ll` | 0.5–2.5, grows across layers | > 5 or decreasing → memory overloaded |
+| `mem/alpha/Ll` | 0.5–0.9 | < 0.1 → writes stopped; = 1.0 → no regularization |
+| `mem/surprise/Ll` | 0.003–0.01 | → 0 → model stopped training memory |
+| `mem/fullness/Ll` | 0.01–0.1 | > 0.5 → matrix saturated, forgetting too weak |
+| `mem/error/Ll` | 0.05–0.15 | > 0.3 → memory not working; < 0.01 → perfect retrieval |
+| `col/diversity/Ll` | 1.5–3.0 | > 5 → single column dominance |
+| `col/gate/Ll` | 0.3–0.7 | > 0.95 → Hopfield saturated; < 0.1 → ignored |
+| `col/col{i}_norm/Ll` | 15–50 | > 100 → norm explosion, instability |

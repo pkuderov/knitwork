@@ -1,10 +1,10 @@
 # GridRnnFW
 
-GridRNN с быстрыми весами (Fast Weights, Ba et al. 2016). Решает проблему кратковременной ассоциативной памяти: стандартный GRU помнит прошлое только через скрытое состояние, тогда как быстрые веса хранят явные попарные ассоциации между состояниями колонок в виде матрицы `A`. Матрица `A` обновляется по правилу Хебба на каждом шаге и читается content-based retrieval по запросу каждой колонки, создавая «межшаговую» память быстрее параметров, но медленнее активаций.
+GridRNN with Fast Weights (Ba et al. 2016). Addresses the problem of short-term associative memory: a standard GRU remembers the past only through the hidden state, while fast weights store explicit pairwise associations between column states in a matrix `A`. Matrix `A` is updated by Hebbian rule at each step and read via content-based retrieval by each column's query, creating "inter-step" memory faster than parameters but slower than activations.
 
-## Ключевой механизм
+## Key Mechanism
 
-Хеббово обновление матрицы `A` и retrieval по запросу:
+Hebbian update of matrix `A` and retrieval by query:
 
 ```python
 # Hebbian write: outer product of value and key for each column  [batch, hidden, hidden]
@@ -24,11 +24,11 @@ for col_i in range(n_cols):
 h_msg = stack(msgs, dim=0)   # (cols, batch, hidden)
 ```
 
-Каждая колонка записывает ассоциацию `v ⊗ k` в матрицу `A`, а затем все колонки читают из неё через свои запросы `q`. Параметры `k`, `q`, `v` — обучаемые линейные проекции (аналог head в attention, но без softmax).
+Each column writes the association `v ⊗ k` into matrix `A`, then all columns read from it via their queries `q`. Parameters `k`, `q`, `v` are learnable linear projections (analogous to heads in attention, but without softmax).
 
-## Важные детали реализации
+## Important Implementation Details
 
-**Состояние модели** — расширено матрицей `A` на каждый слой:
+**Model state** — extended with matrix `A` per layer:
 
 ```python
 # state = (h, A)
@@ -36,7 +36,7 @@ h_msg = stack(msgs, dim=0)   # (cols, batch, hidden)
 # A : (n_layers, batch, hidden, hidden)
 ```
 
-**Псевдо-attention weights** для совместимости с визуализатором вычисляются из усреднённых по батчу ключей и запросов:
+**Pseudo-attention weights** for compatibility with the visualizer are computed from batch-averaged keys and queries:
 
 ```python
 # attn_w[i,j] ≈ similarity between col_i query and col_j key  [n_cols, n_cols]
@@ -46,27 +46,27 @@ scores = matmul(q_mat, k_mat.T)
 attn_w = softmax(scores / scale, dim=-1)
 ```
 
-**Gated merge** — как в базовом grnn.py, применяется поверх fast-weight retrieval:
+**Gated merge** — as in the base grnn.py, applied on top of fast-weight retrieval:
 
 ```python
 g = sigmoid(gate_lin(cat([hl_n, msg], dim=-1)))   # (cols, batch, 1)
 hl_n = (1 - g) * hl_n + g * msg                   # (cols, batch, hidden)
 ```
 
-## Гиперпараметры
+## Hyperparameters
 
-| Параметр | Описание |
+| Parameter | Description |
 |---|---|
-| `fw_decay` | λ — экспоненциальное затухание матрицы `A`; 0.9 = медленное забывание, <0.5 = краткосрочная память |
-| `fw_lr` | η — скорость записи в `A`; масштабирует силу каждого Хеббова обновления |
-| `col_identities` | Если True — добавляет обучаемые векторы-идентификаторы к ключам и запросам колонок |
+| `fw_decay` | λ — exponential decay of matrix `A`; 0.9 = slow forgetting, <0.5 = short-term memory |
+| `fw_lr` | η — write rate into `A`; scales the strength of each Hebbian update |
+| `col_identities` | If True — adds learnable identity vectors to column keys and queries |
 
-## Результаты
+## Results
 
 ### SDQ (Store-Distract-Query, hard)
 
-| Эксперимент | H | Столб. / Слоёв | fw\_decay | fw\_lr | Acc | Acc++ | Loss | Шагов |
+| Experiment | H | Cols / Layers | fw\_decay | fw\_lr | Acc | Acc++ | Loss | Steps |
 |---|---|---|---|---|---|---|---|---|
-| grnn fw sdq (`grid-rnn-sdq`) | 128 | 3 / 2 | 0.9 | 0.5 | **0.703** | **0.407** | **0.760** | ~48м |
+| grnn fw sdq (`grid-rnn-sdq`) | 128 | 3 / 2 | 0.9 | 0.5 | **0.703** | **0.407** | **0.760** | ~48M |
 
-Fast Weights позволяют достичь Acc=0.703 за ~48м шагов, что близко к базовому grnn 2/1 (Acc=0.734 за 85м). Гебианская матрица A обеспечивает явный механизм ключ–значение поверх обычного GRU-состояния. Однако топология модели (3 колонки, 2 слоя) без дополнительных столбцов не позволяет полноценно конкурировать с более глубокими конфигурациями (Acc=0.960 при 4 кол. / 3 сл.).
+Fast Weights achieve Acc=0.703 in ~48M steps, close to the baseline grnn 2/1 (Acc=0.734 in 85M). The Hebbian matrix A provides an explicit key-value mechanism on top of the standard GRU state. However, the model topology (3 columns, 2 layers) without additional columns cannot fully compete with deeper configurations (Acc=0.960 at 4 cols / 3 layers).
