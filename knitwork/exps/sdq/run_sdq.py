@@ -53,6 +53,10 @@ _REGISTRY: dict[str, tuple[str, str] | None] = {
     'grnn_delta':     ('knitwork.models.grnn_delta',    'GridDelta'),
     'grnn_delta_wide':('knitwork.models.grnn_delta',    'GridDelta'),
     'grnn_harmonic':  ('knitwork.models.grnn_harmonic', 'HarmonicGridRNN'),
+    # external baselines
+    'delta_net':      ('knitwork.models.baseline.delta_net', 'DeltaNet'),
+    'hgrn2':          ('knitwork.models.baseline.hgrn2',     'HGRN2'),
+    'mlstm':          ('knitwork.models.baseline.mlstm',     'mLSTM'),
 }
 
 
@@ -91,7 +95,27 @@ def model_forward(rnn, x, state, *, capture: bool):
     return y, state, {}, None
 
 
-#  LRU spectrum logging 
+#  LRU spectrum + column collapse monitoring
+
+def log_col_similarity(rnn, state, logger, step: int) -> None:
+    """Log max/mean pairwise cosine similarity between column activations (last layer)."""
+    try:
+        h = state[0] if isinstance(state, tuple) else state
+        if not isinstance(h, torch.Tensor) or h.ndim != 4:
+            return
+        H    = rnn.hidden_size
+        acts = h[-1, :, :, :H].mean(dim=1).detach().float()   # [cols, H]
+        norm = acts.norm(dim=-1, keepdim=True).clamp(min=1e-8)
+        acts = acts / norm
+        sim  = acts @ acts.T                                    # [cols, cols]
+        n    = sim.shape[0]
+        mask = sim.new_ones(n, n, dtype=torch.bool).triu(diagonal=1)
+        pairs = sim[mask]
+        logger.track(float(pairs.max()),  name='col_sim/max',  step=step)
+        logger.track(float(pairs.mean()), name='col_sim/mean', step=step)
+    except Exception as e:
+        print(f'[col_sim] {e}')
+
 
 def log_lru_spectrum(rnn, logger, step: int) -> None:
     if not hasattr(rnn, 'cells'):
@@ -349,6 +373,9 @@ def main(config):
 
             if has_lru and logger is not None and step % (batch_size * 100) == 0:
                 log_lru_spectrum(rnn, logger, step)
+            has_col_state = hasattr(rnn, 'n_columns') and hasattr(rnn, 'hidden_size')
+            if has_col_state and logger is not None and step % (batch_size * 100) == 0:
+                log_col_similarity(rnn, rnn_state, logger, step)
 
             rnn_state = rnn.detach_state(rnn_state)
             batch_y.clear(); batch_y_gt.clear(); batch_sq_gaps.clear()

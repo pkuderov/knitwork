@@ -225,6 +225,24 @@ models:
     r_res_max: 0.999
     multi_col_head: true    # mean over all columns for LM prediction
 
+  # --- external baselines ---
+
+  delta_net:
+    embedding_size: 64
+    hidden_size: 128
+    n_layers: 3
+
+  hgrn2:
+    embedding_size: 64
+    hidden_size: 128
+    n_layers: 3
+    expand: 4
+
+  mlstm:
+    embedding_size: 64
+    hidden_size: 128
+    n_layers: 3
+
 lr:
   val: 8e-4
   rel: 0.02

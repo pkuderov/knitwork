@@ -53,6 +53,10 @@ _REGISTRY: dict[str, tuple[str, str] | None] = {
     'grnn_delta':     ('knitwork.models.grnn_delta',    'GridDelta'),
     'grnn_delta_wide':('knitwork.models.grnn_delta',    'GridDelta'),
     'grnn_harmonic':  ('knitwork.models.grnn_harmonic', 'HarmonicGridRNN'),
+    # external baselines
+    'delta_net':      ('knitwork.models.baseline.delta_net', 'DeltaNet'),
+    'hgrn2':          ('knitwork.models.baseline.hgrn2',     'HGRN2'),
+    'mlstm':          ('knitwork.models.baseline.mlstm',     'mLSTM'),
 }
 
 
@@ -66,6 +70,28 @@ def build_model(rnn_type: str, rnn_cfg: dict, n_chars: int):
     mod_path, cls_name = entry
     cls = getattr(importlib.import_module(mod_path), cls_name)
     return cls(**rnn_cfg, input_size=n_chars, output_size=n_chars)
+
+
+# Column collapse monitoring
+
+def log_col_similarity(rnn, state, logger, step: int) -> None:
+    """Log max/mean pairwise cosine similarity between column activations (last layer)."""
+    try:
+        h = state[0] if isinstance(state, tuple) else state
+        if not isinstance(h, torch.Tensor) or h.ndim != 4:
+            return
+        H    = rnn.hidden_size
+        acts = h[-1, :, :, :H].mean(dim=1).detach().float()   # [cols, H]
+        norm = acts.norm(dim=-1, keepdim=True).clamp(min=1e-8)
+        acts = acts / norm
+        sim  = acts @ acts.T                                    # [cols, cols]
+        n    = sim.shape[0]
+        mask = sim.new_ones(n, n, dtype=torch.bool).triu(diagonal=1)
+        pairs = sim[mask]
+        logger.track(float(pairs.max()),  name='col_sim/max',  step=step)
+        logger.track(float(pairs.mean()), name='col_sim/mean', step=step)
+    except Exception as e:
+        print(f'[col_sim] {e}')
 
 
 # Forward normalizer
@@ -404,7 +430,7 @@ def main(config):
             print(
                 f'[{format_readable_num(step)}/{format_readable_num(n_steps, frac=0)}]'
                 f' {format_readable_num(fps, frac=0)}fps |'
-                f' LR:{int(100*m["LR"]/lr.base)}%'
+                f' LR:{int(100*m["LR"]/lr.base_val)}%'
                 f' T:{int(m["T"])} |{kl_s}'
                 f' L:{m["Loss"]:.3f}'
                 f' BPC:{m["BPC"]:.3f}'
@@ -418,6 +444,8 @@ def main(config):
             write_status(step, metrics)
             if logger is not None:
                 logger.track(flatten_dict(metrics))
+                if has_grid:
+                    log_col_similarity(rnn, rnn_state, logger, step)
 
         if do_eval and eval_schedule.tick(gen.n_envs):
             run_eval(step)
