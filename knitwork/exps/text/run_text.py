@@ -2,18 +2,16 @@
 from __future__ import annotations
 
 import importlib
-from datetime import datetime
 from pathlib import Path
 
 import numpy as np
 import torch
 from torch import nn
 
-from knitwork.common.config import extracted
 from knitwork.common.dynamic_param import DynamicParameter
 from knitwork.common.entrypoint import run_experiment
 from knitwork.common.logging import create_logger
-from knitwork.common.scheduler import Scheduler, create_scheduler
+from knitwork.common.scheduler import create_scheduler
 from knitwork.common.torch import DynamicLearningRate
 from knitwork.common.tracker import Tracker
 from knitwork.common.status import write_status
