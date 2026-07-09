@@ -12,6 +12,12 @@
 - **Cell Modifications**
   - [GridRNN2 + VAE](methods/grnn2.md)
   - [HGRNN](methods/hgrnn.md)
+  - [GridRnnFix](methods/grnn_fix.md)
+  - [GridRnnFixV3](methods/grnn_fix_v3.md)
+  - [GridRnnFixV4](methods/grnn_fix_v4.md)
+  - [HopfieldGridRnnFixV4](methods/hgrnn_fix_v4.md)
+  - [GridRnnFixV5](methods/grnn_fix_v5.md)
+  - [HopfieldGridRnnFix](methods/hgrnn_fix.md)
   - [HGRN-GridRNN](methods/hgrn_grnn.md)
   - [LRU](methods/lru.md)
   - [GridLRU](methods/grnn_lru.md)
