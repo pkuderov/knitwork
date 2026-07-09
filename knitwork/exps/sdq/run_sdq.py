@@ -50,6 +50,8 @@ _REGISTRY: dict[str, tuple[str, str] | None] = {
     'grnn_fix_v3':    ('knitwork.models.grnn_fix_v3',    'GridRnnFixV3'),
     'grnn_fix_v4':    ('knitwork.models.grnn_fix_v4',    'GridRnnFixV4'),
     'hgrnn_fix_v4':   ('knitwork.models.hgrnn_fix_v4',   'HopfieldGridRnnFixV4'),
+    'grnn_fix_v4_8c': ('knitwork.models.grnn_fix_v4',    'GridRnnFixV4'),
+    'grnn_fix_v4_6c': ('knitwork.models.grnn_fix_v4',    'GridRnnFixV4'),
     'grnn_fix_v5':    ('knitwork.models.grnn_fix_v5',    'GridRnnFixV5'),
     'hgrnn_fix':      ('knitwork.models.hgrnn_fix',      'HopfieldGridRnnFix'),
     'grnn_fusion':    None,  # factory

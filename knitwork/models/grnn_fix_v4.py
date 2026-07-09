@@ -13,6 +13,9 @@ class GridRnnFixV4(nn.Module):
     # v4: per-column attention (query/key identities + per-column beta),
     # input-conditioned gates, multi-timescale column init. Task-agnostic:
     # no benchmark-specific signals. Carries over all v3 fixes and aux losses.
+    # beta_floor guards against long-run attention flattening; aux_div_max_weight
+    # + aux_div_ramp_steps target the single worst-colliding column pair instead
+    # of only the uniform average.
     def __init__(
             self, *,
             input_size, embedding_size, output_size,
@@ -20,8 +23,11 @@ class GridRnnFixV4(nn.Module):
             n_layers: int, n_columns: int,
             n_attn_heads,
             beta_scale: float = 3.0,
+            beta_floor: float = 0.0,
             timescale_spread: float = 1.0,
             aux_div_weight: float = 0.05,
+            aux_div_max_weight: float = 0.1,
+            aux_div_ramp_steps: int = 0,
             aux_gate_weight: float = 0.1,
             aux_act_weight: float = 0.02,
             aux_sat_weight: float = 0.02,
@@ -43,13 +49,15 @@ class GridRnnFixV4(nn.Module):
         self.hidden_size = hidden_size - hidden_size % n_attn_heads
 
         self.aux_div_weight = aux_div_weight
+        self.aux_div_max_weight = aux_div_max_weight
+        self.aux_div_ramp_steps = max(int(aux_div_ramp_steps), 0)
         self.aux_gate_weight = aux_gate_weight
         self.aux_act_weight = aux_act_weight
         self.aux_sat_weight = aux_sat_weight
         self.aux_every = max(int(aux_every), 1)
         self.gate_std_target = gate_std_target
         self.sat_target = sat_target
-        self.use_aux = (aux_div_weight + aux_gate_weight
+        self.use_aux = (aux_div_weight + aux_div_max_weight + aux_gate_weight
                         + aux_act_weight + aux_sat_weight) > 0
         self._aux_tick = 0
         # Barlow weight grows with depth: top-layer redundancy is the failure mode
@@ -92,7 +100,8 @@ class GridRnnFixV4(nn.Module):
             self.cells.append(cells)
 
             self.attn.append(PerColumnAttention(
-                H, num_heads=n_attn_heads, n_columns=n_columns, beta_scale=beta_scale
+                H, num_heads=n_attn_heads, n_columns=n_columns, beta_scale=beta_scale,
+                beta_floor=beta_floor,
             ))
             # gates degenerated to constants in v3/v4/hgrnn-v4 runs: use an honest
             # learnable scalar per column (staggered init), params go back to H
@@ -123,7 +132,7 @@ class GridRnnFixV4(nn.Module):
 
     def grid_step(self, x, *, h, return_attn=False):
         h_n, attn_list, gate_list = [], [], []
-        aux_div = aux_gate = aux_act = aux_sat = 0.0
+        aux_div = aux_div_max = aux_gate = aux_act = aux_sat = 0.0
         do_aux = self.use_aux and self.training and (self._aux_tick % self.aux_every == 0)
         if self.use_aux and self.training:
             self._aux_tick += 1
@@ -143,8 +152,9 @@ class GridRnnFixV4(nn.Module):
             o = hl_n + g * msg
 
             if do_aux:
-                d, gv, a = self._layer_aux(hl_n, hl, g)
+                d, dmax, gv, a = self._layer_aux(hl_n, hl, g)
                 aux_div = aux_div + self._div_layer_w[layer] * d
+                aux_div_max = aux_div_max + self._div_layer_w[layer] * dmax
                 aux_gate, aux_act = aux_gate + gv, aux_act + a
                 if layer > 0:
                     # anti tanh-saturation: penalize upper-layer |h| above target
@@ -161,8 +171,10 @@ class GridRnnFixV4(nn.Module):
         aux = None
         if self.use_aux:
             if do_aux:
+                div_w, div_max_w = self._div_weights()
                 aux = self.aux_every * (
-                    self.aux_div_weight * aux_div
+                    div_w * aux_div
+                    + div_max_w * aux_div_max
                     + self.aux_gate_weight * aux_gate
                     + self.aux_act_weight * aux_act
                     + self.aux_sat_weight * aux_sat
@@ -171,6 +183,15 @@ class GridRnnFixV4(nn.Module):
                 aux = torch.zeros((), device=o.device, dtype=o.dtype)
         extras = {"attn_weights": attn_list, "gates": gate_list}
         return h_n, o_top, extras, aux
+
+    def _div_weights(self):
+        # ramp diversity weights up over training: on long SDQ runs col_sim/max
+        # keeps climbing in the *second* half (a specific pair collapsing)
+        # even while the constant-weight mean term holds col_sim/mean near 0
+        if self.aux_div_ramp_steps <= 0:
+            return self.aux_div_weight, self.aux_div_max_weight
+        frac = min(1.0, self._aux_tick / self.aux_div_ramp_steps)
+        return self.aux_div_weight * frac, self.aux_div_max_weight * frac
 
     def _layer_aux(self, hl_n, hl, g):
         C = self.n_columns
@@ -181,7 +202,12 @@ class GridRnnFixV4(nn.Module):
         z = z / (z.std(dim=1, keepdim=True) + 1e-6)
         B = z.shape[1]
         cross = torch.einsum('cbh,dbk->cdhk', z, z) / B          # [C, C, H, H]
-        div = cross[iu, ju].pow(2).mean()
+        pair_div = cross[iu, ju].pow(2).mean(dim=(-1, -2))       # [n_pairs]
+        div = pair_div.mean()
+        # target the single most-collapsed pair specifically (e.g. a CKA~0.8
+        # pair hiding behind a healthy col_sim/mean) instead of only the
+        # uniformly-weighted average over all pairs
+        div_max = pair_div.max()
 
         # (2) gate diversity: push per-column mean gates apart
         gm = g.mean(dim=(1, 2))                                  # [C]
@@ -194,7 +220,7 @@ class GridRnnFixV4(nn.Module):
         corr = u @ u.T                                           # [C, C]
         act = F.relu(corr[iu, ju]).mean()
 
-        return div, gate, act
+        return div, div_max, gate, act
 
     def reset_state(self, state, reset_mask):
         if state is None:
@@ -221,12 +247,14 @@ class GridRnnFixV4(nn.Module):
 class PerColumnAttention(nn.Module):
     # column mixing where each column attends differently: learnable per-column
     # query/key identities and per-(column, head) beta; tiny out_proj, NO post-norm
-    def __init__(self, dim, num_heads, n_columns, beta_scale: float = 1.0):
+    def __init__(self, dim, num_heads, n_columns, beta_scale: float = 1.0,
+                 beta_floor: float = 0.0):
         super().__init__()
         self.dim = dim
         self.num_heads = num_heads
         self.head_dim = dim // num_heads
         self.n_columns = n_columns
+        self.beta_floor = beta_floor
 
         self.W_q = nn.Linear(dim, dim, bias=False)
         self.W_k = nn.Linear(dim, dim, bias=False)
@@ -241,8 +269,12 @@ class PerColumnAttention(nn.Module):
         nn.init.normal_(self.ids_k, 0.0, 0.1 * xavier_alpha)
 
         # per-(column, head) sharpness: columns read with different selectivity;
-        # staggered init from broad (0.5x) to sharp (2x) around beta_scale
-        base = math.log(beta_scale / math.sqrt(self.head_dim))
+        # staggered init from broad (0.5x) to sharp (2x) around beta_scale.
+        # beta_floor is a guaranteed minimum (cf. FastFloorLRUCell's r_floor in
+        # grnn_fix_v5): long runs otherwise let most columns' beta decay toward
+        # near-uniform attention, so init targets beta_scale net of the floor.
+        target = max(beta_scale / math.sqrt(self.head_dim) - beta_floor, 1e-4)
+        base = math.log(target)
         spread = torch.linspace(math.log(0.5), math.log(2.0), n_columns)
         self.log_beta = nn.Parameter(
             base + spread[:, None].repeat(1, num_heads)          # [C, heads]
@@ -259,7 +291,7 @@ class PerColumnAttention(nn.Module):
         v = self.W_v(h).view(C, B, self.num_heads, self.head_dim).permute(2, 1, 0, 3)
 
         # beta indexed by the query (receiving) column  [heads, 1, C, 1]
-        beta = self.log_beta.exp().T.unsqueeze(1).unsqueeze(-1)
+        beta = self.beta_floor + self.log_beta.exp().T.unsqueeze(1).unsqueeze(-1)
         attn = torch.softmax(beta * torch.matmul(q, k.transpose(-2, -1)), dim=-1)
         out = torch.matmul(attn, v)                              # [heads, B, C, hd]
         out = out.permute(2, 1, 0, 3).contiguous().view(C, B, D)

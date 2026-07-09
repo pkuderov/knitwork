@@ -322,8 +322,11 @@ models:
     n_columns: 3
     n_attn_heads: 4
     beta_scale: 3.0
+    beta_floor: 0.2
     timescale_spread: 1.0
     aux_div_weight: 0.05
+    aux_div_max_weight: 0.1
+    aux_div_ramp_steps: 2e+7
     aux_gate_weight: 0.1
     aux_act_weight: 0.02
     aux_sat_weight: 0.02
@@ -340,8 +343,60 @@ models:
     n_columns: 3
     n_attn_heads: 4
     beta_scale: 3.0
+    beta_floor: 0.2
     timescale_spread: 1.0
     aux_div_weight: 0.05
+    aux_div_max_weight: 0.1
+    aux_div_ramp_steps: 2e+7
+    aux_gate_weight: 0.1
+    aux_act_weight: 0.02
+    aux_sat_weight: 0.02
+    aux_every: 8
+    gate_std_target: 0.15
+    sat_target: 0.8
+    use_bias: true
+    dropout: 0.0
+
+  # n_columns=8 scale-up (~391K params), matches the comet-diagnosed run:
+  # emergent per-layer hub topology, but CKA showed a near-duplicate column
+  # pair (0.80) and col_sim/max kept climbing in the run's second half.
+  # beta_floor/aux_div_max_weight/aux_div_ramp_steps target exactly that.
+  grnn_fix_v4_8c:
+    embedding_size: 64
+    hidden_size: 56
+    n_layers: 2
+    n_columns: 8
+    n_attn_heads: 4
+    beta_scale: 3.0
+    beta_floor: 0.2
+    timescale_spread: 1.0
+    aux_div_weight: 0.05
+    aux_div_max_weight: 0.1
+    aux_div_ramp_steps: 3e+7
+    aux_gate_weight: 0.1
+    aux_act_weight: 0.02
+    aux_sat_weight: 0.02
+    aux_every: 8
+    gate_std_target: 0.15
+    sat_target: 0.8
+    use_bias: true
+    dropout: 0.0
+
+  # ablation: n_columns=6 at matched param budget (~409K) vs grnn_fix_v4_8c
+  # (~391K) — CKA on the 8c run showed only ~6 of 8 columns non-redundant;
+  # this checks whether the 2 extra columns earn their keep at same budget.
+  grnn_fix_v4_6c:
+    embedding_size: 64
+    hidden_size: 68
+    n_layers: 2
+    n_columns: 6
+    n_attn_heads: 4
+    beta_scale: 3.0
+    beta_floor: 0.2
+    timescale_spread: 1.0
+    aux_div_weight: 0.05
+    aux_div_max_weight: 0.1
+    aux_div_ramp_steps: 3e+7
     aux_gate_weight: 0.1
     aux_act_weight: 0.02
     aux_sat_weight: 0.02

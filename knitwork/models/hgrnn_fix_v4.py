@@ -20,8 +20,11 @@ class HopfieldGridRnnFixV4(nn.Module):
             n_layers: int, n_columns: int,
             n_attn_heads,
             beta_scale: float = 3.0,
+            beta_floor: float = 0.0,
             timescale_spread: float = 1.0,
             aux_div_weight: float = 0.05,
+            aux_div_max_weight: float = 0.1,
+            aux_div_ramp_steps: int = 0,
             aux_gate_weight: float = 0.1,
             aux_act_weight: float = 0.02,
             aux_sat_weight: float = 0.02,
@@ -43,13 +46,15 @@ class HopfieldGridRnnFixV4(nn.Module):
         self.hidden_size = hidden_size - hidden_size % n_attn_heads
 
         self.aux_div_weight = aux_div_weight
+        self.aux_div_max_weight = aux_div_max_weight
+        self.aux_div_ramp_steps = max(int(aux_div_ramp_steps), 0)
         self.aux_gate_weight = aux_gate_weight
         self.aux_act_weight = aux_act_weight
         self.aux_sat_weight = aux_sat_weight
         self.aux_every = max(int(aux_every), 1)
         self.gate_std_target = gate_std_target
         self.sat_target = sat_target
-        self.use_aux = (aux_div_weight + aux_gate_weight
+        self.use_aux = (aux_div_weight + aux_div_max_weight + aux_gate_weight
                         + aux_act_weight + aux_sat_weight) > 0
         self._aux_tick = 0
         if n_layers > 1:
@@ -90,7 +95,8 @@ class HopfieldGridRnnFixV4(nn.Module):
             self.cells.append(cells)
 
             self.attn.append(PerColumnAttention(
-                H, num_heads=n_attn_heads, n_columns=n_columns, beta_scale=beta_scale
+                H, num_heads=n_attn_heads, n_columns=n_columns, beta_scale=beta_scale,
+                beta_floor=beta_floor,
             ))
             gates = nn.ModuleList(
                 nn.Linear(2 * H + in_dim, 1) for _ in range(n_columns)
@@ -115,7 +121,7 @@ class HopfieldGridRnnFixV4(nn.Module):
         h, c = state
 
         h_n, c_n, attn_list, gate_list = [], [], [], []
-        aux_div = aux_gate = aux_act = aux_sat = 0.0
+        aux_div = aux_div_max = aux_gate = aux_act = aux_sat = 0.0
         do_aux = self.use_aux and self.training and (self._aux_tick % self.aux_every == 0)
         if self.use_aux and self.training:
             self._aux_tick += 1
@@ -142,8 +148,9 @@ class HopfieldGridRnnFixV4(nn.Module):
             hl_mix = hl_new + g * msg
 
             if do_aux:
-                d, gv, a = self._layer_aux(hl_new, hl, g)
+                d, dmax, gv, a = self._layer_aux(hl_new, hl, g)
                 aux_div = aux_div + self._div_layer_w[layer] * d
+                aux_div_max = aux_div_max + self._div_layer_w[layer] * dmax
                 aux_gate, aux_act = aux_gate + gv, aux_act + a
                 if layer > 0:
                     aux_sat = aux_sat + F.relu(hl_new.abs().mean() - self.sat_target)
@@ -163,8 +170,10 @@ class HopfieldGridRnnFixV4(nn.Module):
         aux = None
         if self.use_aux:
             if do_aux:
+                div_w, div_max_w = self._div_weights()
                 aux = self.aux_every * (
-                    self.aux_div_weight * aux_div
+                    div_w * aux_div
+                    + div_max_w * aux_div_max
                     + self.aux_gate_weight * aux_gate
                     + self.aux_act_weight * aux_act
                     + self.aux_sat_weight * aux_sat
@@ -177,6 +186,13 @@ class HopfieldGridRnnFixV4(nn.Module):
             return (y, (h_n, c_n), extras, aux) if self.use_aux else (y, (h_n, c_n), extras)
         return (y, (h_n, c_n), aux) if self.use_aux else (y, (h_n, c_n))
 
+    def _div_weights(self):
+        # ramp diversity weights up over training (see grnn_fix_v4)
+        if self.aux_div_ramp_steps <= 0:
+            return self.aux_div_weight, self.aux_div_max_weight
+        frac = min(1.0, self._aux_tick / self.aux_div_ramp_steps)
+        return self.aux_div_weight * frac, self.aux_div_max_weight * frac
+
     def _layer_aux(self, hl_n, hl, g):
         C = self.n_columns
         iu, ju = torch.triu_indices(C, C, offset=1, device=hl_n.device)
@@ -185,7 +201,10 @@ class HopfieldGridRnnFixV4(nn.Module):
         z = z / (z.std(dim=1, keepdim=True) + 1e-6)
         B = z.shape[1]
         cross = torch.einsum('cbh,dbk->cdhk', z, z) / B          # [C, C, H, H]
-        div = cross[iu, ju].pow(2).mean()
+        pair_div = cross[iu, ju].pow(2).mean(dim=(-1, -2))       # [n_pairs]
+        div = pair_div.mean()
+        # target the single most-collapsed pair, not just the uniform average
+        div_max = pair_div.max()
 
         gm = g.mean(dim=(1, 2))                                  # [C]
         gate = F.relu(self.gate_std_target - gm.std())
@@ -196,7 +215,7 @@ class HopfieldGridRnnFixV4(nn.Module):
         corr = u @ u.T                                           # [C, C]
         act = F.relu(corr[iu, ju]).mean()
 
-        return div, gate, act
+        return div, div_max, gate, act
 
     def reset_state(self, state, reset_mask):
         if state is None:
