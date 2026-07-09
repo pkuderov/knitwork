@@ -151,23 +151,63 @@ class CustomCometLogger(Logger):
     def _start_run(cls, config):
         log_cfg = config['log']
         assert log_cfg['logger'] == 'comet'
-        assert "COMET_API_KEY" in os.environ
+        assert "COMET_API_KEY" in os.environ or 'comet_api_key' in log_cfg
+        api_key = os.environ.get('COMET_API_KEY') or log_cfg['comet_api_key']
 
+        import sys
         import comet_ml
-        run = comet_ml.start(
-            project_name=log_cfg['project'],
-            experiment_config=comet_ml.ExperimentConfig(
-                log_code=False, log_graph=False,
-                display_summary_level=0,
-                log_git_metadata=False, log_git_patch=False,
+        import comet_ml.config as _cml_cfg
 
-                auto_metric_logging=False, auto_param_logging=False,
+        if 'COMET_TIMEOUT_HTTP' in os.environ:
+            timeout_sec = int(os.environ.get('COMET_TIMEOUT_HTTP'))
+            # prevent main-thread deadlock when network is intermittent:
+            # shorter HTTP timeout + smaller upload queue so log_metrics() never blocks long
+            _cml_cfg.COMET_TIMEOUT_HTTP = timeout_sec
+            _cml_cfg.COMET_HTTP_TIMEOUT = timeout_sec
+            _cml_cfg.COMET_WORKER_TIMEOUT = timeout_sec
+
+        workspace = log_cfg.get('comet_workspace') or None
+        tags = log_cfg.get('tags', [])
+        if tags == 'auto':
+            tags = _project_tags(log_cfg.get('project', ''))
+
+        auto_logging_disabled = os.environ.get('COMET_DISABLE_AUTO_LOGGING', '') == '1'
+        if auto_logging_disabled:
+            # comet_ml patches sys.stdout regardless of auto_output_logging; restore it after init
+            _stdout = sys.stdout
+            _stderr = sys.stderr
+
+        run = comet_ml.start(
+            api_key=api_key,
+            project_name=log_cfg['project'],
+            workspace=workspace,
+            experiment_config=comet_ml.ExperimentConfig(
                 name=log_cfg.get('name', None),
-                tags=log_cfg.get('tags', []),
+                tags=tags,
+
+                display_summary_level=0,
+                log_code=False, log_graph=False,
+                log_git_metadata=False, log_git_patch=False,
+                auto_metric_logging=False, auto_param_logging=False,
+                auto_output_logging=not auto_logging_disabled,
             )
         )
+        if auto_logging_disabled:
+            sys.stdout = _stdout
+            sys.stderr = _stderr
+
         run.log_parameters(config)
         return run
+
+
+def _project_tags(project_name: str) -> list[str]:
+    name = project_name.lower()
+    tags = ['grnn']
+    for token in ('sdq', 'text', 'mikasa', 'treasure'):
+        if token in name:
+            tags.append(token)
+            break
+    return tags
 
 
 class CustomAimLogger(Logger):
