@@ -5,10 +5,11 @@ on:
     branches: [main]
     paths:
       - "docs/**"
-      - "shiroa/book.typ"
+      - "shiroa/book.typ.tmpl"
       - "shiroa/templates/**"
       - "shiroa/build-content.sh"
       - "shiroa/fix_for_shiroa.py"
+      - "shiroa/gen_summary.py"
 
   workflow_dispatch:  # allow manual trigger
 

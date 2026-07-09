@@ -58,6 +58,9 @@ echo "Done converting."
 # ── Optional: build Shiroa + inject CSS ─────────────────────────
 
 if [[ "${1:-}" == "--build" ]]; then
+    echo "Generating summary-gen.typ from docs/_sidebar.md..."
+    python3 "$SCRIPT_DIR/gen_summary.py"
+
     echo "Building shiroa..."
     shiroa build "$SCRIPT_DIR/"
     inject_css "$SCRIPT_DIR/dist"
