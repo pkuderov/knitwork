@@ -10,7 +10,8 @@ from torch import nn
 
 from knitwork.common.dynamic_param import DynamicParameter
 from knitwork.common.entrypoint import run_experiment
-from knitwork.common.logging import create_logger
+from knitwork.common.logging_alt import start_logger
+from knitwork.common.numpy import get_seed
 from knitwork.common.scheduler import create_scheduler
 from knitwork.common.torch import DynamicLearningRate
 from knitwork.common.tracker import Tracker
@@ -58,76 +59,6 @@ _REGISTRY: dict[str, tuple[str, str] | None] = {
 }
 
 
-def build_model(rnn_type: str, rnn_cfg: dict, n_chars: int):
-    if rnn_type == 'grnn_fusion':
-        from knitwork.models.grnn_fusion import build_fusion_from_config
-        return build_fusion_from_config(rnn_cfg, n_chars, n_chars)
-    entry = _REGISTRY.get(rnn_type)
-    if entry is None:
-        raise ValueError(f'Unknown model type: {rnn_type!r}')
-    mod_path, cls_name = entry
-    cls = getattr(importlib.import_module(mod_path), cls_name)
-    return cls(**rnn_cfg, input_size=n_chars, output_size=n_chars)
-
-
-# Column collapse monitoring
-
-def log_col_similarity(rnn, state, logger, step: int) -> None:
-    """Log max/mean pairwise cosine similarity between column activations (last layer)."""
-    try:
-        h = state[0] if isinstance(state, tuple) else state
-        if not isinstance(h, torch.Tensor) or h.ndim != 4:
-            return
-        H    = rnn.hidden_size
-        acts = h[-1, :, :, :H].mean(dim=1).detach().float()   # [cols, H]
-        norm = acts.norm(dim=-1, keepdim=True).clamp(min=1e-8)
-        acts = acts / norm
-        sim  = acts @ acts.T                                    # [cols, cols]
-        n    = sim.shape[0]
-        mask = sim.new_ones(n, n, dtype=torch.bool).triu(diagonal=1)
-        pairs = sim[mask]
-        logger.track(float(pairs.max()),  name='col_sim/max',  step=step)
-        logger.track(float(pairs.mean()), name='col_sim/mean', step=step)
-    except Exception as e:
-        print(f'[col_sim] {e}')
-
-
-# Forward normalizer
-
-def model_forward(rnn, x, state, *, capture: bool):
-    result = rnn(x, state, return_attn=True) if capture else rnn(x, state)
-    y, state = result[0], result[1]
-    if len(result) == 2:
-        return y, state, {}, None
-    if len(result) == 3:
-        third = result[2]
-        if isinstance(third, dict):
-            return y, state, third, None
-        return y, state, {}, third
-    if len(result) == 4:
-        return y, state, result[2], result[3]
-    return y, state, {}, None
-
-
-# Intra-word accuracy
-
-def update_intra_word_metrics(
-    acc_by_pos: dict[int, float],
-    tokens: torch.Tensor,   # [B]
-    acc:    torch.Tensor,   # [B]
-    lr: float = 0.01,
-    space_idx: int = 0,
-) -> None:
-    pos = 0
-    for t, a in zip(tokens.tolist(), acc.tolist()):
-        if t == space_idx:
-            pos = 0
-        else:
-            old = acc_by_pos.get(pos, a)
-            acc_by_pos[pos] = old + lr * (a - old)
-            pos += 1
-
-
 def main(config):
     _default_name = f"knitwork_{config['model']}_{config.get('gen', 'text8')}"
     run_name = config.get('name') or config.get('log', {}).get('name') or _default_name
@@ -136,10 +67,9 @@ def main(config):
     config.setdefault('log', {})['name'] = run_name
     print(f'Run name: {run_name}')
 
-    vis_enabled = config.get('visualize', True)
-    rng    = np.random.default_rng(config['seed'])
+    rng = np.random.default_rng(config['seed'])
     device = get_device(config.get('device'))
-    dtype  = get_dtype(config.get('dtype'))
+    dtype = get_dtype(config.get('dtype'))
     n_envs = config['n_envs']
 
     gen_cfg   = config['gens'][config['gen']]
@@ -147,47 +77,46 @@ def main(config):
     data, charset = tokenize(load_dataset(data_path))
     n_chars = charset.size
 
-    eval_cfg        = config.get('eval', {})
-    do_eval         = eval_cfg.get('enabled', False)
-    eval_interval   = int(eval_cfg.get('interval', 5_000_000))
-    eval_n_batches  = int(eval_cfg.get('n_batches', 200))
-    context_window  = int(eval_cfg.get('context_window', 0))
+    train_data = data
+    eval_cfg = config.get('eval', {})
+    do_eval = eval_cfg.get('enabled', False)
 
     if do_eval:
         from knitwork.gens.text import split_train_test
-        train_data, val_data = split_train_test(data, train_frac=0.95)
-        val_gen = TextGenerator(val_data, n_envs=n_envs, ignore_index=CE_ignore_index,
-                                seed=int(rng.integers(1_000_000)))
-    else:
-        train_data = data
+        eval_schedule = create_scheduler(eval_cfg['schedule'])
+        max_rollout = int(eval_cfg.get('max_rollout', 1e+8))
+        train_frac = 1.0 - eval_cfg['split']
+        train_data, val_data = split_train_test(data, train_frac=train_frac)
+        val_gen = TextGenerator(val_data, n_envs=n_envs, ignore_index=CE_ignore_index, seed=get_seed(rng))
 
-    gen = TextGenerator(train_data if do_eval else data, n_envs=n_envs,
-                        ignore_index=CE_ignore_index, seed=int(rng.integers(1_000_000)))
+    gen = TextGenerator(train_data, n_envs=n_envs, ignore_index=CE_ignore_index, seed=get_seed(rng))
 
     rnn_type = config['model']
-    rnn_cfg  = config['models'][rnn_type]
+    rnn_cfg = config[rnn_type]
     rnn = build_model(rnn_type, rnn_cfg, n_chars)
     rnn = rnn.to(device=device, dtype=dtype)
     print(f'Model on {next(rnn.parameters()).device} | dtype {next(rnn.parameters()).dtype}')
 
-    use_vae      = getattr(rnn, 'use_vae', False)
-    has_grid     = hasattr(rnn, 'n_layers') and hasattr(rnn, 'n_columns')
+    use_vae = getattr(rnn, 'use_vae', False)
+    has_grid = hasattr(rnn, 'n_layers') and hasattr(rnn, 'n_columns')
     has_harmonic = hasattr(rnn, 'mem_layers') and hasattr(rnn, 'flatten_extras_stats')
 
     # Visualizers
-    attn_vis = AttnFlowVisualizer(
-        n_layers=rnn.n_layers, n_columns=rnn.n_columns, buffer_size=100
-    ) if has_grid and vis_enabled else None
-    cka_vis = CKAVisualizer(
-        n_layers=rnn.n_layers, n_columns=rnn.n_columns, buffer_size=50
-    ) if has_grid and vis_enabled else None
-    next_vis_step = VIS_INTERVAL
+    vis_cfg = config.get('vis', {})
+    vis_enabled = vis_cfg.get('enabled', False)
+    if vis_enabled:
+        vis_schedule = create_scheduler(vis_cfg['schedule'])
+        if has_grid:
+            attn_vis = AttnFlowVisualizer(n_layers=rnn.n_layers, n_columns=rnn.n_columns, buffer_size=100)
+            cka_vis = CKAVisualizer(n_layers=rnn.n_layers, n_columns=rnn.n_columns, buffer_size=50)
+        else:
+            attn_vis. cka_vis = None, None
     gate_buffer: list = []
 
     # KL annealing
-    kl_cfg   = config.get('kl_anneal', {})
+    kl_cfg = config.get('kl_anneal', {})
     kl_steps = int(kl_cfg.get('steps', 50_000))
-    kl_max   = float(kl_cfg.get('max_weight', 1.0))
+    kl_max = float(kl_cfg.get('max_weight', 1.0))
     kl_anneal = lambda step: kl_max if kl_steps == 0 else kl_max * min(1.0, step / kl_steps)
 
     lr = DynamicLearningRate(name=f'LR', **config['lr'])
@@ -200,23 +129,17 @@ def main(config):
     p_reset = DynamicParameter(**gen_cfg['reset_prob'])
 
     rollout_len = config['rollout_len']
-    batch_size  = gen.n_envs * rollout_len
-    n_steps     = int(config['n_steps'])
-    step        = 0
+    batch_size = gen.n_envs * rollout_len
+    n_steps = int(config['n_steps'])
+    step = 0
 
-    log_stats_schedule   = create_scheduler(config['log']['schedule'])
-    print_stats_schedule = create_scheduler(config['log']['print_schedule'])
-    eval_schedule        = create_scheduler(eval_interval) if do_eval else None
-
-    logger = create_logger(config)
-    stats       = Tracker(lr=2e-4)
-    fps_counter = FpsCounter()
+    logger = start_logger(config, tracker=config['trackers'])
 
     ln_2 = np.log(2.0)
-    rnn_state   = None
-    batch_y:    list = []
+    rnn_state = None
+    batch_y: list = []
     batch_y_gt: list = []
-    batch_kl:       list = []
+    batch_kl: list = []
     batch_harmonic: list = []   # harmonic model diagnostics
     acc_by_pos: dict[int, float] = {}
 
@@ -367,20 +290,20 @@ def main(config):
         step += gen.n_envs
 
         if step % batch_size == 0:
-            y_cat    = torch.cat(batch_y,    dim=0)
+            y_cat  = torch.cat(batch_y, dim=0)
             y_gt_cat = torch.cat(batch_y_gt, dim=0)
             m_active = y_gt_cat != CE_ignore_index
 
-            ce_loss    = loss_fn(y_cat, y_gt_cat)
-            kl_mean    = torch.stack(batch_kl).mean()
-            kl_scale   = kl_anneal(step)
+            ce_loss = loss_fn(y_cat, y_gt_cat)
+            kl_mean = torch.stack(batch_kl).mean()
+            kl_scale = kl_anneal(step)
             total_loss = ce_loss + kl_scale * kl_mean
 
             with torch.no_grad():
                 logits_a = y_cat[m_active]
-                gt_a     = y_gt_cat[m_active]
-                acc      = (logits_a.argmax(dim=-1) == gt_a).float()
-                bpc        = ce_loss / ln_2
+                gt_a = y_gt_cat[m_active]
+                acc = (logits_a.argmax(dim=-1) == gt_a).float()
+                bpc = ce_loss / ln_2
                 perplexity = torch.exp(ce_loss)
                 update_intra_word_metrics(acc_by_pos, obs['tokens'].view(-1), acc)
 
@@ -405,7 +328,7 @@ def main(config):
                 'T':          1.0 / p_reset.val,
             }
             if use_vae:
-                stat_dict['KL']       = to_numpy(kl_mean, copy=False)
+                stat_dict['KL'] = to_numpy(kl_mean, copy=False)
                 stat_dict['KL_scale'] = kl_scale
             for pos, val in list(acc_by_pos.items())[:4]:
                 stat_dict[f'Acc[{pos}]'] = val
@@ -421,6 +344,7 @@ def main(config):
             rnn_state = rnn.detach_state(rnn_state)
             batch_y.clear(); batch_y_gt.clear(); batch_kl.clear()
 
+        # TODO: support custom callback
         if print_stats_schedule.tick(gen.n_envs):
             m   = {'global_step': step} | stats.get()
             fps = fps_counter.fps(n_iters=step, start=True)
@@ -450,6 +374,76 @@ def main(config):
 
     fps = fps_counter.fps(n_iters=step)
     print(f'Done. {format_readable_num(fps)} fps')
+
+
+def build_model(rnn_type: str, rnn_cfg: dict, n_chars: int):
+    if rnn_type == 'grnn_fusion':
+        from knitwork.models.grnn_fusion import build_fusion_from_config
+        return build_fusion_from_config(rnn_cfg, n_chars, n_chars)
+    entry = _REGISTRY.get(rnn_type)
+    if entry is None:
+        raise ValueError(f'Unknown model type: {rnn_type!r}')
+    mod_path, cls_name = entry
+    cls = getattr(importlib.import_module(mod_path), cls_name)
+    return cls(**rnn_cfg, input_size=n_chars, output_size=n_chars)
+
+
+# Column collapse monitoring
+
+def log_col_similarity(rnn, state, logger, step: int) -> None:
+    """Log max/mean pairwise cosine similarity between column activations (last layer)."""
+    try:
+        h = state[0] if isinstance(state, tuple) else state
+        if not isinstance(h, torch.Tensor) or h.ndim != 4:
+            return
+        H    = rnn.hidden_size
+        acts = h[-1, :, :, :H].mean(dim=1).detach().float()   # [cols, H]
+        norm = acts.norm(dim=-1, keepdim=True).clamp(min=1e-8)
+        acts = acts / norm
+        sim  = acts @ acts.T                                    # [cols, cols]
+        n    = sim.shape[0]
+        mask = sim.new_ones(n, n, dtype=torch.bool).triu(diagonal=1)
+        pairs = sim[mask]
+        logger.track(float(pairs.max()),  name='col_sim/max',  step=step)
+        logger.track(float(pairs.mean()), name='col_sim/mean', step=step)
+    except Exception as e:
+        print(f'[col_sim] {e}')
+
+
+# Forward normalizer
+
+def model_forward(rnn, x, state, *, capture: bool):
+    result = rnn(x, state, return_attn=True) if capture else rnn(x, state)
+    y, state = result[0], result[1]
+    if len(result) == 2:
+        return y, state, {}, None
+    if len(result) == 3:
+        third = result[2]
+        if isinstance(third, dict):
+            return y, state, third, None
+        return y, state, {}, third
+    if len(result) == 4:
+        return y, state, result[2], result[3]
+    return y, state, {}, None
+
+
+# Intra-word accuracy
+
+def update_intra_word_metrics(
+    acc_by_pos: dict[int, float],
+    tokens: torch.Tensor,   # [B]
+    acc:    torch.Tensor,   # [B]
+    lr: float = 0.01,
+    space_idx: int = 0,
+) -> None:
+    pos = 0
+    for t, a in zip(tokens.tolist(), acc.tolist()):
+        if t == space_idx:
+            pos = 0
+        else:
+            old = acc_by_pos.get(pos, a)
+            acc_by_pos[pos] = old + lr * (a - old)
+            pos += 1
 
 
 if __name__ == '__main__':

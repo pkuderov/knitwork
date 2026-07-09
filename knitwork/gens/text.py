@@ -78,6 +78,7 @@ def split_train_test(data: np.ndarray, train_frac: int | float = 0.95):
     eval_data = data[cut:]
     return train_data, eval_data
 
+
 def tokenize(data):
     """
     Tokenize passed sequence by translating each character to a token — an index 
