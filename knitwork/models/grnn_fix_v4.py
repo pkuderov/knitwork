@@ -1,0 +1,267 @@
+from __future__ import annotations
+
+import math
+
+import torch
+from torch import nn
+from torch.nn import functional as F
+
+from knitwork.common.utils import format_readable_num, to_torch
+
+
+class GridRnnFixV4(nn.Module):
+    # v4: per-column attention (query/key identities + per-column beta),
+    # input-conditioned gates, multi-timescale column init. Task-agnostic:
+    # no benchmark-specific signals. Carries over all v3 fixes and aux losses.
+    def __init__(
+            self, *,
+            input_size, embedding_size, output_size,
+            hidden_size,
+            n_layers: int, n_columns: int,
+            n_attn_heads,
+            beta_scale: float = 3.0,
+            timescale_spread: float = 1.0,
+            aux_div_weight: float = 0.05,
+            aux_gate_weight: float = 0.1,
+            aux_act_weight: float = 0.02,
+            aux_sat_weight: float = 0.02,
+            aux_every: int = 8,
+            gate_std_target: float = 0.15,
+            sat_target: float = 0.8,
+            use_bias = True, dropout = 0.0
+    ):
+        super().__init__()
+        self.input_size = input_size
+        self.embedding_size = embedding_size
+        self.output_size = output_size
+        self.embedding = nn.Embedding(input_size, embedding_size)
+
+        self.n_layers = n_layers
+        assert n_columns > 1
+        self.n_columns = n_columns
+        self.n_attn_heads = n_attn_heads
+        self.hidden_size = hidden_size - hidden_size % n_attn_heads
+
+        self.aux_div_weight = aux_div_weight
+        self.aux_gate_weight = aux_gate_weight
+        self.aux_act_weight = aux_act_weight
+        self.aux_sat_weight = aux_sat_weight
+        self.aux_every = max(int(aux_every), 1)
+        self.gate_std_target = gate_std_target
+        self.sat_target = sat_target
+        self.use_aux = (aux_div_weight + aux_gate_weight
+                        + aux_act_weight + aux_sat_weight) > 0
+        self._aux_tick = 0
+        # Barlow weight grows with depth: top-layer redundancy is the failure mode
+        if n_layers > 1:
+            self._div_layer_w = [0.5 + 1.5 * l / (n_layers - 1) for l in range(n_layers)]
+        else:
+            self._div_layer_w = [1.0]
+
+        print(
+            f'GridRnnFixV4 {n_layers}L x {n_columns}C GRU'
+            f' hidden={self.hidden_size} beta_scale={beta_scale}'
+            f' ts_spread={timescale_spread} aux={self.use_aux}'
+        )
+
+        self.col_input_projs = nn.ModuleList(
+            nn.Linear(embedding_size, embedding_size, bias=False)
+            for _ in range(n_columns)
+        )
+        for proj in self.col_input_projs:
+            nn.init.orthogonal_(proj.weight)
+        self.drop = nn.Dropout(dropout) if dropout > 0 else nn.Identity()
+
+        H = self.hidden_size
+        self.cells = nn.ModuleList()
+        self.attn = nn.ModuleList()
+        self.attn_gates = nn.ParameterList()
+        for layer in range(n_layers):
+            in_dim = embedding_size if layer == 0 else H
+            cells = nn.ModuleList(
+                nn.GRUCell(in_dim, H, bias=use_bias)
+                for _ in range(n_columns)
+            )
+            # multi-timescale prior: stagger update-gate bias across columns
+            # (z -> 1 keeps old state = slow column; z -> 0 rewrites = fast)
+            if use_bias and n_columns > 1:
+                for ic, cell in enumerate(cells):
+                    shift = timescale_spread * (2 * ic / (n_columns - 1) - 1)
+                    with torch.no_grad():
+                        cell.bias_ih[H:2 * H] += shift
+            self.cells.append(cells)
+
+            self.attn.append(PerColumnAttention(
+                H, num_heads=n_attn_heads, n_columns=n_columns, beta_scale=beta_scale
+            ))
+            # gates degenerated to constants in v3/v4/hgrnn-v4 runs: use an honest
+            # learnable scalar per column (staggered init), params go back to H
+            self.attn_gates.append(nn.Parameter(
+                torch.tensor([-2.5 - 0.5 * ic for ic in range(n_columns)])
+            ))
+
+        self.mid_norms = nn.ModuleList(
+            nn.RMSNorm(H) for _ in range(max(n_layers - 1, 0))
+        )
+
+        self.head = nn.Linear(self.n_columns * H, output_size)
+
+        param_count = sum(p.numel() for p in self.parameters() if p.requires_grad)
+        print(f'Param count: {format_readable_num(param_count)}')
+
+    def forward(self, tokens: torch.Tensor, h=None, return_attn=False):
+        tokens = to_torch(tokens)
+        assert tokens.ndim == 2
+        x = self.embedding(tokens.view(-1))                      # [B, E]
+
+        h_n, o_top, extras, aux = self.grid_step(x, h=h, return_attn=return_attn)
+
+        y = self.head(o_top)
+        if return_attn:
+            return (y, h_n, extras, aux) if self.use_aux else (y, h_n, extras)
+        return (y, h_n, aux) if self.use_aux else (y, h_n)
+
+    def grid_step(self, x, *, h, return_attn=False):
+        h_n, attn_list, gate_list = [], [], []
+        aux_div = aux_gate = aux_act = aux_sat = 0.0
+        do_aux = self.use_aux and self.training and (self._aux_tick % self.aux_every == 0)
+        if self.use_aux and self.training:
+            self._aux_tick += 1
+        x = self.drop(torch.stack(
+            [proj(x) for proj in self.col_input_projs], dim=0))  # [C, B, E]
+
+        o = None
+        for layer, (cells, attn, gates, hl) in enumerate(
+            zip(self.cells, self.attn, self.attn_gates, h)
+        ):
+            hl_n = torch.stack([
+                cells[ic](x[ic], hl[ic]) for ic in range(self.n_columns)
+            ], dim=0)                                            # [C, B, H]
+
+            msg, attn_w = attn(hl_n, return_weights=return_attn)
+            g = torch.sigmoid(gates).view(self.n_columns, 1, 1)  # [C, 1, 1]
+            o = hl_n + g * msg
+
+            if do_aux:
+                d, gv, a = self._layer_aux(hl_n, hl, g)
+                aux_div = aux_div + self._div_layer_w[layer] * d
+                aux_gate, aux_act = aux_gate + gv, aux_act + a
+                if layer > 0:
+                    # anti tanh-saturation: penalize upper-layer |h| above target
+                    aux_sat = aux_sat + F.relu(hl_n.abs().mean() - self.sat_target)
+
+            h_n.append(hl_n)
+            attn_list.append(attn_w)
+            gate_list.append(g)
+            x = self.drop(self.mid_norms[layer](o)) if layer < self.n_layers - 1 else o
+
+        h_n = torch.stack(h_n, dim=0)
+        o_top = o.permute(1, 0, 2).reshape(o.shape[1], -1)       # [B, C*H]
+
+        aux = None
+        if self.use_aux:
+            if do_aux:
+                aux = self.aux_every * (
+                    self.aux_div_weight * aux_div
+                    + self.aux_gate_weight * aux_gate
+                    + self.aux_act_weight * aux_act
+                    + self.aux_sat_weight * aux_sat
+                ) / self.n_layers
+            else:
+                aux = torch.zeros((), device=o.device, dtype=o.dtype)
+        extras = {"attn_weights": attn_list, "gates": gate_list}
+        return h_n, o_top, extras, aux
+
+    def _layer_aux(self, hl_n, hl, g):
+        C = self.n_columns
+        iu, ju = torch.triu_indices(C, C, offset=1, device=hl_n.device)
+
+        # (1) Barlow-style feature decorrelation between columns
+        z = hl_n - hl_n.mean(dim=1, keepdim=True)                # [C, B, H]
+        z = z / (z.std(dim=1, keepdim=True) + 1e-6)
+        B = z.shape[1]
+        cross = torch.einsum('cbh,dbk->cdhk', z, z) / B          # [C, C, H, H]
+        div = cross[iu, ju].pow(2).mean()
+
+        # (2) gate diversity: push per-column mean gates apart
+        gm = g.mean(dim=(1, 2))                                  # [C]
+        gate = F.relu(self.gate_std_target - gm.std())
+
+        # (3) activity decorrelation: columns update at different times
+        u = (hl_n - hl).norm(dim=-1)                             # [C, B]
+        u = u - u.mean(dim=1, keepdim=True)
+        u = u / (u.norm(dim=1, keepdim=True) + 1e-6)
+        corr = u @ u.T                                           # [C, C]
+        act = F.relu(corr[iu, ju]).mean()
+
+        return div, gate, act
+
+    def reset_state(self, state, reset_mask):
+        if state is None:
+            return self.init_state(reset_mask.shape[0])
+        ixs = torch.nonzero(reset_mask).flatten()
+        if ixs.numel() == 0:
+            return state
+        state = state.clone()
+        state[:, :, ixs, :] *= 0.0
+        return state
+
+    def detach_state(self, state):
+        if state is None:
+            return state
+        return state.detach()
+
+    def init_state(self, bsz):
+        return torch.zeros(
+            self.n_layers, self.n_columns, bsz, self.hidden_size,
+            device=self.head.weight.device, dtype=self.head.weight.dtype
+        )
+
+
+class PerColumnAttention(nn.Module):
+    # column mixing where each column attends differently: learnable per-column
+    # query/key identities and per-(column, head) beta; tiny out_proj, NO post-norm
+    def __init__(self, dim, num_heads, n_columns, beta_scale: float = 1.0):
+        super().__init__()
+        self.dim = dim
+        self.num_heads = num_heads
+        self.head_dim = dim // num_heads
+        self.n_columns = n_columns
+
+        self.W_q = nn.Linear(dim, dim, bias=False)
+        self.W_k = nn.Linear(dim, dim, bias=False)
+        self.W_v = nn.Linear(dim, dim, bias=False)
+        self.out_proj = nn.Linear(dim, dim)
+
+        # per-column identities: each column asks its own question
+        xavier_alpha = (1 / dim) ** 0.5
+        self.ids_q = nn.Parameter(torch.empty(n_columns, 1, dim))
+        self.ids_k = nn.Parameter(torch.empty(n_columns, 1, dim))
+        nn.init.normal_(self.ids_q, 0.0, 0.1 * xavier_alpha)
+        nn.init.normal_(self.ids_k, 0.0, 0.1 * xavier_alpha)
+
+        # per-(column, head) sharpness: columns read with different selectivity;
+        # staggered init from broad (0.5x) to sharp (2x) around beta_scale
+        base = math.log(beta_scale / math.sqrt(self.head_dim))
+        spread = torch.linspace(math.log(0.5), math.log(2.0), n_columns)
+        self.log_beta = nn.Parameter(
+            base + spread[:, None].repeat(1, num_heads)          # [C, heads]
+        )
+
+        nn.init.normal_(self.out_proj.weight, 0.0, 0.001)
+        nn.init.zeros_(self.out_proj.bias)
+
+    def forward(self, h, return_weights: bool = False):
+        # h: [C, B, D]
+        C, B, D = h.shape
+        q = self.W_q(h + self.ids_q).view(C, B, self.num_heads, self.head_dim).permute(2, 1, 0, 3)
+        k = self.W_k(h + self.ids_k).view(C, B, self.num_heads, self.head_dim).permute(2, 1, 0, 3)
+        v = self.W_v(h).view(C, B, self.num_heads, self.head_dim).permute(2, 1, 0, 3)
+
+        # beta indexed by the query (receiving) column  [heads, 1, C, 1]
+        beta = self.log_beta.exp().T.unsqueeze(1).unsqueeze(-1)
+        attn = torch.softmax(beta * torch.matmul(q, k.transpose(-2, -1)), dim=-1)
+        out = torch.matmul(attn, v)                              # [heads, B, C, hd]
+        out = out.permute(2, 1, 0, 3).contiguous().view(C, B, D)
+        attn_w = attn.mean(dim=(0, 1)) if return_weights else None
+        return self.out_proj(out), attn_w
