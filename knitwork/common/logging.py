@@ -161,7 +161,14 @@ def _make_aim_logger(config: dict) -> Logger:
 def _make_comet_logger(config: dict) -> Logger:
     import sys
     import comet_ml
+    import comet_ml.config as _cml_cfg
     cfg_log = config['log']
+
+    # prevent main-thread deadlock when network is intermittent:
+    # shorter HTTP timeout + smaller upload queue so log_metrics() never blocks long
+    _cml_cfg.COMET_TIMEOUT_HTTP    = int(os.environ.get('COMET_TIMEOUT_HTTP', '15'))
+    _cml_cfg.COMET_HTTP_TIMEOUT    = int(os.environ.get('COMET_TIMEOUT_HTTP', '15'))
+    _cml_cfg.COMET_WORKER_TIMEOUT  = int(os.environ.get('COMET_TIMEOUT_HTTP', '15'))
 
     api_key = os.environ.get('COMET_API_KEY') or cfg_log.get('comet_api_key', '')
     workspace = cfg_log.get('comet_workspace') or None

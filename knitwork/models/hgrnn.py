@@ -102,7 +102,7 @@ class HopfieldGridRnn(nn.Module):
         param_count = sum(p.numel() for p in self.parameters() if p.requires_grad)
         print(f'Param count: {format_readable_num(param_count)}')
 
-    def forward(self, tokens: torch.Tensor, state=None):
+    def forward(self, tokens: torch.Tensor, state=None, return_attn: bool = False):
         tokens = to_torch(tokens)
         assert tokens.ndim == 2
 
@@ -115,6 +115,8 @@ class HopfieldGridRnn(nn.Module):
             h, c = self.grid_step_premsg(x, h=h, c=c)
 
         y = self.head(h[-1][0])   # top layer, first col
+        if return_attn:
+            return y, (h, c), {}
         return y, (h, c)
 
     def grid_step_postmsg(self, x, *, h, c):
@@ -187,17 +189,10 @@ class HopfieldGridRnn(nn.Module):
     def reset_state(self, state, reset_mask):
         if state is None:
             return self.init_state(reset_mask.shape[0])
-        ixs = torch.nonzero(reset_mask).flatten()
-        if ixs.numel() == 0:
-            return state
         h, c = state
-
-        def _reset(t):
-            t = t.clone()
-            t[:, :, ixs, :] *= 0.0
-            return t
-
-        return (_reset(h), _reset(c))
+        keep = (~reset_mask.bool()).to(dtype=h.dtype, device=h.device)  # [B]
+        keep = keep[None, None, :, None]  # [1, 1, B, 1]
+        return (h * keep, c * keep)
 
     def detach_state(self, state):
         if state is None:

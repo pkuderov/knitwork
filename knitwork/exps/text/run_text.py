@@ -47,16 +47,25 @@ _REGISTRY: dict[str, tuple[str, str] | None] = {
     'grnn_engram':    ('knitwork.models.engram_grnn',    'EngramGridRnn'),
     'grnn_prec_delta': ('knitwork.models.grnn_prec_delta', 'GridRnnPrecDelta'),
     'grnn_ema_mem':   ('knitwork.models.grnn_ema_mem',   'GridRnnEmaMem'),
+    'grnn_fix':       ('knitwork.models.grnn_fix',       'GridRnnFix'),
+    'grnn_fix_v3':    ('knitwork.models.grnn_fix_v3',    'GridRnnFixV3'),
+    'grnn_fix_v4':    ('knitwork.models.grnn_fix_v4',    'GridRnnFixV4'),
+    'hgrnn_fix_v4':   ('knitwork.models.hgrnn_fix_v4',   'HopfieldGridRnnFixV4'),
+    'grnn_fix_v5':    ('knitwork.models.grnn_fix_v5',    'GridRnnFixV5'),
+    'hgrnn_fix':      ('knitwork.models.hgrnn_fix',      'HopfieldGridRnnFix'),
     'grnn_fusion':    None,  # factory
     # config aliases
     'grnn_res':       ('knitwork.models.grnn_reservoir', 'GridRnnReservoir'),
     'grnn_delta':     ('knitwork.models.grnn_delta',    'GridDelta'),
     'grnn_delta_wide':('knitwork.models.grnn_delta',    'GridDelta'),
     'grnn_harmonic':  ('knitwork.models.grnn_harmonic', 'HarmonicGridRNN'),
+    'grnn_base':      ('knitwork.models.grnn_base',           'GridRnnBase'),
+    'transformer':    ('knitwork.models.baseline.transformer', 'Transformer'),
     # external baselines
     'delta_net':      ('knitwork.models.baseline.delta_net', 'DeltaNet'),
     'hgrn2':          ('knitwork.models.baseline.hgrn2',     'HGRN2'),
     'mlstm':          ('knitwork.models.baseline.mlstm',     'mLSTM'),
+    'mamba':          ('knitwork.models.baseline.mamba',     'Mamba'),
 }
 
 
@@ -96,7 +105,17 @@ def log_col_similarity(rnn, state, logger, step: int) -> None:
 
 # Forward normalizer
 
+def _supports_attn(rnn) -> bool:
+    flag = getattr(rnn, '_supports_return_attn', None)
+    if flag is None:
+        import inspect
+        flag = 'return_attn' in inspect.signature(rnn.forward).parameters
+        rnn._supports_return_attn = flag
+    return flag
+
+
 def model_forward(rnn, x, state, *, capture: bool):
+    capture = capture and _supports_attn(rnn)
     result = rnn(x, state, return_attn=True) if capture else rnn(x, state)
     y, state = result[0], result[1]
     if len(result) == 2:
@@ -109,6 +128,47 @@ def model_forward(rnn, x, state, *, capture: bool):
     if len(result) == 4:
         return y, state, result[2], result[3]
     return y, state, {}, None
+
+
+def log_lru_spectrum(rnn, logger, step: int) -> None:
+    if not hasattr(rnn, 'cells'):
+        return
+    try:
+        for li, row in enumerate(rnn.cells):
+            for ci, cell in enumerate(row):
+                lru = getattr(cell, 'lru', cell)
+                if not hasattr(lru, 'nu'):
+                    continue
+                if hasattr(lru, '_lambda_gamma'):
+                    lam_re, lam_im, _ = lru._lambda_gamma()
+                    r = torch.sqrt(lam_re ** 2 + lam_im ** 2).detach().float()
+                else:
+                    r = torch.exp(-torch.exp(lru.nu)).detach().float()
+                entropy = -(r * torch.log(r + 1e-8)).sum().item()
+                logger.track(float(r.mean()), name=f"lru/r_mean/L{li}_C{ci}", step=step)
+                logger.track(float(r.min()),  name=f"lru/r_min/L{li}_C{ci}", step=step)
+                logger.track(float(r.max()),  name=f"lru/r_max/L{li}_C{ci}", step=step)
+                logger.track(entropy, name=f"lru/entropy/L{li}_C{ci}", step=step)
+    except Exception as e:
+        print(f'[LRU spectrum] {e}')
+
+
+def log_attn_beta(rnn, logger, step: int) -> None:
+    if not hasattr(rnn, 'attn'):
+        return
+    try:
+        for li, attn in enumerate(rnn.attn):
+            lb = getattr(attn, 'log_beta', None)
+            if lb is None:
+                continue
+            beta = lb.exp().detach().float()
+            if beta.ndim == 2:
+                for ci in range(beta.shape[0]):
+                    logger.track(float(beta[ci].mean()), name=f"attn_beta/L{li}_C{ci}", step=step)
+            else:
+                logger.track(float(beta.mean()), name=f"attn_beta/L{li}", step=step)
+    except Exception as e:
+        print(f'[attn beta] {e}')
 
 
 # Intra-word accuracy
@@ -446,6 +506,8 @@ def main(config):
                 logger.track(flatten_dict(metrics))
                 if has_grid:
                     log_col_similarity(rnn, rnn_state, logger, step)
+                    log_lru_spectrum(rnn, logger, step)
+                    log_attn_beta(rnn, logger, step)
 
         if do_eval and eval_schedule.tick(gen.n_envs):
             run_eval(step)

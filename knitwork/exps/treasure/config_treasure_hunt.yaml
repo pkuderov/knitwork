@@ -211,6 +211,93 @@ models:
     r_res_min: 0.90
     r_res_max: 0.999
 
+  # fixed attention variants (architecture_analysis.md §7.1), ~200K params
+  grnn_fix:
+    embedding_size: 64
+    hidden_size: 64
+    n_layers: 2
+    n_columns: 3
+    n_attn_heads: 4
+    use_bias: true
+    dropout: 0.0
+
+  hgrnn_fix:
+    embedding_size: 64
+    hidden_size: 104
+    n_layers: 1
+    n_columns: 2
+    n_attn_heads: 4
+    use_bias: true
+    dropout: 0.0
+
+  grnn_fix_v3:
+    embedding_size: 64
+    hidden_size: 64
+    n_layers: 2
+    n_columns: 3
+    n_attn_heads: 4
+    beta_scale: 3.0
+    # RL runner unpacks (y, h): aux losses must stay disabled here
+    aux_div_weight: 0.0
+    aux_gate_weight: 0.0
+    aux_act_weight: 0.0
+    use_bias: true
+    dropout: 0.0
+
+  grnn_fix_v4:
+    embedding_size: 64
+    hidden_size: 64
+    n_layers: 2
+    n_columns: 3
+    n_attn_heads: 4
+    beta_scale: 3.0
+    timescale_spread: 1.0
+    # RL runner unpacks (y, h): aux losses must stay disabled here
+    aux_div_weight: 0.0
+    aux_gate_weight: 0.0
+    aux_act_weight: 0.0
+    aux_sat_weight: 0.0
+    use_bias: true
+    dropout: 0.0
+
+  hgrnn_fix_v4:
+    embedding_size: 64
+    hidden_size: 56
+    n_layers: 2
+    n_columns: 3
+    n_attn_heads: 4
+    beta_scale: 3.0
+    timescale_spread: 1.0
+    # RL runner unpacks (y, h): aux losses must stay disabled here
+    aux_div_weight: 0.0
+    aux_gate_weight: 0.0
+    aux_act_weight: 0.0
+    aux_sat_weight: 0.0
+    use_bias: true
+    dropout: 0.0
+
+  grnn_fix_v5:
+    embedding_size: 64
+    hidden_size: 60
+    n_layers: 2
+    n_columns: 3
+    n_attn_heads: 4
+    n_lru_cols: 1
+    beta_scale: 3.0
+    timescale_spread: 1.0
+    r_floor_min: 0.9
+    r_floor_max: 0.95
+    lru_grad_scale: 0.1
+    reservoir_mult: 2
+    spectral_radius: 0.95
+    # RL runner unpacks (y, h): aux losses must stay disabled here
+    aux_div_weight: 0.0
+    aux_gate_weight: 0.0
+    aux_act_weight: 0.0
+    aux_sat_weight: 0.0
+    use_bias: true
+    dropout: 0.0
+
 # LR schedule (как в run_sdq2.py)
 lr:
   val: 8.0e-4

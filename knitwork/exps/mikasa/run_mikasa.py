@@ -120,12 +120,11 @@ def compute_gae(
 def main(config):
     env_id = config['env']
     _env_slug = env_id.replace('popgym-', '').replace('-v0', '').replace('-', '_')
-    _default_name = f"knitwork_{config['model']}_{_env_slug}"
+    _default_name = f"knitwork_rl_mikasa_{config['model']}_{_env_slug}"
     run_name = config.get('name') or config.get('log', {}).get('name') or _default_name
     if not run_name.startswith('knitwork_'):
         run_name = 'knitwork_' + run_name
     config.setdefault('log', {})['name'] = run_name
-    print(f'Run name: {run_name}')
 
     rng          = np.random.default_rng(config['seed'])
     device       = get_device(config.get('device', None))
@@ -162,6 +161,12 @@ def main(config):
         n_actions=gen.n_actions,
     )
     rnn = rnn.to(device=device, dtype=dtype)
+
+    n_active = sum(p.numel() for p in rnn.parameters() if p.requires_grad)
+    _size = format_readable_num(n_active).upper()  # active (trainable) params, e.g. "200K"
+    run_name = f"{run_name}_{_size}"
+    config['log']['name'] = run_name
+    print(f'Run name: {run_name}')
 
     actor_hidden = rnn.hidden_size
     critic = nn.Linear(actor_hidden, 1).to(device=device, dtype=dtype)
@@ -320,7 +325,9 @@ def main(config):
 
                 if aux_head is not None:
                     # reconstruct current obs from column aux_col_idx of last layer
-                    col_h = h[-1, aux_col_idx, :, :actor_hidden]  # [B, H] real part
+                    # mirrors extract_h_top: tuple states (incl. NamedTuple) → first element
+                    _h_tensor = h[0] if isinstance(h, tuple) else h
+                    col_h = _h_tensor[-1, aux_col_idx, :, :actor_hidden]  # [B, H] real part
                     if is_discrete:
                         aux_loss = F.cross_entropy(aux_head(col_h), obs_buf[t].squeeze(-1))
                     else:

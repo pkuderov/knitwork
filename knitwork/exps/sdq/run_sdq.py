@@ -46,6 +46,12 @@ _REGISTRY: dict[str, tuple[str, str] | None] = {
     'grnn_engram':    ('knitwork.models.engram_grnn',    'EngramGridRnn'),
     'grnn_prec_delta': ('knitwork.models.grnn_prec_delta', 'GridRnnPrecDelta'),
     'grnn_ema_mem':   ('knitwork.models.grnn_ema_mem',   'GridRnnEmaMem'),
+    'grnn_fix':       ('knitwork.models.grnn_fix',       'GridRnnFix'),
+    'grnn_fix_v3':    ('knitwork.models.grnn_fix_v3',    'GridRnnFixV3'),
+    'grnn_fix_v4':    ('knitwork.models.grnn_fix_v4',    'GridRnnFixV4'),
+    'hgrnn_fix_v4':   ('knitwork.models.hgrnn_fix_v4',   'HopfieldGridRnnFixV4'),
+    'grnn_fix_v5':    ('knitwork.models.grnn_fix_v5',    'GridRnnFixV5'),
+    'hgrnn_fix':      ('knitwork.models.hgrnn_fix',      'HopfieldGridRnnFix'),
     'grnn_fusion':    None,  # factory
     # config aliases
     'grnn_hgrn':      ('knitwork.models.hgrn_grnn',  'HGRN_GridRnn'),
@@ -57,6 +63,7 @@ _REGISTRY: dict[str, tuple[str, str] | None] = {
     'delta_net':      ('knitwork.models.baseline.delta_net', 'DeltaNet'),
     'hgrn2':          ('knitwork.models.baseline.hgrn2',     'HGRN2'),
     'mlstm':          ('knitwork.models.baseline.mlstm',     'mLSTM'),
+    'grnn_base':      ('knitwork.models.grnn_base',          'GridRnnBase'),
 }
 
 
@@ -74,8 +81,18 @@ def build_model(rnn_type: str, rnn_cfg: dict, gen):
 
 #  Forward normalizer 
 
+def _supports_attn(rnn) -> bool:
+    flag = getattr(rnn, '_supports_return_attn', None)
+    if flag is None:
+        import inspect
+        flag = 'return_attn' in inspect.signature(rnn.forward).parameters
+        rnn._supports_return_attn = flag
+    return flag
+
+
 def model_forward(rnn, x, state, *, capture: bool):
     """Normalize model forward to (logits, state, extras, aux_loss)."""
+    capture = capture and _supports_attn(rnn)
     if capture:
         result = rnn(x, state, return_attn=True)
     else:
@@ -126,12 +143,38 @@ def log_lru_spectrum(rnn, logger, step: int) -> None:
                 lru = getattr(cell, 'lru', cell)
                 if not hasattr(lru, 'nu'):
                     continue
-                r = torch.exp(-torch.exp(lru.nu)).detach().float()
+                if hasattr(lru, '_lambda_gamma'):
+                    # true |lambda|, incl. retention floors (FloorLRUCell)
+                    lam_re, lam_im, _ = lru._lambda_gamma()
+                    r = torch.sqrt(lam_re ** 2 + lam_im ** 2).detach().float()
+                else:
+                    r = torch.exp(-torch.exp(lru.nu)).detach().float()
                 entropy = -(r * torch.log(r + 1e-8)).sum().item()
                 logger.track(float(r.mean()), name=f"lru/r_mean/L{li}_C{ci}", step=step)
+                logger.track(float(r.min()),  name=f"lru/r_min/L{li}_C{ci}", step=step)
+                logger.track(float(r.max()),  name=f"lru/r_max/L{li}_C{ci}", step=step)
                 logger.track(entropy, name=f"lru/entropy/L{li}_C{ci}", step=step)
     except Exception as e:
         print(f'[LRU spectrum] {e}')
+
+
+def log_attn_beta(rnn, logger, step: int) -> None:
+    # beta evolution for models with learnable attention temperature
+    if not hasattr(rnn, 'attn'):
+        return
+    try:
+        for li, attn in enumerate(rnn.attn):
+            lb = getattr(attn, 'log_beta', None)
+            if lb is None:
+                continue
+            beta = lb.exp().detach().float()
+            if beta.ndim == 2:      # [C, heads] per-column temperature
+                for ci in range(beta.shape[0]):
+                    logger.track(float(beta[ci].mean()), name=f"attn_beta/L{li}_C{ci}", step=step)
+            else:                   # [heads]
+                logger.track(float(beta.mean()), name=f"attn_beta/L{li}", step=step)
+    except Exception as e:
+        print(f'[attn beta] {e}')
 
 
 #  KL annealing 
@@ -201,7 +244,7 @@ def main(config):
     has_act_loss   = hasattr(rnn, 'act_loss_weight')
     has_hgrn_betas = hasattr(rnn, 'get_hgrn_betas')
     has_reservoir  = hasattr(rnn, 'get_reservoir_spectral_radii')
-    has_lru        = hasattr(rnn, 'lru_r_per_col')
+    has_lru        = hasattr(rnn, 'lru_r_per_col') or hasattr(rnn, 'attn')
     has_harmonic   = hasattr(rnn, 'mem_layers') and hasattr(rnn, 'flatten_extras_stats')
     use_vae        = getattr(rnn, 'use_vae', False)
     is_fusion      = rnn_type == 'grnn_fusion'
@@ -373,6 +416,7 @@ def main(config):
 
             if has_lru and logger is not None and step % (batch_size * 100) == 0:
                 log_lru_spectrum(rnn, logger, step)
+                log_attn_beta(rnn, logger, step)
             has_col_state = hasattr(rnn, 'n_columns') and hasattr(rnn, 'hidden_size')
             if has_col_state and logger is not None and step % (batch_size * 100) == 0:
                 log_col_similarity(rnn, rnn_state, logger, step)

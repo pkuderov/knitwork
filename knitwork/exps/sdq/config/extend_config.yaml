@@ -4,7 +4,7 @@ name: null
 log:
   enabled: true
   logger: aim
-  project: grid-rnn-sdq
+  project: knitwork
   schedule: 1e+6
   print_schedule: 5e+6
 
@@ -281,6 +281,100 @@ models:
     ema_beta: 0.9
     lam_base: 0.01
 
+  # fixed attention variants (architecture_analysis.md §7.1), ~200K params
+  grnn_fix:
+    embedding_size: 64
+    hidden_size: 64
+    n_layers: 2
+    n_columns: 3
+    n_attn_heads: 4
+    use_bias: true
+    dropout: 0.0
+
+  hgrnn_fix:
+    embedding_size: 64
+    hidden_size: 104
+    n_layers: 1
+    n_columns: 2
+    n_attn_heads: 4
+    use_bias: true
+    dropout: 0.0
+
+  grnn_fix_v3:
+    embedding_size: 64
+    hidden_size: 64
+    n_layers: 2
+    n_columns: 3
+    n_attn_heads: 4
+    beta_scale: 3.0
+    aux_div_weight: 0.05
+    aux_gate_weight: 0.02
+    aux_act_weight: 0.02
+    aux_every: 8
+    gate_std_target: 0.15
+    use_bias: true
+    dropout: 0.0
+
+  grnn_fix_v4:
+    embedding_size: 64
+    hidden_size: 64
+    n_layers: 2
+    n_columns: 3
+    n_attn_heads: 4
+    beta_scale: 3.0
+    timescale_spread: 1.0
+    aux_div_weight: 0.05
+    aux_gate_weight: 0.1
+    aux_act_weight: 0.02
+    aux_sat_weight: 0.02
+    aux_every: 8
+    gate_std_target: 0.15
+    sat_target: 0.8
+    use_bias: true
+    dropout: 0.0
+
+  hgrnn_fix_v4:
+    embedding_size: 64
+    hidden_size: 56
+    n_layers: 2
+    n_columns: 3
+    n_attn_heads: 4
+    beta_scale: 3.0
+    timescale_spread: 1.0
+    aux_div_weight: 0.05
+    aux_gate_weight: 0.1
+    aux_act_weight: 0.02
+    aux_sat_weight: 0.02
+    aux_every: 8
+    gate_std_target: 0.15
+    sat_target: 0.8
+    use_bias: true
+    dropout: 0.0
+
+  grnn_fix_v5:
+    embedding_size: 64
+    hidden_size: 60
+    n_layers: 2
+    n_columns: 3
+    n_attn_heads: 4
+    n_lru_cols: 1
+    beta_scale: 3.0
+    timescale_spread: 1.0
+    r_floor_min: 0.9
+    r_floor_max: 0.95
+    lru_grad_scale: 0.1
+    reservoir_mult: 2
+    spectral_radius: 0.95
+    aux_div_weight: 0.05
+    aux_gate_weight: 0.1
+    aux_act_weight: 0.02
+    aux_sat_weight: 0.02
+    aux_every: 8
+    gate_std_target: 0.15
+    sat_target: 0.8
+    use_bias: true
+    dropout: 0.0
+
   grnn_lru:
     embedding_size: 64
     hidden_size: 128
@@ -416,6 +510,14 @@ models:
     embedding_size: 64
     hidden_size: 128
     n_layers: 3
+
+  grnn_base:
+    embedding_size: 64
+    hidden_size: 92
+    n_layers: 1
+    n_columns: 4
+    use_bias: true
+    dropout: 0.0
 
 lr:
   val: 8e-4

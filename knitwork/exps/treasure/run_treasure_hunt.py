@@ -41,6 +41,12 @@ _REGISTRY: dict[str, tuple[str, str]] = {
     'grnn_delta':     ('knitwork.models.grnn_delta',    'GridDelta'),
     'grnn_delta_wide':('knitwork.models.grnn_delta',    'GridDelta'),
     'grnn_harmonic':  ('knitwork.models.grnn_harmonic', 'HarmonicGridRNN'),
+    'grnn_fix':       ('knitwork.models.grnn_fix',      'GridRnnFix'),
+    'grnn_fix_v3':    ('knitwork.models.grnn_fix_v3',   'GridRnnFixV3'),
+    'grnn_fix_v4':    ('knitwork.models.grnn_fix_v4',   'GridRnnFixV4'),
+    'hgrnn_fix_v4':   ('knitwork.models.hgrnn_fix_v4',  'HopfieldGridRnnFixV4'),
+    'grnn_fix_v5':    ('knitwork.models.grnn_fix_v5',   'GridRnnFixV5'),
+    'hgrnn_fix':      ('knitwork.models.hgrnn_fix',     'HopfieldGridRnnFix'),
 }
 
 
