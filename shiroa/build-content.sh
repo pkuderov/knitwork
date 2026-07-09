@@ -21,12 +21,16 @@ inject_css() {
 
     for f in "$dist"/*.html; do
         [ -f "$f" ] || continue
-        sed -i 's|<!-- Custom theme stylesheets -->|<!-- Custom theme stylesheets -->\n    <link rel="stylesheet" href="theme/css/extra.css">|' "$f"
+        # -i.bak works on both GNU and BSD/macOS sed; plain -i needs a suffix
+        # arg on BSD sed, otherwise it swallows the script as the suffix
+        sed -i.bak 's|<!-- Custom theme stylesheets -->|<!-- Custom theme stylesheets -->\n    <link rel="stylesheet" href="theme/css/extra.css">|' "$f"
+        rm -f "$f.bak"
     done
 
     for f in "$dist"/methods/*.html "$dist"/experiments/*.html; do
         [ -f "$f" ] || continue
-        sed -i 's|<!-- Custom theme stylesheets -->|<!-- Custom theme stylesheets -->\n    <link rel="stylesheet" href="../theme/css/extra.css">|' "$f"
+        sed -i.bak 's|<!-- Custom theme stylesheets -->|<!-- Custom theme stylesheets -->\n    <link rel="stylesheet" href="../theme/css/extra.css">|' "$f"
+        rm -f "$f.bak"
     done
 
     echo "  injected into $(find "$dist" -name '*.html' | wc -l) HTML files"
