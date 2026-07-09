@@ -1,10 +1,10 @@
 # GridRnnFix
 
-Исправленный вариант обмена вниманием между столбцами Grid RNN. Базовый `grnn` страдает от четырёх дефектов (см. `architecture_analysis.md` §2): выпуклое усреднение стягивает столбцы (col_sim ≈ 0.93), LayerNorm после крошечно инициализированной проекции превращает «пренебрежимое» сообщение в шум масштаба 1, столбцы без входа рождаются схлопнутыми, а сообщение перезаписывает единственное рекуррентное состояние GRU. GridRnnFix применяет все исправления §7.1 одновременно: аддитивное сообщение, закрытый на старте гейт, отсутствие пост-нормы, обучаемая температура β, вход во все столбцы через ортогональные проекции, защита рекуррентного состояния и concat-readout по столбцам.
+Fixed variant of Grid RNN's inter-column attention exchange. The base `grnn` suffers from four defects (see `architecture_analysis.md` sec 2): convex averaging pulls columns together (col_sim ~ 0.93), LayerNorm after a tiny-init projection turns a "negligible" message into scale-1 noise, columns without input are born collapsed, and the message overwrites the GRU's single recurrent state. GridRnnFix applies all sec 7.1 fixes at once: additive message, gate closed at init, no post-norm, learnable temperature beta, input into all columns via orthogonal projections, protected recurrent state, and concat-readout over columns.
 
-## Ключевой механизм
+## Key mechanism
 
-Сообщение добавляется к выходу слоя, но не к рекуррентному состоянию — память столбца никогда не смешивается:
+The message is added to the layer output, not to the recurrent state — column memory is never mixed in:
 
 ```python
 # pure recurrence, then additive gated message  [C, B, H]
@@ -15,11 +15,11 @@ o = hl_n + g * msg      # goes up to the next layer / readout
 h_n.append(hl_n)        # recurrent state stays unmixed
 ```
 
-Рекуррентная динамика каждого столбца остаётся чистой (аналог защищённого `c` в LSTM), а обогащённое сообщением представление `o` питает следующий слой и readout.
+Each column's recurrent dynamics stay clean (analogous to the protected `c` in an LSTM), while the message-enriched representation `o` feeds the next layer and the readout.
 
-## Важные детали реализации
+## Important implementation details
 
-Разрыв симметрии: каждый столбец получает эмбеддинг через собственную ортогональную проекцию (в `grnn` вход видит только col₀, остальные стартуют идентичными):
+Symmetry breaking: each column receives the embedding through its own orthogonal projection (in `grnn` only col0 sees the input, the rest start identical):
 
 ```python
 self.col_input_projs = nn.ModuleList(
@@ -28,13 +28,13 @@ self.col_input_projs = nn.ModuleList(
 x = torch.stack([proj(x) for proj in self.col_input_projs], dim=0)  # [C, B, E]
 ```
 
-Гейт закрыт на старте — модель включает внимание по мере пользы, а не борется с шумом:
+The gate is closed at init — the model turns on attention as it becomes useful, instead of fighting noise from the start:
 
 ```python
 nn.init.constant_(gate.bias, -3.0)   # sigmoid(-3) ~ 0.05 at init
 ```
 
-`ColumnAttention` — Hopfield-стиль без пост-нормы: tiny-init `out_proj` действительно делает сообщение нулевым на старте (в `grnn` LayerNorm это аннулировал), β обучается на голову:
+`ColumnAttention` is Hopfield-style with no post-norm: a tiny-init `out_proj` genuinely makes the message zero at init (in `grnn` LayerNorm cancelled this out), and beta is learned per head:
 
 ```python
 beta = self.log_beta.exp().view(self.num_heads, 1, 1, 1)
@@ -42,16 +42,16 @@ attn = torch.softmax(beta * torch.matmul(q, k.transpose(-2, -1)), dim=-1)
 nn.init.normal_(self.out_proj.weight, 0.0, 0.001)   # no norm after this
 ```
 
-Readout — конкатенация столбцов верхнего слоя вместо чтения одного столбца `h[-1][0]`:
+Readout — concatenation of top-layer columns instead of reading a single column `h[-1][0]`:
 
 ```python
 self.head = nn.Linear(self.n_columns * self.hidden_size, output_size)
 ```
 
-## Гиперпараметры
+## Hyperparameters
 
-| Параметр | Описание |
+| Parameter | Description |
 |---|---|
-| `hidden_size` | 64 при 2L×3C даёт ~201K параметров (SDQ и text8) |
-| `n_layers` | ≥2 осмысленно: при 1 слое сообщение влияет только на readout |
-| `n_attn_heads` | H обрезается до кратного числу голов; β обучается на голову |
+| `hidden_size` | 64 at 2L x 3C gives ~201K parameters (SDQ and text8) |
+| `n_layers` | >=2 is meaningful: with 1 layer the message only affects the readout |
+| `n_attn_heads` | H is truncated to a multiple of head count; beta is learned per head |

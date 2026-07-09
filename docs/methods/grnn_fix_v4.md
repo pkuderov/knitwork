@@ -1,10 +1,10 @@
 # GridRnnFixV4
 
-Четвёртая итерация исправленного внимания. Диагностика v3 на SDQ (~28M шагов): Barlow-декорреляция и β-обострение сработали (CKA L1 упал с 0.65–0.72 до 0.30–0.52, карты внимания получили структуру, Acc++ 0.55@28M против 0.38@28M у v2), но гейты по-прежнему выродились в общую константу, а специализация столбцов по ролям не возникла. V4 добавляет **разное внимание между столбцами** структурно и намеренно задаче-агностично (без привязки к фазам SDQ): per-column идентичности Q/K, per-column резкость β, гейт с обзором входа слоя и мульти-таймскейл инициализацию ячеек.
+Fourth iteration of fixed attention. Diagnostics of v3 on SDQ (~28M steps): Barlow decorrelation and beta sharpening worked (CKA L1 dropped from 0.65-0.72 to 0.30-0.52, attention maps gained structure, Acc++ 0.55@28M vs 0.38@28M for v2), but gates still degenerated into a shared constant and role specialization across columns didn't emerge. V4 adds **distinct inter-column attention** structurally, and deliberately task-agnostic (no tie to SDQ phases): per-column Q/K identities, per-column beta sharpness, an input-aware layer gate, and multi-timescale cell init.
 
-## Ключевой механизм
+## Key mechanism
 
-Каждый столбец обращается к соседям по-своему — собственные идентичности запроса/ключа и собственная обучаемая резкость на голову:
+Each column attends to its neighbors differently — its own query/key identities and its own learnable sharpness per head:
 
 ```python
 # per-column identities: each column asks its own question  [C, 1, D]
@@ -15,11 +15,11 @@ beta = self.log_beta.exp().T.unsqueeze(1).unsqueeze(-1)   # [heads, 1, C, 1]
 attn = torch.softmax(beta * q @ k.transpose(-2, -1), dim=-1)
 ```
 
-β индексируется столбцом-получателем: один столбец читает соседей адресно (β→2×), другой — широко (β→0.5×); дальше оба режима обучаемы.
+Beta is indexed by the receiving column: one column reads neighbors selectively (beta -> 2x), another broadly (beta -> 0.5x); both modes remain learnable afterward.
 
-## Важные детали реализации
+## Important implementation details
 
-Гейт — обучаемый скаляр на столбец (разнесённая инициализация). Условные Linear-гейты выродились в константы во всех запусках v3/v4/hgrnn-v4 — задаче нужен общий уровень подмешивания, а не входозависимый роутинг, поэтому механизм упрощён честно, параметры возвращены в H:
+The gate is a learnable per-column scalar (staggered init). Input-conditioned Linear gates degenerated into constants across all v3/v4/hgrnn-v4 runs — the task needs a shared mixing level rather than input-dependent routing, so the mechanism was honestly simplified and the parameters folded back into H:
 
 ```python
 self.attn_gates.append(nn.Parameter(
@@ -28,9 +28,9 @@ self.attn_gates.append(nn.Parameter(
 g = torch.sigmoid(gates).view(self.n_columns, 1, 1)   # [C, 1, 1]
 ```
 
-Dropout (конфиг `dropout`) применяется к входным проекциям и межслойному пути; на text8 включён 0.1.
+Dropout (config `dropout`) applies to input projections and the inter-layer path; enabled at 0.1 for text8.
 
-Мульти-таймскейл прайор: разнесённая инициализация bias update-гейта GRU по столбцам — быстрый/средний/медленный столбец (аналог β-floors HGRN и r_max-иерархии LRU):
+Multi-timescale prior: staggered init of the GRU update-gate bias across columns — fast/medium/slow column (analogous to HGRN's beta-floors and LRU's r_max hierarchy):
 
 ```python
 # z -> 1 keeps old state (slow column); z -> 0 rewrites (fast)
@@ -38,9 +38,9 @@ shift = timescale_spread * (2 * ic / (n_columns - 1) - 1)
 cell.bias_ih[H:2 * H] += shift
 ```
 
-Остальное — как в v3: аддитивное сообщение с защитой рекуррентного состояния, RMSNorm между слоями, tiny-init `out_proj` без пост-нормы, Barlow/gate-std/activity aux-лоссы раз в `aux_every` вызовов; вес гейт-лосса поднят 0.02 → 0.1 (в v3 гейты стянулись — hinge был слишком слаб против CE-градиента).
+Everything else is as in v3: additive message with protected recurrent state, RMSNorm between layers, tiny-init `out_proj` with no post-norm, Barlow/gate-std/activity aux losses every `aux_every` calls; gate-loss weight raised 0.02 -> 0.1 (in v3 gates collapsed together — the hinge was too weak against the CE gradient).
 
-По итогам SDQ-запуска v4 (~50M) добавлены две правки: **вес Barlow растёт с глубиной** (0.5 → 2.0 по слоям — CKA верхнего слоя полз обратно к 0.6, стягивающее давление там сильнее) и **штраф сатурации верхних слоёв**:
+Based on the v4 SDQ run (~50M), two more fixes were added: **Barlow weight grows with depth** (0.5 -> 2.0 across layers — top-layer CKA kept creeping back to 0.6, the collapsing pressure is stronger there) and an **upper-layer saturation penalty**:
 
 ```python
 # anti tanh-saturation: penalize upper-layer |h| above target (0.8)
@@ -48,11 +48,11 @@ if layer > 0:
     aux_sat += F.relu(hl_n.abs().mean() - self.sat_target)
 ```
 
-## Гиперпараметры
+## Hyperparameters
 
-| Параметр | Описание |
+| Parameter | Description |
 |---|---|
-| `beta_scale` | 3.0 — центр per-column разброса резкости (0.5×–2× вокруг него) |
-| `timescale_spread` | 1.0 — амплитуда сдвига bias update-гейта по столбцам (±1) |
-| `aux_gate_weight` | 0.1 — усилен ×5 после провала гейт-разнообразия в v3 |
-| `hidden_size` | 64 при 2L×3C — ~203K параметров (паритет с v2/v3) |
+| `beta_scale` | 3.0 — center of the per-column sharpness spread (0.5x-2x around it) |
+| `timescale_spread` | 1.0 — amplitude of the update-gate bias shift across columns (+-1) |
+| `aux_gate_weight` | 0.1 — boosted x5 after v3's gate-diversity failure |
+| `hidden_size` | 64 at 2L x 3C — ~203K parameters (parity with v2/v3) |

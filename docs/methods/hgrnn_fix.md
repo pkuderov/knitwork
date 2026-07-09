@@ -1,10 +1,10 @@
 # HopfieldGridRnnFix
 
-Исправленный вариант `hgrnn` (Hopfield Grid RNN на LSTM-ячейках). Оригинал уже имел два сильных механизма — защищённую от сообщений память `c` и обучаемую температуру β — но сохранял дефекты базового внимания: LayerNorm после tiny-init проекции (шум масштаба 1 с первого шага), выпуклое усреднение `(1-g)h + g·msg`, вход только в столбец 0 и readout из одного столбца. HopfieldGridRnnFix убирает пост-норму, делает сообщение аддитивным с закрытым на старте гейтом, подаёт вход во все столбцы через ортогональные проекции и читает конкатенацию столбцов верхнего слоя.
+Fixed variant of `hgrnn` (Hopfield Grid RNN on LSTM cells). The original already had two strong mechanisms — a message-protected memory `c` and a learnable temperature beta — but kept the base attention's defects: LayerNorm after a tiny-init projection (scale-1 noise from the first step), convex averaging `(1-g)h + g*msg`, input only into column 0, and readout from a single column. HopfieldGridRnnFix removes the post-norm, makes the message additive with a gate closed at init, feeds input into all columns through orthogonal projections, and reads the concatenation of top-layer columns.
 
-## Ключевой механизм
+## Key mechanism
 
-Аддитивное сообщение в рабочее состояние `h`; память `c` не смешивается никогда:
+Additive message into the working state `h`; the memory `c` is never mixed:
 
 ```python
 h_ic, c_ic = cells[ic](x[ic], (hl[ic], cl[ic]))   # LSTM per column
@@ -15,27 +15,27 @@ hl_mix = hl_new + g * msg    # additive, not convex
 c_n.append(cl_new)           # long-term memory stays clean
 ```
 
-Аддитивная добавка сохраняет идентичность столбца (выпуклая смесь — оператор консенсуса, стягивающий состояния), а `c` несёт долговременную память через все шаги без загрязнения.
+The additive term preserves column identity (a convex mixture is a consensus operator that pulls states together), while `c` carries long-term memory across all steps without contamination.
 
-## Важные детали реализации
+## Important implementation details
 
-Переиспользует `ColumnAttention` из `grnn_fix.py` — Hopfield-внимание с обучаемой β на голову, tiny-init `out_proj` и без LayerNorm; гейт с bias −3 (g ≈ 0.05 на старте). Вход во все столбцы:
+Reuses `ColumnAttention` from `grnn_fix.py` — Hopfield attention with a learnable beta per head, a tiny-init `out_proj`, and no LayerNorm; the gate has bias -3 (g ~ 0.05 at init). Input goes into all columns:
 
 ```python
 x = torch.stack([proj(x) for proj in self.col_input_projs], dim=0)  # [C, B, E]
 ```
 
-Readout — конкатенация `hl_mix` столбцов верхнего слоя (в `hgrnn` читался только `h[-1][0]`, и вклад остальных столбцов протискивался через гейт):
+Readout is the concatenation of top-layer `hl_mix` columns (in `hgrnn` only `h[-1][0]` was read, and the other columns' contribution had to squeeze through the gate):
 
 ```python
 z = hl_mix.permute(1, 0, 2).reshape(hl_mix.shape[1], -1)   # [B, C*H]
 y = self.head(z)
 ```
 
-## Гиперпараметры
+## Hyperparameters
 
-| Параметр | Описание |
+| Parameter | Description |
 |---|---|
-| `hidden_size` | 104 при 1L×2C даёт ~200K параметров; LSTM стоит 4/3 GRU при том же H |
-| `n_columns` | 2 — форма исторического победителя SDQ; ёмкость живёт в H, не в числе столбцов |
-| `n_attn_heads` | H обрезается до кратного; β инициализирована как 1/√d_k и обучается |
+| `hidden_size` | 104 at 1L x 2C gives ~200K parameters; LSTM costs 4/3 of GRU at the same H |
+| `n_columns` | 2 — the shape of the historical SDQ winner; capacity lives in H, not column count |
+| `n_attn_heads` | H is truncated to a multiple of head count; beta is init as 1/sqrt(d_k) and learned |

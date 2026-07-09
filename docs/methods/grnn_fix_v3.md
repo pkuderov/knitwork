@@ -1,10 +1,10 @@
 # GridRnnFixV3
 
-Третья итерация исправленного внимания между столбцами. Диагностика v2 на SDQ (~97M шагов) показала: гейты открылись (0.05 → ~0.6), но выродились в константу без дисперсии по столбцам; карты внимания остались почти равномерными (β не обострилась); верхний слой ушёл в tanh-сатурацию (норма h ≈ 7 из 8, градиенты в 10 раз меньше нижнего слоя); MI(столбец, фаза) ≈ 0 — столбцы не специализируются по фазам задачи. V3 добавляет к фиксам v2: резкую инициализацию β, RMSNorm на межслойном пути, персональные гейты на столбец со смещённой инициализацией и три вспомогательных лосса специфичности столбцов.
+Third iteration of fixed inter-column attention. Diagnostics of v2 on SDQ (~97M steps) showed: gates opened (0.05 -> ~0.6) but degenerated into a constant with no variance across columns; attention maps stayed nearly uniform (beta never sharpened); the top layer went into tanh saturation (|h| norm ~ 7 out of 8, gradients 10x smaller than the bottom layer); MI(column, phase) ~ 0 — columns don't specialize by task phase. V3 adds to the v2 fixes: sharp beta init, RMSNorm on the inter-layer path, per-column gates with staggered init, and three column-specialization auxiliary losses.
 
-## Ключевой механизм
+## Key mechanism
 
-Персональные гейты и лоссы специфичности; сообщение по-прежнему аддитивное, рекуррентное состояние защищено:
+Per-column gates and specialization losses; the message stays additive and the recurrent state stays protected:
 
 ```python
 # per-column gates with staggered init  [C, B, 1]
@@ -14,11 +14,11 @@ h_n.append(hl_n)            # recurrent state stays unmixed
 x = self.mid_norms[layer](o)  # RMSNorm: anti tanh-saturation for upper layers
 ```
 
-Инициализация bias гейтов разнесена (−2.5, −3.0, −3.5): столбцы стартуют с разной «открытостью» к чужим сообщениям, а лосс не даёт им слипнуться обратно.
+Gate bias init is staggered (-2.5, -3.0, -3.5): columns start with different "openness" to other columns' messages, and the loss keeps them from collapsing back together.
 
-## Лоссы специфичности столбцов
+## Column-specialization losses
 
-Возвращаются четвёртым значением forward и попадают в total_loss через kl-слот раннера (веса → 1.0 после 50k шагов). Считаются раз в `aux_every=8` вызовов (≈ раз на шаг оптимизатора) с масштабированием веса — накладные расходы почти нулевые:
+Returned as the fourth forward value and folded into total_loss through the runner's kl-slot (weight ramps to 1.0 after 50k steps). Computed once every `aux_every=8` calls (~once per optimizer step) with a scaled weight — overhead is nearly zero:
 
 ```python
 # (1) Barlow-style feature decorrelation: kills CKA-like redundancy [C, C, H, H]
@@ -32,19 +32,19 @@ u = (hl_n - hl).norm(dim=-1)           # per-column update magnitude [C, B]
 act = F.relu(corr[iu, ju]).mean()
 ```
 
-Лосс (1) целится в проблему, которую видел CKA (0.65–0.72 между столбцами L1 у v2), но не видит косинус средних состояний: штрафуется корреляция **признаков** между столбцами. Лосс (3) — безразметочный прокси фазовой специализации: если столбцы обновляются в разные моменты потока (store vs distract vs query), корреляция их \|Δh\| по батчу падает; штрафуется только положительная корреляция.
+Loss (1) targets the problem CKA revealed (0.65-0.72 between L1 columns in v2) but that cosine-similarity of mean states misses: it penalizes correlation between columns' **features**. Loss (3) is a label-free proxy for phase specialization: if columns update at different points in the stream (store vs distract vs query), the batch correlation of their |dh| drops; only positive correlation is penalized.
 
-## Важные детали реализации
+## Important implementation details
 
-Обучаемая β инициализируется в 3 раза резче стандартного скейлинга (`beta_scale=3.0` → `log_beta = log(3/√d_k)`), чтобы внимание сразу работало в селективном режиме, а не как равномерное усреднение. В RL-раннере (treasure) aux-лоссы должны быть выключены нулевыми весами — он распаковывает строго `(y, h)`.
+Learnable beta is initialized 3x sharper than standard scaling (`beta_scale=3.0` -> `log_beta = log(3/sqrt(d_k))`), so attention starts in a selective regime rather than as uniform averaging. In the RL runner (treasure) the aux losses must be disabled via zero weights — it unpacks strictly `(y, h)`.
 
-## Гиперпараметры
+## Hyperparameters
 
-| Параметр | Описание |
+| Parameter | Description |
 |---|---|
-| `beta_scale` | 3.0 — стартовая резкость внимания относительно 1/√d_k |
-| `aux_div_weight` | 0.05 — вес Barlow-декорреляции признаков между столбцами |
-| `aux_gate_weight` | 0.02 — целевой std гейтов по столбцам 0.15 |
-| `aux_act_weight` | 0.02 — декорреляция моментов активности столбцов |
-| `aux_every` | 8 — aux-лоссы считаются раз в N вызовов (≈ раз на шаг оптимизатора) |
-| `hidden_size` | 64 при 2L×3C даёт ~202K параметров (паритет с grnn_fix v2) |
+| `beta_scale` | 3.0 — initial attention sharpness relative to 1/sqrt(d_k) |
+| `aux_div_weight` | 0.05 — weight of Barlow feature decorrelation between columns |
+| `aux_gate_weight` | 0.02 — target std of per-column gates is 0.15 |
+| `aux_act_weight` | 0.02 — decorrelation of column activity timing |
+| `aux_every` | 8 — aux losses computed once every N calls (~once per optimizer step) |
+| `hidden_size` | 64 at 2L x 3C gives ~202K parameters (parity with grnn_fix v2) |

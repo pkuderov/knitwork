@@ -1,10 +1,10 @@
 # GridRnnFixV5
 
-v5.1 — гибридная сетка: **быстрые GRU-столбцы + медленные LRU-столбцы хранения + замороженный reservoir-hub**. Ревизия после провала v5.0 (SDQ Acc++ 0.40@70M против 0.777@50M у v4), где все столбцы были линейными LRU. Диагноз v5.0: (а) линейной рекурренции нечем **связывать** — «запиши V, если пришёл K» требует мультипликативного гейтирования, которое у GRU есть каждый такт, а у LRU нет вовсе (Acc/distract 0.95, Acc/query 0.49); (б) двойная экспонента репараметризации λ = exp(−exp(ν)) взрывает градиенты (|Grad| = 8 при клипе 1.0 — каждый шаг урезался в 8 раз); (в) 4–5 отдельных матмулов на LRU-ячейку на такт — fps 4.5k против ~10k у v4.
+v5.1 — a hybrid grid: **fast GRU columns + slow LRU storage columns + a frozen reservoir hub**. A revision after v5.0 failed (SDQ Acc++ 0.40@70M vs 0.777@50M for v4), where all columns were linear LRU. v5.0 diagnosis: (a) linear recurrence has nothing to **bind** with — "write V if K arrived" needs multiplicative gating, which GRU has every step and LRU has none of (Acc/distract 0.95, Acc/query 0.49); (b) the double-exponential reparametrization lambda = exp(-exp(nu)) blows up gradients (|Grad| = 8 at a clip of 1.0 — every step got cut down by 8x); (c) 4-5 separate matmuls per LRU cell per step — 4.5k fps vs ~10k for v4.
 
-## Ключевой механизм
+## Key mechanism
 
-Разделение труда по типам ячеек: связывание — нелинейным GRU, долгое хранение — линейным LRU с гарантированным полом удержания:
+Division of labor by cell type: binding is handled by nonlinear GRU, long-term storage by linear LRU with a guaranteed retention floor:
 
 ```python
 if ic < self.n_gru:
@@ -14,9 +14,9 @@ else:
     cell = FastFloorLRUCell(in_dim, H, r_floor=floor)   # slow storage, |lambda| >= 0.9
 ```
 
-Состояние упаковано в общий тензор [L, C, B, 2H]: GRU-столбцы используют первую половину, LRU — обе (re/im).
+State is packed into a shared tensor [L, C, B, 2H]: GRU columns use the first half, LRU columns use both (re/im).
 
-## FastFloorLRUCell — ускоренная и стабилизированная LRU
+## FastFloorLRUCell — a faster, stabilized LRU
 
 ```python
 self.B = nn.Linear(input_size, 2 * hidden_size, bias=False)  # merged B_re+B_im: 1 matmul
@@ -25,18 +25,18 @@ y = self.C(h_n) * torch.sigmoid(self.G(h_n))                 # GLU: nonlinearity
 self.nu.register_hook(lambda g: g * grad_scale)              # 0.1: damp double-exp gradients
 ```
 
-Три исправления против v5.0: объединённая B-проекция и отказ от D (меньше кернел-лончей и параметров), GLU-нелинейность на выходе (у чистого LRU её не было), демпфер градиентов ν/θ ×0.1 (лечит |Grad|=8 без param-groups в раннере).
+Three fixes against v5.0: a merged B projection and dropping D (fewer kernel launches and parameters), a GLU output nonlinearity (a plain LRU has none), and a nu/theta gradient damper x0.1 (fixes |Grad|=8 without needing param groups in the runner).
 
-## Важные детали реализации
+## Important implementation details
 
-Остальная машинерия — из v4/v5.0: персональное внимание с hub-источником (`HubColumnAttention`, C приёмников × C+1 источников), скалярные гейты, аддитивное сообщение с защитой рекуррентного состояния, RMSNorm между слоями, concat-readout, aux-лоссы (Barlow с весом по глубине, gate-std, activity; сатурационный штраф — только по GRU-столбцам). Диагностика `lru/r_*` в раннерах показывает истинный |λ| LRU-столбцов с учётом пола; `attn_beta/L_C` — эволюцию температур.
+The rest of the machinery is from v4/v5.0: per-column attention with a hub source (`HubColumnAttention`, C receivers x C+1 sources), scalar gates, additive message with protected recurrent state, RMSNorm between layers, concat-readout, aux losses (Barlow with depth-scaled weight, gate-std, activity; the saturation penalty applies only to GRU columns). The `lru/r_*` diagnostics in the runners report the true |lambda| of LRU columns including the floor; `attn_beta/L_C` tracks temperature evolution.
 
-## Гиперпараметры
+## Hyperparameters
 
-| Параметр | Описание |
+| Parameter | Description |
 |---|---|
-| `n_lru_cols` | 1 — сколько столбцов с конца являются LRU-хранилищем |
-| `hidden_size` | 60 при 2L×3C (2 GRU + 1 LRU) — ~196K активных параметров |
-| `r_floor_min/max` | 0.9 / 0.95 — полы удержания LRU-столбцов |
-| `lru_grad_scale` | 0.1 — демпфер градиентов ν/θ |
-| `timescale_spread` | 1.0 — разброс bias update-гейта GRU-столбцов |
+| `n_lru_cols` | 1 — how many columns from the end are LRU storage |
+| `hidden_size` | 60 at 2L x 3C (2 GRU + 1 LRU) — ~196K active parameters |
+| `r_floor_min/max` | 0.9 / 0.95 — retention floors of LRU columns |
+| `lru_grad_scale` | 0.1 — nu/theta gradient damper |
+| `timescale_spread` | 1.0 — spread of the GRU columns' update-gate bias |

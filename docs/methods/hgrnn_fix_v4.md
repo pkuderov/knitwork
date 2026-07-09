@@ -1,10 +1,10 @@
 # HopfieldGridRnnFixV4
 
-Hopfield-версия `grnn_fix_v4`: та же архитектура персонального внимания между столбцами, но на LSTM-ячейках с **двойной памятью**. Мотивация — лучший результат семейства на SDQ исторически принадлежал hgrnn (Acc++ 0.870 при 215K), и его преимущество давала изоляция долговременной памяти `c` от сообщений. Модель проверяет, складываются ли выигрыши: механики v4 (per-column идентичности и β, гейт с обзором входа, таймскейлы, aux-лоссы) + защита памяти LSTM.
+Hopfield version of `grnn_fix_v4`: the same per-column inter-column attention architecture, but on LSTM cells with **dual memory**. Motivation: the family's best-ever SDQ result historically belonged to hgrnn (Acc++ 0.870 at 215K), and its edge came from isolating long-term memory `c` from messages. This model checks whether the gains stack: v4's mechanics (per-column identities and beta, input-aware gate, timescales, aux losses) plus LSTM's memory protection.
 
-## Ключевой механизм
+## Key mechanism
 
-Двойная память: рабочая `h` несёт смешанное сообщение рекуррентно, ячейковая `c` не смешивается никогда:
+Dual memory: the working state `h` recurrently carries the mixed message, the cell state `c` is never mixed:
 
 ```python
 h_ic, c_ic = cells[ic](x[ic], (hl[ic], cl[ic]))   # LSTM per column
@@ -14,11 +14,11 @@ hl_mix = hl_new + g * msg    # goes into recurrent h AND upward
 c_n.append(cl_new)           # long-term memory: never mixed
 ```
 
-Отличие от `grnn_fix_v4` (GRU): там рекуррентное состояние полностью защищено, а сообщение живёт только на восходящем пути; здесь сообщение **входит в рекуррентную** `h` (столбцы могут писать в рабочую память друг друга через гейт), но её ошибки не могут затереть `c`.
+Difference from `grnn_fix_v4` (GRU): there the recurrent state is fully protected and the message lives only on the upward path; here the message **enters the recurrent** `h` (columns can write into each other's working memory through the gate), but its errors can never overwrite `c`.
 
-## Важные детали реализации
+## Important implementation details
 
-Мульти-таймскейл через forget-гейт LSTM (вместо update-гейта GRU):
+Multi-timescale via the LSTM forget gate (instead of the GRU update gate):
 
 ```python
 # f -> 1 remembers longer (slow column); f -> 0 forgets fast
@@ -26,12 +26,12 @@ shift = timescale_spread * (2 * ic / (n_columns - 1) - 1)
 cell.bias_ih[H:2 * H] += shift    # LSTM bias layout: [i, f, g, o]
 ```
 
-Остальное идентично v4: `PerColumnAttention` (идентичности Q/K + per-(столбец, голова) β), RMSNorm между слоями, concat-readout, четыре aux-лосса (Barlow с ростом веса по глубине, gate-std, activity-декорреляция, анти-сатурация верхних слоёв) раз в `aux_every` вызовов.
+Everything else is identical to v4: `PerColumnAttention` (Q/K identities + per-(column, head) beta), RMSNorm between layers, concat-readout, four aux losses (Barlow with depth-scaled weight, gate-std, activity decorrelation, upper-layer anti-saturation) every `aux_every` calls.
 
-## Гиперпараметры
+## Hyperparameters
 
-| Параметр | Описание |
+| Parameter | Description |
 |---|---|
-| `hidden_size` | 56 при 2L×3C даёт ~204K параметров (LSTM стоит 4/3 GRU) |
-| `beta_scale` | 3.0 — как у v4; per-column разброс 0.5×–2× |
-| `timescale_spread` | 1.0 — амплитуда сдвига forget-bias по столбцам |
+| `hidden_size` | 56 at 2L x 3C gives ~204K parameters (LSTM costs 4/3 of GRU) |
+| `beta_scale` | 3.0 — same as v4; per-column spread 0.5x-2x |
+| `timescale_spread` | 1.0 — amplitude of the forget-bias shift across columns |
