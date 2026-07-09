@@ -20,15 +20,19 @@ class Timer:
     def elapsed(self):
         return timer() - self.t_start
 
-    def commit(self, n_iters=1, new_after=False):
+    def commit(self, n_iters=1):
         dt = self.elapsed
-        self.last_elapsed = dt
         self.total_elapsed += dt
-        self.n_last_iters = n_iters
         self.n_iters += n_iters
 
-        if new_after:
-            self.new()
+        if n_iters > 0:
+            self.last_elapsed = dt
+            self.n_last_iters = n_iters
+        else:
+            # when zero iters passed, just add this period to "the last"
+            self.last_elapsed += dt
+
+        self.new()
         return dt
 
     def avg(self, n_iters=None, last=False):

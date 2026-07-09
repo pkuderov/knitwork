@@ -18,15 +18,11 @@ from knitwork.common.torch import DynamicLearningRate, to_loggable_metrics
 from knitwork.common.tracker import Tracker
 from knitwork.common.status import write_status
 from knitwork.common.utils import (
-    CE_ignore_index, FpsCounter, flatten_dict,
+    CE_ignore_index, FpsCounter, dont_throw, flatten_dict,
     format_readable_num, get_device, get_dtype,
     to_numpy, to_torch,
 )
 from knitwork.gens.text import TextGenerator, load_dataset, tokenize
-from knitwork.visualization.attn_flow import AttnFlowVisualizer
-from knitwork.visualization.cka import CKAVisualizer
-
-VIS_INTERVAL = 10_000_000
 
 
 # Model registry
@@ -47,16 +43,25 @@ _REGISTRY: dict[str, tuple[str, str] | None] = {
     'grnn_engram':    ('knitwork.models.engram_grnn',    'EngramGridRnn'),
     'grnn_prec_delta': ('knitwork.models.grnn_prec_delta', 'GridRnnPrecDelta'),
     'grnn_ema_mem':   ('knitwork.models.grnn_ema_mem',   'GridRnnEmaMem'),
+    'grnn_fix':       ('knitwork.models.grnn_fix',       'GridRnnFix'),
+    'grnn_fix_v3':    ('knitwork.models.grnn_fix_v3',    'GridRnnFixV3'),
+    'grnn_fix_v4':    ('knitwork.models.grnn_fix_v4',    'GridRnnFixV4'),
+    'hgrnn_fix_v4':   ('knitwork.models.hgrnn_fix_v4',   'HopfieldGridRnnFixV4'),
+    'grnn_fix_v5':    ('knitwork.models.grnn_fix_v5',    'GridRnnFixV5'),
+    'hgrnn_fix':      ('knitwork.models.hgrnn_fix',      'HopfieldGridRnnFix'),
     'grnn_fusion':    None,  # factory
     # config aliases
     'grnn_res':       ('knitwork.models.grnn_reservoir', 'GridRnnReservoir'),
     'grnn_delta':     ('knitwork.models.grnn_delta',    'GridDelta'),
     'grnn_delta_wide':('knitwork.models.grnn_delta',    'GridDelta'),
     'grnn_harmonic':  ('knitwork.models.grnn_harmonic', 'HarmonicGridRNN'),
+    'grnn_base':      ('knitwork.models.grnn_base',           'GridRnnBase'),
+    'transformer':    ('knitwork.models.baseline.transformer', 'Transformer'),
     # external baselines
     'delta_net':      ('knitwork.models.baseline.delta_net', 'DeltaNet'),
     'hgrn2':          ('knitwork.models.baseline.hgrn2',     'HGRN2'),
     'mlstm':          ('knitwork.models.baseline.mlstm',     'mLSTM'),
+    'mamba':          ('knitwork.models.baseline.mamba',     'Mamba'),
 }
 
 
@@ -100,18 +105,27 @@ def main(config):
     has_grid = hasattr(rnn, 'n_layers') and hasattr(rnn, 'n_columns')
     has_harmonic = hasattr(rnn, 'mem_layers') and hasattr(rnn, 'flatten_extras_stats')
 
-    # Visualizers
-    vis_cfg = config.get('vis', {})
-    vis_enabled = vis_cfg.get('enabled', False)
-    if vis_enabled:
-        vis_schedule = create_scheduler(vis_cfg['schedule'])
-        if has_grid:
-            attn_vis = AttnFlowVisualizer(n_layers=rnn.n_layers, n_columns=rnn.n_columns, buffer_size=100)
-            cka_vis = CKAVisualizer(n_layers=rnn.n_layers, n_columns=rnn.n_columns, buffer_size=50)
-        else:
-            attn_vis, cka_vis = None, None
+    inspect_scheduler = create_scheduler(config.get('inspect_schedule'))
+    vis_inspect_scheduler = create_scheduler(config.get('vis_inspect_schedule'))
+    if not vis_inspect_scheduler.is_infinite and has_grid:
+        from knitwork.visualization.attn_flow import AttnFlowVisualizerNew
+        from knitwork.visualization.cka import CKAVisualizer
+        attn_vis = AttnFlowVisualizerNew(n_layers=rnn.n_layers, n_columns=rnn.n_columns, lr=0.01)
+        cka_vis = CKAVisualizer(n_layers=rnn.n_layers, n_columns=rnn.n_columns, buffer_size=50)
     gate_buffer: list = []
 
+    def _inject_visualizations(step, *, scalars, figures):
+        if vis_inspect_scheduler.is_infinite:
+            return
+        if has_grid:
+            figures |= attn_vis.get_figures()
+            # if cka_vis is not None:
+            #     cka_vis.log(logger, step=step)
+            # if gate_buffer:
+            #     arr = np.array(gate_buffer)
+            #     for li in range(min(arr.shape[1], rnn.n_layers)):
+            #         logger.track(float(arr[:, li].mean()), name=f"attn_gate/L{li}", step=step)
+            gate_buffer.clear()
 
     # KL annealing
     kl_cfg = config.get('kl_anneal', {})
@@ -130,12 +144,14 @@ def main(config):
 
     rollout_len = config['rollout_len']
     batch_size = gen.n_envs * rollout_len
-    n_steps = int(config['n_steps'])
+    n_steps, step_size = int(config['n_steps']), gen.n_envs
     step = 0
 
+    _print_short_summary = partial(print_short_summary, max_steps=n_steps, use_vae=use_vae, lr=lr)
     logger = start_logger(
-        config, tracker=config['trackers'], 
-        printer=partial(print_metrics, max_steps=n_steps, use_vae=use_vae, lr=lr)
+        config, tracker=config['trackers'],
+        suppress_printing=True,
+        callbacks=[_print_short_summary, _inject_visualizations]
     )
 
     ln_2 = np.log(2.0)
@@ -155,43 +171,30 @@ def main(config):
         rnn_state  = rnn.reset_state(rnn_state, reset_mask)
         x = obs['tokens'].view(-1, 1)
 
-        capture = vis_enabled and (step >= next_vis_step - gen.n_envs)
-        capture_extras = capture or has_harmonic
-        y, rnn_state, extras, kl = model_forward(rnn, x, rnn_state, capture=capture_extras)
+        collect_vis_data = vis_inspect_scheduler.tick(step_size)
+        y, rnn_state, extras, kl = model_forward(rnn, x, rnn_state, capture=collect_vis_data or has_harmonic)
 
         if has_harmonic and extras:
             batch_harmonic.append(rnn.flatten_extras_stats(extras))
 
-        if capture and extras and attn_vis is not None:
+        if collect_vis_data and extras and has_grid:
             attn_vis.update(extras['attn_weights'])
             h_for_cka = rnn_state[0] if isinstance(rnn_state, tuple) else rnn_state
-            if cka_vis is not None:
-                cka_vis.update(h_for_cka)
-            gate_vals = [
-                g.detach().sigmoid().mean().item()
-                for g in extras.get('gates', [])
-                if isinstance(g, torch.Tensor)
-            ]
-            if gate_vals:
-                gate_buffer.append(gate_vals)
-
-        if vis_enabled and step >= next_vis_step and logger is not None:
-            if attn_vis is not None:
-                attn_vis.log(logger, step=step)
-            if cka_vis is not None:
-                cka_vis.log(logger, step=step)
-            if gate_buffer:
-                arr = np.array(gate_buffer)
-                for li in range(min(arr.shape[1], rnn.n_layers)):
-                    logger.track(float(arr[:, li].mean()), name=f"attn_gate/L{li}", step=step)
-            gate_buffer.clear()
-            next_vis_step += VIS_INTERVAL
+            # if cka_vis is not None:
+            #     cka_vis.update(h_for_cka)
+            # gate_vals = [
+            #     g.detach().sigmoid().mean().item()
+            #     for g in extras.get('gates', [])
+            #     if isinstance(g, torch.Tensor)
+            # ]
+            # if gate_vals:
+            #     gate_buffer.append(gate_vals)
 
         batch_y.append(y)
         batch_y_gt.append(obs['targets'])
         batch_kl.append(kl if kl is not None else torch.tensor(0.0, device=device, dtype=dtype))
 
-        step += gen.n_envs
+        step += step_size
 
         if step % batch_size == 0:
             y_cat  = torch.cat(batch_y, dim=0)
@@ -249,25 +252,21 @@ def main(config):
             rnn_state = rnn.detach_state(rnn_state)
             batch_y.clear(); batch_y_gt.clear(); batch_kl.clear()
 
-        logger.log(step, flush=True)
-        # if log_stats_schedule.tick(gen.n_envs):
-        #     fps = fps_counter.fps(n_iters=step, start=True)
-        #     metrics = {'global_step': step, 'fps': fps} | stats.get()
-        #     metrics['gen'] = gen.get_stats()
-        #     write_status(step, metrics)
-        #     if logger is not None:
-        #         logger.track(flatten_dict(metrics))
-        #         if has_grid:
-        #             log_col_similarity(rnn, rnn_state, logger, step)
+        if has_grid and inspect_scheduler.tick(step_size):
+            log_col_similarity(rnn, rnn_state, logger)
+            log_lru_spectrum(rnn, logger)
+            log_attn_beta(rnn, logger)
 
-        if do_eval and eval_schedule.tick(gen.n_envs):
+        if do_eval and eval_schedule.tick(step_size):
             run_eval(
                 step, rnn=rnn, gen=val_gen, logger=logger, n_envs=n_envs, max_rollout=max_rollout,
                 device=device, ln_2=ln_2, context_window=None
             )
 
-    # fps = fps_counter.fps(n_iters=step)
-    # print(f'Done. {format_readable_num(fps)} fps')
+        logger.log(step, flush=True)
+
+    logger.log(step, flush=True, force=True)
+    logger.finish()
 
 def run_eval(
         step: int, *, rnn, gen, logger, n_envs, max_rollout, device, ln_2,
@@ -363,41 +362,85 @@ def run_eval(
     #             print(f'[EVAL ctx plot] {e}')
 
 
-def build_model(rnn_type: str, rnn_cfg: dict, n_chars: int):
-    if rnn_type == 'grnn_fusion':
-        from knitwork.models.grnn_fusion import build_fusion_from_config
-        return build_fusion_from_config(rnn_cfg, n_chars, n_chars)
-    entry = _REGISTRY.get(rnn_type)
-    if entry is None:
-        raise ValueError(f'Unknown model type: {rnn_type!r}')
-    mod_path, cls_name = entry
-    cls = getattr(importlib.import_module(mod_path), cls_name)
-    return cls(**rnn_cfg, input_size=n_chars, output_size=n_chars)
-
-
-def log_col_similarity(rnn, state, logger, step: int) -> None:
+@torch.no_grad()
+@dont_throw('col_sim')
+def log_col_similarity(rnn, state, logger):
     """Log max/mean pairwise cosine similarity between column activations (last layer)."""
     # Column collapse monitoring
-    try:
-        h = state[0] if isinstance(state, tuple) else state
-        if not isinstance(h, torch.Tensor) or h.ndim != 4:
-            return
-        H    = rnn.hidden_size
-        acts = h[-1, :, :, :H].mean(dim=1).detach().float()   # [cols, H]
-        norm = acts.norm(dim=-1, keepdim=True).clamp(min=1e-8)
-        acts = acts / norm
-        sim  = acts @ acts.T                                    # [cols, cols]
-        n    = sim.shape[0]
-        mask = sim.new_ones(n, n, dtype=torch.bool).triu(diagonal=1)
-        pairs = sim[mask]
-        logger.track(float(pairs.max()),  name='col_sim/max',  step=step)
-        logger.track(float(pairs.mean()), name='col_sim/mean', step=step)
-    except Exception as e:
-        print(f'[col_sim] {e}')
+    # TODO: for LSTM it might be more reasonable to use state[1]
+    h = state[0] if isinstance(state, tuple) else state
+    if not isinstance(h, torch.Tensor) or h.ndim != 4:
+        return
+
+    H = rnn.hidden_size
+    acts = h[-1, :, :, :H].mean(dim=1)
+    norm = acts.norm(dim=-1, keepdim=True).clamp(min=1e-8)
+    acts = acts / norm
+
+    # [cols, cols]
+    sim = acts @ acts.T
+    mask = torch.ones_like(sim, dtype=torch.bool).triu(diagonal=1)
+    sim = sim[mask]
+
+    metrics = {
+        'max': sim.max(), 
+        'avg': sim.mean(),
+    }
+    metrics = to_loggable_metrics(metrics)
+    logger.accumulate(metrics, prefix='col_sim', key='fast')
+
+
+@torch.no_grad()
+@dont_throw('LRU spectrum')
+def log_lru_spectrum(rnn, logger):
+    if not hasattr(rnn, 'cells'):
+        return {}
+
+    metrics = {}
+    for li, row in enumerate(rnn.cells):
+        for ci, cell in enumerate(row):
+            lru = getattr(cell, 'lru', cell)
+            if not hasattr(lru, 'nu'):
+                continue
+            if hasattr(lru, '_lambda_gamma'):
+                lam_re, lam_im, _ = lru._lambda_gamma()
+                r = torch.sqrt(lam_re ** 2 + lam_im ** 2)
+            else:
+                r = torch.exp(-torch.exp(lru.nu))
+            entropy = -(r * torch.log(r + 1e-8)).sum()
+
+            metrics[f'r_avg/L{li}_C{ci}'] = r.mean()
+            metrics[f'r_min/L{li}_C{ci}'] = r.min()
+            metrics[f'r_max/L{li}_C{ci}'] = r.max()
+            metrics[f'r_H/L{li}_C{ci}'] = entropy
+
+    metrics = to_loggable_metrics(metrics)
+    logger.accumulate(metrics, prefix='lru/', key='fast')
+
+
+@torch.no_grad()
+@dont_throw('attn beta')
+def log_attn_beta(rnn, logger):
+    if not hasattr(rnn, 'attn'):
+        return
+
+    metrics = {}
+    for li, attn in enumerate(rnn.attn):
+        lb = getattr(attn, 'log_beta', None)
+        if lb is None:
+            continue
+        beta = lb.exp().detach().float()
+        if beta.ndim == 2:
+            for ci in range(beta.shape[0]):
+                metrics[f'L{li}_C{ci}'] = beta[ci].mean()
+        else:
+            metrics[f'L{li}'] = beta.mean()
+    metrics = to_loggable_metrics(metrics)
+    logger.accumulate(metrics, prefix='attn_beta/', key='fast')
 
 
 def model_forward(rnn, x, state, *, capture: bool):
-    """Forward normalizer"""
+    capture = capture and _supports_attn(rnn)
     result = rnn(x, state, return_attn=True) if capture else rnn(x, state)
     y, state = result[0], result[1]
     if len(result) == 2:
@@ -410,6 +453,15 @@ def model_forward(rnn, x, state, *, capture: bool):
     if len(result) == 4:
         return y, state, result[2], result[3]
     return y, state, {}, None
+
+
+def _supports_attn(rnn) -> bool:
+    flag = getattr(rnn, '_supports_return_attn', None)
+    if flag is None:
+        import inspect
+        flag = 'return_attn' in inspect.signature(rnn.forward).parameters
+        rnn._supports_return_attn = flag
+    return flag
 
 
 def update_intra_word_metrics(
@@ -430,8 +482,8 @@ def update_intra_word_metrics(
             pos += 1
 
 
-def print_metrics(step, metrics, max_steps, use_vae, lr):
-    m = metrics
+def print_short_summary(step, *, scalars, figures, max_steps, use_vae, lr):
+    m = scalars
     fps = m['perf/fps']
     kl_s = f' KL:{m.get("KL", 0):.2e}(x{m.get("KL_scale", 0):.2f}) |' if use_vae else ''
     print(
@@ -443,6 +495,18 @@ def print_metrics(step, metrics, max_steps, use_vae, lr):
         f' BPC:{m["BPC"]:.3f}'
         f' A:{m["Acc"]:.3f}'
     )
+
+
+def build_model(rnn_type: str, rnn_cfg: dict, n_chars: int):
+    if rnn_type == 'grnn_fusion':
+        from knitwork.models.grnn_fusion import build_fusion_from_config
+        return build_fusion_from_config(rnn_cfg, n_chars, n_chars)
+    entry = _REGISTRY.get(rnn_type)
+    if entry is None:
+        raise ValueError(f'Unknown model type: {rnn_type!r}')
+    mod_path, cls_name = entry
+    cls = getattr(importlib.import_module(mod_path), cls_name)
+    return cls(**rnn_cfg, input_size=n_chars, output_size=n_chars)
 
 
 if __name__ == '__main__':

@@ -48,6 +48,9 @@ def to_numpy(x, copy=True):
 def to_loggable_metrics(stats):
     # bind gpu values into a single tensor (try reducing each before the bind)
     res = {}
+    if not stats:
+        return res
+
     gpu_keys, gpu_vals = [], []
     for k, v in stats.items():
         if v is None:

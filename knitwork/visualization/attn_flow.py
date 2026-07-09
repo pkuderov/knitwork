@@ -3,6 +3,9 @@ from __future__ import annotations
 
 import numpy as np
 import matplotlib
+
+from knitwork.common.torch import to_numpy
+from knitwork.common.tracking import EmaTracker
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from collections import deque
@@ -127,3 +130,51 @@ class AttnFlowVisualizer:
             )
             plt.close(fig)
             io_buf.close()
+
+
+class AttnFlowVisualizerNew:
+    def __init__(self, n_layers: int, n_columns: int, *, lr, fig_id=100):
+        self.n_layers = n_layers
+        self.n_columns = n_columns
+        self.tracker = EmaTracker(lr)
+        self._fig_id = fig_id
+
+    def update(self, attn_weights: list):
+        self.tracker.put({
+            layer_idx: w if w.ndim == 2 else w.mean(dim=tuple(range(w.ndim - 2)))
+            for layer_idx, w in enumerate(attn_weights)
+        })
+
+    def get_figures(self):
+        fig_id = self._fig_id
+        col_labels = [f"C{j}" for j in range(self.n_columns)]
+        figures = {}
+        
+        for layer_idx, w in self.tracker.get().items():
+            w = to_numpy(w, copy=False)
+            fig = plt.figure(num=fig_id+1, clear=True)
+            ax = fig.subplots()
+
+            im = ax.imshow(w, vmin=0.0, vmax=1.0, cmap="viridis", aspect="equal")
+
+            ax.set_title(f"Attn Flow Layer {layer_idx}")
+            ax.set_xlabel("Key col (source)")
+            ax.set_ylabel("Query col (receiver)")
+            ax.set_xticks(range(self.n_columns))
+            ax.set_yticks(range(self.n_columns))
+            ax.set_xticklabels(col_labels)
+            ax.set_yticklabels(col_labels)
+
+            for i in range(self.n_columns):
+                for j in range(self.n_columns):
+                    ax.text(
+                        j, i, f"{w[i,j]:.2f}",
+                        ha="center", va="center", fontsize=9,
+                        color="white" if w[i, j] < 0.5 else "black"
+                    )
+
+            plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+            fig.tight_layout()
+
+            figures[f'attn_flow_layer_{layer_idx}'] = fig
+        return figures

@@ -134,7 +134,7 @@ class TrackerCollection:
 
     def __init__(self, lrs: dict[str, float | None]):
         self.trackers = {
-            k: EmaTracker(lr)  if lr is not None else ListTracker()
+            k: EmaTracker(lr) if lr is not None else ListTracker()
             for k, lr in lrs.items()
         }
     

@@ -1,3 +1,4 @@
+from functools import wraps
 from timeit import default_timer
 from typing import OrderedDict
 
@@ -325,3 +326,15 @@ def convert_hidden_size(
     h = low if abs(low_cnt - target) < abs(high_cnt - target) else high
 
     return max(min_hidden, h)
+
+
+def dont_throw(tag: str):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            try:
+                return func(*args, **kwargs)
+            except Exception as e:
+                print(f'[{tag}]: {e}')
+        return wrapper
+    return decorator
