@@ -1,8 +1,8 @@
 seed: null
 log:
   name: null
-  logger: aim
-  project: grnn-text
+  logger: comet
+  project: pk-knitwork-text
   schedule: 1e+6
 
 device: null
@@ -12,17 +12,17 @@ gen: tinysh
 model: rnn
 rollout_len: 8
 n_envs: 64
-n_steps: 5.2e+8
+n_steps: 5.2e+7
 
 vis:
   enabled: false
   schedule: 1.0e+7
 
 eval:
-  enabled: true
+  enabled: false
   split: 0.1
   on_start: true
-  schedule: 10.0e+6
+  schedule: 5.0e+6
   max_rollout: 1.0e+4
 
 gens:

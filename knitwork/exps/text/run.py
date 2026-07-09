@@ -1,6 +1,7 @@
 """Unified text experiment — supports all models."""
 from __future__ import annotations
 
+from functools import partial
 import importlib
 from pathlib import Path
 
@@ -13,7 +14,7 @@ from knitwork.common.entrypoint import run_experiment
 from knitwork.common.logging_alt import start_logger
 from knitwork.common.numpy import get_seed
 from knitwork.common.scheduler import create_scheduler
-from knitwork.common.torch import DynamicLearningRate
+from knitwork.common.torch import DynamicLearningRate, to_loggable_metrics
 from knitwork.common.tracker import Tracker
 from knitwork.common.status import write_status
 from knitwork.common.utils import (
@@ -60,10 +61,8 @@ _REGISTRY: dict[str, tuple[str, str] | None] = {
 
 
 def main(config):
-    _default_name = f"knitwork_{config['model']}_{config.get('gen', 'text8')}"
+    _default_name = f"{config['model']}"
     run_name = config.get('name') or config.get('log', {}).get('name') or _default_name
-    if not run_name.startswith('knitwork_'):
-        run_name = 'knitwork_' + run_name
     config.setdefault('log', {})['name'] = run_name
     print(f'Run name: {run_name}')
 
@@ -110,8 +109,9 @@ def main(config):
             attn_vis = AttnFlowVisualizer(n_layers=rnn.n_layers, n_columns=rnn.n_columns, buffer_size=100)
             cka_vis = CKAVisualizer(n_layers=rnn.n_layers, n_columns=rnn.n_columns, buffer_size=50)
         else:
-            attn_vis. cka_vis = None, None
+            attn_vis, cka_vis = None, None
     gate_buffer: list = []
+
 
     # KL annealing
     kl_cfg = config.get('kl_anneal', {})
@@ -133,7 +133,10 @@ def main(config):
     n_steps = int(config['n_steps'])
     step = 0
 
-    logger = start_logger(config, tracker=config['trackers'])
+    logger = start_logger(
+        config, tracker=config['trackers'], 
+        printer=partial(print_metrics, max_steps=n_steps, use_vae=use_vae, lr=lr)
+    )
 
     ln_2 = np.log(2.0)
     rnn_state = None
@@ -142,105 +145,6 @@ def main(config):
     batch_kl: list = []
     batch_harmonic: list = []   # harmonic model diagnostics
     acc_by_pos: dict[int, float] = {}
-
-    def run_eval(global_step: int):
-        """Evaluate on val set; if context_window>0, also run context-memory probe."""
-        rnn.eval()
-        val_state = None
-        val_loss_acc  = []
-        val_char_acc  = []
-
-        # context probe accumulators: bpc_by_pos[pos] = list of per-env bpc values
-        bpc_by_pos: list[list[float]] = [[] for _ in range(context_window)] if context_window > 0 else []
-        pos_counter = np.zeros(n_envs, dtype=np.int64)  # position within context window per env
-
-        with torch.no_grad():
-            for _ in range(eval_n_batches):
-                obs = val_gen.next()
-                obs = {k: to_torch(v, device=device) for k, v in obs.items()}
-
-                # reset at dataset wrap
-                val_state = rnn.reset_state(val_state, obs['reset_mask'])
-
-                # context window reset: zero state for envs at boundary
-                if context_window > 0:
-                    at_boundary = torch.from_numpy(pos_counter == 0).to(device)
-                    val_state = rnn.reset_state(val_state, at_boundary)
-
-                x = obs['tokens'].view(-1, 1)
-                y, val_state, *_ = model_forward(rnn, x, val_state, capture=False)
-
-                targets = obs['targets']
-                valid   = targets != CE_ignore_index
-                if valid.any():
-                    ce = nn.functional.cross_entropy(
-                        y[valid], targets[valid], reduction='mean'
-                    )
-                    val_loss_acc.append(ce.item())
-                    acc_t = (y[valid].argmax(dim=-1) == targets[valid]).float().mean().item()
-                    val_char_acc.append(acc_t)
-
-                # context probe: record per-env BPC at current position
-                if context_window > 0 and valid.any():
-                    per_env_ce = nn.functional.cross_entropy(
-                        y, targets.clamp(min=0),
-                        reduction='none', ignore_index=CE_ignore_index,
-                    )  # [B]
-                    per_env_bpc = (per_env_ce / ln_2).cpu().numpy()
-                    for env_i, pos in enumerate(pos_counter):
-                        if valid[env_i].item():
-                            bpc_by_pos[pos].append(float(per_env_bpc[env_i]))
-
-                pos_counter = (pos_counter + 1) % context_window if context_window > 0 else pos_counter
-
-                val_state = rnn.detach_state(val_state)
-
-        rnn.train()
-
-        if not val_loss_acc:
-            return
-
-        val_bpc  = float(np.mean(val_loss_acc)) / ln_2
-        val_loss = float(np.mean(val_loss_acc))
-        val_acc  = float(np.mean(val_char_acc))
-        print(f'[EVAL step={format_readable_num(global_step)}]'
-              f' BPC:{val_bpc:.3f} Acc:{val_acc:.3f}')
-        if logger is not None:
-            logger.track(val_bpc,  name='val/BPC',  step=global_step)
-            logger.track(val_loss, name='val/Loss', step=global_step)
-            logger.track(val_acc,  name='val/Acc',  step=global_step)
-
-        if context_window > 0:
-            bpc_curve = np.array([
-                float(np.mean(bpc_by_pos[p])) if bpc_by_pos[p] else float('nan')
-                for p in range(context_window)
-            ])
-            # log key percentiles numerically
-            for label, frac in [('p0', 0.0), ('p25', 0.25), ('p50', 0.50), ('p75', 0.75), ('p100', 0.99)]:
-                idx = min(int(frac * context_window), context_window - 1)
-                if not np.isnan(bpc_curve[idx]):
-                    if logger is not None:
-                        logger.track(float(bpc_curve[idx]),
-                                     name=f'val/ctx/{label}', step=global_step)
-            # visual plot
-            if logger is not None:
-                try:
-                    import matplotlib
-                    matplotlib.use('Agg')
-                    import matplotlib.pyplot as plt
-                    from knitwork.exps.sdq._viz import log_figure
-                    fig, ax = plt.subplots(figsize=(8, 4))
-                    valid_mask = ~np.isnan(bpc_curve)
-                    ax.plot(np.where(valid_mask)[0], bpc_curve[valid_mask], lw=1.5)
-                    ax.set_xlabel('Position in context window (tokens)')
-                    ax.set_ylabel('BPC')
-                    ax.set_title(f'Context memory probe (window={context_window}) step={format_readable_num(global_step)}')
-                    ax.grid(True, alpha=0.3)
-                    plt.tight_layout()
-                    log_figure(logger, fig, 'val/ctx/bpc_curve', global_step)
-                    plt.close(fig)
-                except Exception as e:
-                    print(f'[EVAL ctx plot] {e}')
 
     while step < n_steps:
         obs = gen.next()
@@ -318,62 +222,145 @@ def main(config):
             p_reset.step()
             lr.step()
 
-            stat_dict = {
-                'Loss':       to_numpy(ce_loss,     copy=False),
-                'BPC':        to_numpy(bpc,         copy=False),
-                'Perplexity': to_numpy(perplexity,  copy=False),
-                'Acc':        to_numpy(acc.mean(),  copy=False),
-                '|Grad|':     to_numpy(grad_norm,   copy=False),
-                'LR':         lr.val,
-                'T':          1.0 / p_reset.val,
+            metrics = {
+                'Loss': ce_loss,
+                'BPC': bpc,
+                'Perplexity': perplexity,
+                'Acc': acc,
+                '|Grad|': grad_norm,
+                'LR': lr.val,
+                'T': 1.0 / p_reset.val,
             }
             if use_vae:
-                stat_dict['KL'] = to_numpy(kl_mean, copy=False)
-                stat_dict['KL_scale'] = kl_scale
+                metrics['KL'] = kl_mean
+                metrics['KL_scale'] = kl_scale
             for pos, val in list(acc_by_pos.items())[:4]:
-                stat_dict[f'Acc[{pos}]'] = val
+                metrics[f'Acc[{pos}]'] = val
             if has_harmonic and batch_harmonic:
                 keys = batch_harmonic[0].keys()
                 for k in keys:
                     vals = [d[k] for d in batch_harmonic if k in d]
                     if vals:
-                        stat_dict[k] = float(np.mean(vals))
+                        metrics[k] = float(np.mean(vals))
                 batch_harmonic.clear()
-            stats.put(stat_dict)
+            metrics = to_loggable_metrics(metrics)
+            logger.accumulate(metrics, key='slow')
 
             rnn_state = rnn.detach_state(rnn_state)
             batch_y.clear(); batch_y_gt.clear(); batch_kl.clear()
 
-        # TODO: support custom callback
-        if print_stats_schedule.tick(gen.n_envs):
-            m   = {'global_step': step} | stats.get()
-            fps = fps_counter.fps(n_iters=step, start=True)
-            kl_s = f' KL:{m.get("KL", 0):.2e}(x{m.get("KL_scale", 0):.2f}) |' if use_vae else ''
-            print(
-                f'[{format_readable_num(step)}/{format_readable_num(n_steps, frac=0)}]'
-                f' {format_readable_num(fps, frac=0)}fps |'
-                f' LR:{int(100*m["LR"]/lr.base_val)}%'
-                f' T:{int(m["T"])} |{kl_s}'
-                f' L:{m["Loss"]:.3f}'
-                f' BPC:{m["BPC"]:.3f}'
-                f' A:{m["Acc"]:.3f}'
-            )
-
-        if log_stats_schedule.tick(gen.n_envs):
-            fps = fps_counter.fps(n_iters=step, start=True)
-            metrics = {'global_step': step, 'fps': fps} | stats.get()
-            metrics['gen'] = gen.get_stats()
-            write_status(step, metrics)
-            if logger is not None:
-                logger.track(flatten_dict(metrics))
-                if has_grid:
-                    log_col_similarity(rnn, rnn_state, logger, step)
+        logger.log(step, flush=True)
+        # if log_stats_schedule.tick(gen.n_envs):
+        #     fps = fps_counter.fps(n_iters=step, start=True)
+        #     metrics = {'global_step': step, 'fps': fps} | stats.get()
+        #     metrics['gen'] = gen.get_stats()
+        #     write_status(step, metrics)
+        #     if logger is not None:
+        #         logger.track(flatten_dict(metrics))
+        #         if has_grid:
+        #             log_col_similarity(rnn, rnn_state, logger, step)
 
         if do_eval and eval_schedule.tick(gen.n_envs):
-            run_eval(step)
+            run_eval(
+                step, rnn=rnn, gen=val_gen, logger=logger, n_envs=n_envs, max_rollout=max_rollout,
+                device=device, ln_2=ln_2, context_window=None
+            )
 
-    fps = fps_counter.fps(n_iters=step)
-    print(f'Done. {format_readable_num(fps)} fps')
+    # fps = fps_counter.fps(n_iters=step)
+    # print(f'Done. {format_readable_num(fps)} fps')
+
+def run_eval(
+        step: int, *, rnn, gen, logger, n_envs, max_rollout, device, ln_2,
+        context_window=None
+):
+    """Evaluate on val set; if context_window>0, also run context-memory probe."""
+    rnn.eval()
+    val_state = None
+    val_loss_acc  = []
+    val_char_acc  = []
+
+    if context_window is not None:
+        cw_ix = np.zeros(n_envs, dtype=np.int64)
+        cw_ix_bpc = np.zeros(context_window)
+        cw_ix_cnt = np.zeros(context_window)
+
+    with torch.no_grad():
+        for _ in range(max_rollout):
+            obs = gen.next()
+            obs = {k: to_torch(v, device=device) for k, v in obs.items()}
+
+            # reset at dataset wrap
+            val_state = rnn.reset_state(val_state, obs['reset_mask'])
+
+            # context window reset: zero state for envs at boundary
+            if context_window is not None:
+                cw_reset = torch.from_numpy(cw_ix == 0).to(device)
+                val_state = rnn.reset_state(val_state, cw_reset)
+
+            x = obs['tokens'].view(-1, 1)
+            y, val_state, *_ = model_forward(rnn, x, val_state, capture=False)
+
+            targets = obs['targets']
+            valid = targets != CE_ignore_index
+            if valid.any():
+                ce = nn.functional.cross_entropy(y[valid], targets[valid], reduction='none')
+                val_loss_acc.append(ce.mean().item())
+                acc_t = (y[valid].argmax(dim=-1) == targets[valid]).float().mean().item()
+                val_char_acc.append(acc_t)
+
+                if context_window is not None:
+                    cw_ix_bpc[cw_ix] += (ce / ln_2).cpu().numpy()
+                    cw_ix_cnt[cw_ix] += 1.0
+                    cw_ix = (cw_ix + 1) % context_window
+
+            val_state = rnn.detach_state(val_state)
+
+    rnn.train()
+
+    if not val_loss_acc:
+        return
+
+    # val_bpc  = float(np.mean(val_loss_acc)) / ln_2
+    # val_loss = float(np.mean(val_loss_acc))
+    # val_acc  = float(np.mean(val_char_acc))
+    # print(f'[EVAL step={format_readable_num(step)}]'
+    #         f' BPC:{val_bpc:.3f} Acc:{val_acc:.3f}')
+    # if logger is not None:
+    #     logger.track(val_bpc,  name='val/BPC',  step=step)
+    #     logger.track(val_loss, name='val/Loss', step=step)
+    #     logger.track(val_acc,  name='val/Acc',  step=step)
+
+    # if context_window > 0:
+    #     bpc_curve = np.array([
+    #         float(np.mean(cw_ix_bpc[p])) if cw_ix_bpc[p] else float('nan')
+    #         for p in range(context_window)
+    #     ])
+    #     # log key percentiles numerically
+    #     for label, frac in [('p0', 0.0), ('p25', 0.25), ('p50', 0.50), ('p75', 0.75), ('p100', 0.99)]:
+    #         idx = min(int(frac * context_window), context_window - 1)
+    #         if not np.isnan(bpc_curve[idx]):
+    #             if logger is not None:
+    #                 logger.track(float(bpc_curve[idx]),
+    #                                 name=f'val/ctx/{label}', step=step)
+    #     # visual plot
+    #     if logger is not None:
+    #         try:
+    #             import matplotlib
+    #             matplotlib.use('Agg')
+    #             import matplotlib.pyplot as plt
+    #             from knitwork.exps.sdq._viz import log_figure
+    #             fig, ax = plt.subplots(figsize=(8, 4))
+    #             valid_mask = ~np.isnan(bpc_curve)
+    #             ax.plot(np.where(valid_mask)[0], bpc_curve[valid_mask], lw=1.5)
+    #             ax.set_xlabel('Position in context window (tokens)')
+    #             ax.set_ylabel('BPC')
+    #             ax.set_title(f'Context memory probe (window={context_window}) step={format_readable_num(step)}')
+    #             ax.grid(True, alpha=0.3)
+    #             plt.tight_layout()
+    #             log_figure(logger, fig, 'val/ctx/bpc_curve', step)
+    #             plt.close(fig)
+    #         except Exception as e:
+    #             print(f'[EVAL ctx plot] {e}')
 
 
 def build_model(rnn_type: str, rnn_cfg: dict, n_chars: int):
@@ -388,10 +375,9 @@ def build_model(rnn_type: str, rnn_cfg: dict, n_chars: int):
     return cls(**rnn_cfg, input_size=n_chars, output_size=n_chars)
 
 
-# Column collapse monitoring
-
 def log_col_similarity(rnn, state, logger, step: int) -> None:
     """Log max/mean pairwise cosine similarity between column activations (last layer)."""
+    # Column collapse monitoring
     try:
         h = state[0] if isinstance(state, tuple) else state
         if not isinstance(h, torch.Tensor) or h.ndim != 4:
@@ -410,9 +396,8 @@ def log_col_similarity(rnn, state, logger, step: int) -> None:
         print(f'[col_sim] {e}')
 
 
-# Forward normalizer
-
 def model_forward(rnn, x, state, *, capture: bool):
+    """Forward normalizer"""
     result = rnn(x, state, return_attn=True) if capture else rnn(x, state)
     y, state = result[0], result[1]
     if len(result) == 2:
@@ -427,8 +412,6 @@ def model_forward(rnn, x, state, *, capture: bool):
     return y, state, {}, None
 
 
-# Intra-word accuracy
-
 def update_intra_word_metrics(
     acc_by_pos: dict[int, float],
     tokens: torch.Tensor,   # [B]
@@ -436,6 +419,7 @@ def update_intra_word_metrics(
     lr: float = 0.01,
     space_idx: int = 0,
 ) -> None:
+    """Intra-word accuracy"""
     pos = 0
     for t, a in zip(tokens.tolist(), acc.tolist()):
         if t == space_idx:
@@ -444,6 +428,21 @@ def update_intra_word_metrics(
             old = acc_by_pos.get(pos, a)
             acc_by_pos[pos] = old + lr * (a - old)
             pos += 1
+
+
+def print_metrics(step, metrics, max_steps, use_vae, lr):
+    m = metrics
+    fps = m['perf/fps']
+    kl_s = f' KL:{m.get("KL", 0):.2e}(x{m.get("KL_scale", 0):.2f}) |' if use_vae else ''
+    print(
+        f'[{format_readable_num(step)}/{format_readable_num(max_steps, frac=0)}]'
+        f' {format_readable_num(fps, frac=0)}fps |'
+        f' LR:{int(100*m["LR"]/lr.base_val)}%'
+        f' T:{int(m["T"])} |{kl_s}'
+        f' L:{m["Loss"]:.3f}'
+        f' BPC:{m["BPC"]:.3f}'
+        f' A:{m["Acc"]:.3f}'
+    )
 
 
 if __name__ == '__main__':

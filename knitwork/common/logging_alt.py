@@ -4,7 +4,7 @@ import os
 
 import numpy as np
 
-from knitwork.common.base import to_readable_num
+from knitwork.common.base import isnone, to_readable_num
 from knitwork.common.config import ns_to_dict
 from knitwork.common.timing import Timer
 from knitwork.common.tracking import make_tracker
@@ -15,7 +15,7 @@ class Logger:
 
     def __init__(
             self, logger, *, log_schedule, log_perf=True, suppress_printing=False,
-            tracker=None
+            tracker=None, printer=None
     ):
         if isinstance(logger, dict):
             logger = self._start_run(config=logger)
@@ -23,6 +23,7 @@ class Logger:
         self.logger = logger
         self.log_schedule = log_schedule
         self.suppress_printing = suppress_printing
+        self.print_metrics = isnone(printer, print_metrics)
 
         self.tracker = make_tracker(tracker)
 
@@ -66,7 +67,7 @@ class Logger:
         if suppress_printing is None:
             suppress_printing = self.suppress_printing
         if not suppress_printing:
-            print_metrics(step, scalar_metrics)
+            self.print_metrics(step, scalar_metrics)
 
         self.tracker.clear()
         self.last_flush_step = step
@@ -92,10 +93,14 @@ class Logger:
 class CustomWandBLogger(Logger):
     """Wandb logger with configurable logging frequency."""
 
-    def __init__(self, *, logger, log_schedule, log_perf=True, suppress_printing=False, tracker=None):
+    def __init__(
+            self, *, logger, log_schedule, log_perf=True, suppress_printing=False, 
+            tracker=None, printer=None
+    ):
         super().__init__(
             logger=logger, log_schedule=log_schedule,
-            log_perf=log_perf, suppress_printing=suppress_printing, tracker=tracker
+            log_perf=log_perf, suppress_printing=suppress_printing, tracker=tracker,
+            printer=printer
         )
 
     def _log(self, step, scalars, figures):
@@ -123,10 +128,14 @@ class CustomWandBLogger(Logger):
 class CustomCometLogger(Logger):
     """Comet ML logger with configurable logging frequency."""
 
-    def __init__(self, *, logger, log_schedule, log_perf=True, suppress_printing=False, tracker=None):
+    def __init__(
+            self, *, logger, log_schedule, log_perf=True, suppress_printing=False, 
+            tracker=None, printer=None
+    ):
         super().__init__(
             logger=logger, log_schedule=log_schedule,
-            log_perf=log_perf, suppress_printing=suppress_printing, tracker=tracker
+            log_perf=log_perf, suppress_printing=suppress_printing, tracker=tracker,
+            printer=printer
         )
 
     def _log(self, step, scalars, figures):
@@ -152,7 +161,7 @@ class CustomCometLogger(Logger):
                 display_summary_level=0,
                 log_git_metadata=False, log_git_patch=False,
 
-                auto_metric_logging=False,
+                auto_metric_logging=False, auto_param_logging=False,
                 name=log_cfg.get('name', None),
                 tags=log_cfg.get('tags', []),
             )
@@ -164,10 +173,14 @@ class CustomCometLogger(Logger):
 class CustomAimLogger(Logger):
     """Aim logger with configurable logging frequency."""
 
-    def __init__(self, *, logger, log_schedule, log_perf=True, suppress_printing=False, tracker=None):
+    def __init__(
+            self, *, logger, log_schedule, log_perf=True, suppress_printing=False, 
+            tracker=None, printer=None
+    ):
         super().__init__(
             logger=logger, log_schedule=log_schedule,
-            log_perf=log_perf, suppress_printing=suppress_printing, tracker=tracker
+            log_perf=log_perf, suppress_printing=suppress_printing, tracker=tracker,
+            printer=printer
         )
 
     def _log(self, step, scalars, figures):
@@ -193,7 +206,9 @@ class CustomAimLogger(Logger):
         return run
 
 
-def start_logger(config, log_perf=True, suppress_printing=False, tracker=None) -> Logger:
+def start_logger(
+        config, log_perf=True, suppress_printing=False, tracker=None, printer=None
+) -> Logger:
     config = _make_serializable(ns_to_dict(config))
     log_cfg = config['log']
     logger_type = log_cfg['logger']
@@ -203,6 +218,8 @@ def start_logger(config, log_perf=True, suppress_printing=False, tracker=None) -
             logger_factory = CustomWandBLogger
         case 'comet':
             logger_factory = CustomCometLogger
+        case 'aim':
+            logger_factory = CustomAimLogger
         case _:
             logger_factory = Logger
 
@@ -214,7 +231,8 @@ def start_logger(config, log_perf=True, suppress_printing=False, tracker=None) -
         log_schedule=log_cfg['schedule'],
         log_perf=log_perf,
         suppress_printing=suppress_printing,
-        tracker=tracker
+        tracker=tracker,
+        printer=printer,
     )
 
 
