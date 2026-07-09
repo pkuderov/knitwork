@@ -42,28 +42,6 @@ shiroa/book.typ + shiroa/methods/*.typ + templates/ ──→ `shiroa build` ─
 перечислено в `shiroa/.gitignore` — в репозитории лежат только исходники (`docs/*.md`,
 `book.typ.tmpl`, скрипты, шаблоны).
 
-## Почему book.typ генерируется, а не пишется руками
-
-Оглавление Shiroa-книги (`#book-meta(summary: [...])`) — это статичный список
-`#chapter("methods/xxx.typ")[Название]` для каждой страницы. Раньше он жил прямо
-в `book.typ` и правился вручную при каждой новой модели — то есть был источником
-рассинхрона: `docs/_sidebar.md` (для Docsify) обновляли, а `book.typ` (для Shiroa) —
-забывали.
-
-Теперь `docs/_sidebar.md` — единственный источник правды об оглавлении.
-`gen_summary.py` его парсит (категории `- **Category**` → `= Category`,
-пункты `- [Title](methods/name.md)` → `- #chapter("methods/name.typ")[Title]`)
-и подставляет в `book.typ.tmpl` вместо `__SUMMARY__`, производя `book.typ`.
-
-**Практическое следствие:** чтобы новая модель появилась и в Docsify, и в Shiroa,
-достаточно добавить одну строку в `docs/_sidebar.md` — `book.typ` трогать не нужно.
-
-> Важно: пробовали сначала через `#include "summary-gen.typ"` внутри `book.typ` —
-> не сработало, т.к. внутренний парсер Shiroa (`summary-internal.typ`) ожидает,
-> что вызовы `#chapter(...)` находятся в той же области видимости/дереве
-> содержимого, что и `#book-meta`, а не приходят из отдельного `#include`.
-> Полная генерация `book.typ` из шаблона — рабочий и более простой вариант.
-
 ## Настройка на GitHub (уже сделано, для справки)
 
 1. **Workflow**: `.github/workflows/docs.yml`, триггер — `push` в `main` с
