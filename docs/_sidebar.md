@@ -1,4 +1,5 @@
 - **Experiments**
+  - [Results](experiments/results.md)
   - [SDQ](experiments/sdq.md)
   - [Text Modeling](experiments/text.md)
   - [TreasureHunt](experiments/treasure.md)
@@ -47,6 +48,11 @@
 - **Fusion**
   - [Fusion cells](methods/fusion_cells.md)
   - [GridRNN-Fusion](methods/grnn_fusion.md)
+
+- **Multimodal**
+  - [GridRNN-Multimodal](methods/grnn_multimodal.md)
+  - [GridRNN-Multimodal v2](methods/grnn_multimodal_v2.md)
+  - [Multimodal SDQ (design)](methods/multimodal_sdq_design.md)
 
 - **Infrastructure**
   - [Curriculum Scheduling](methods/curriculum_scheduling.md)
