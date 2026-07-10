@@ -110,7 +110,6 @@ def main(config):
         from knitwork.visualization.cka import CKAVisualizerNew
         attn_vis = AttnFlowVisualizerNew(n_layers=rnn.n_layers, n_columns=rnn.n_columns, lr=0.01)
         cka_vis = CKAVisualizerNew(n_layers=rnn.n_layers, n_columns=rnn.n_columns, lr=0.01)
-    gate_buffer: list = []
 
     def _inject_visualizations(step, *, scalars, figures):
         if vis_inspect_scheduler.is_infinite:
@@ -118,11 +117,6 @@ def main(config):
         if has_grid:
             figures |= attn_vis.get_figures()
             figures |= cka_vis.get_figures()
-            # if gate_buffer:
-            #     arr = np.array(gate_buffer)
-            #     for li in range(min(arr.shape[1], rnn.n_layers)):
-            #         logger.track(float(arr[:, li].mean()), name=f"attn_gate/L{li}", step=step)
-            gate_buffer.clear()
 
     # KL annealing
     kl_cfg = config.get('kl_anneal', {})
@@ -156,7 +150,6 @@ def main(config):
     batch_y: list = []
     batch_y_gt: list = []
     batch_kl: list = []
-    batch_harmonic: list = []   # harmonic model diagnostics
     acc_by_pos: dict[int, float] = {}
 
     while step < n_steps:
@@ -172,19 +165,19 @@ def main(config):
         y, rnn_state, extras, kl = model_forward(rnn, x, rnn_state, capture=collect_vis_data or has_harmonic)
 
         if has_harmonic and extras:
-            batch_harmonic.append(rnn.flatten_extras_stats(extras))
+            harmonic_stats = to_loggable_metrics(rnn.flatten_extras_stats(extras))
+            logger.accumulate(harmonic_stats, key='slow')
 
         if collect_vis_data and extras and has_grid:
             attn_vis.update(extras['attn_weights'])
             h_for_cka = rnn_state[0] if isinstance(rnn_state, tuple) else rnn_state
             cka_vis.update(h_for_cka)
-            # gate_vals = [
-            #     g.detach().sigmoid().mean().item()
-            #     for g in extras.get('gates', [])
-            #     if isinstance(g, torch.Tensor)
-            # ]
-            # if gate_vals:
-            #     gate_buffer.append(gate_vals)
+
+            gate_metrics = {
+                f'attn_gate/L{li}': g.detach().sigmoid().mean()
+                for li, g in enumerate(extras.get('gates', []))
+            }
+            logger.accumulate(gate_metrics, key='fast')
 
         batch_y.append(y)
         batch_y_gt.append(obs['targets'])
@@ -235,13 +228,6 @@ def main(config):
                 metrics['KL_scale'] = kl_scale
             for pos, val in list(acc_by_pos.items())[:4]:
                 metrics[f'Acc[{pos}]'] = val
-            if has_harmonic and batch_harmonic:
-                keys = batch_harmonic[0].keys()
-                for k in keys:
-                    vals = [d[k] for d in batch_harmonic if k in d]
-                    if vals:
-                        metrics[k] = float(np.mean(vals))
-                batch_harmonic.clear()
             metrics = to_loggable_metrics(metrics)
             logger.accumulate(metrics, key='slow')
 
