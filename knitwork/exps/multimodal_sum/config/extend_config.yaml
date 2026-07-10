@@ -1,0 +1,103 @@
+seed: null
+name: null
+
+log:
+  enabled: true
+  logger: aim
+  project: knitwork
+  schedule: 1e+6
+  print_schedule: 5e+6
+
+device: cuda
+dtype: float32
+
+gen: hard
+model: grnn_multimodal
+rollout_len: 8
+n_envs: 128
+n_steps: 1e+9
+
+gens:
+  # n_buffer_columns must equal models.<model>.n_columns - 2 (2 signal columns)
+  easy:
+    T: 10
+    n_buffer_columns: 2
+    p_arrive: 0.35
+    p_query: 0.25
+    buffer_noise_std: 0.0
+    max_events_per_episode: 3
+    split: train
+
+  hard:
+    T: 20
+    n_buffer_columns: 2
+    p_arrive: 0.15
+    p_query: 0.15
+    buffer_noise_std: 1.0
+    max_events_per_episode: 4
+    split: train
+
+models:
+  grnn_multimodal:
+    embedding_size: 64
+    base_hidden_size: 128
+    n_layers: 2
+    n_columns: 4
+    n_attn_heads: 4
+    messaging: post
+    col_identities: true
+    signal_columns: [0, 1]
+    use_bias: true
+    dropout: 0.0
+
+  # naive-concat baseline: both modalities merged into column 0, no per-column routing
+  # n_columns = 1 (merged signal) + 2 (buffer, matching gens.*.n_buffer_columns)
+  grnn_multimodal_concat:
+    embedding_size: 64
+    base_hidden_size: 128
+    n_layers: 2
+    n_columns: 3
+    n_attn_heads: 4
+    messaging: post
+    col_identities: true
+    signal_columns: [0, 0]
+    use_bias: true
+    dropout: 0.0
+
+  # v2: hard-gated buffer isolation (signal cols attn-masked from buffer cols)
+  # + concat (not mean-pool) signal head — see docs/methods/grnn_multimodal_v2.md
+  grnn_multimodal_v2:
+    embedding_size: 64
+    base_hidden_size: 128
+    n_layers: 2
+    n_columns: 4
+    n_attn_heads: 4
+    messaging: post
+    col_identities: true
+    signal_columns: [0, 1]
+    use_bias: true
+    dropout: 0.0
+
+lr:
+  val: 8e-4
+  rel: 0.02
+  lr: 0.005
+  schedule: 2000
+  warmup:
+    val: 1e-9
+    n_linear_steps: 50
+    schedule: 100
+
+# multiaxis mode: T only grows once Acc >= t_threshold, instead of the old
+# 'speed' mode which kept ratcheting difficulty regardless of absolute accuracy
+# (previous run: Acc plateaued ~0.53 while T/difficulty kept climbing anyway)
+curriculum:
+  schedule: 2e+5
+  key: Loss
+  mode: multiaxis
+  t_threshold: 0.5
+
+vis_interval: 2e+6
+ablation_interval: 2e+6
+ablation_steps: 400
+ablation_envs: 128

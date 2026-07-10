@@ -215,3 +215,11 @@ marimo/_lsp/
 __marimo__/
 
 data/
+
+# ...but do track the MDS dataset-prep script; only its cache output stays ignored
+!knitwork/gens/data/
+knitwork/gens/data/*
+!knitwork/gens/data/prepare_mdsum_cache.py
+
+# Comet.ml offline-run archives (runtime artifact)
+.cometml-runs/
