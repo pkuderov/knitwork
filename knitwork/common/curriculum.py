@@ -100,10 +100,12 @@ class CurriculumScheduler:
             return {k: ok for k in _AXES}
 
         if self.mode == 'multiaxis':
+            # metrics may be a Tracker (exposes .stats) or a plain dict
+            md = metrics.stats if hasattr(metrics, 'stats') else metrics
             return {
-                'T':       metrics.get('Acc',       0.0) >= self.t_threshold,
-                'p_store': metrics.get('Acc/store', 0.0) >= self.store_threshold,
-                'p_query': metrics.get('Acc/query', 0.0) >= self.query_threshold,
+                'T':       md.get('Acc',       0.0) >= self.t_threshold,
+                'p_store': md.get('Acc/store', 0.0) >= self.store_threshold,
+                'p_query': md.get('Acc/query', 0.0) >= self.query_threshold,
             }
 
         raise ValueError(f'Unknown curriculum mode: {self.mode!r}')
