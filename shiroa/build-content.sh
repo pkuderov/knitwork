@@ -19,18 +19,21 @@ inject_css() {
     cp "$SCRIPT_DIR/templates/extra.css" "$dist/theme/css/extra.css"
     echo "Injecting extra.css..."
 
+    # On macos sed -i doesn't work, so we use sed -i '' instead
+    if [[ "$OSTYPE" == darwin* ]]; then
+        SED_INPLACE=(-i '')
+    else
+        SED_INPLACE=(-i)
+    fi
+
     for f in "$dist"/*.html; do
         [ -f "$f" ] || continue
-        # -i.bak works on both GNU and BSD/macOS sed; plain -i needs a suffix
-        # arg on BSD sed, otherwise it swallows the script as the suffix
-        sed -i.bak 's|<!-- Custom theme stylesheets -->|<!-- Custom theme stylesheets -->\n    <link rel="stylesheet" href="theme/css/extra.css">|' "$f"
-        rm -f "$f.bak"
+        sed "${SED_INPLACE[@]}" 's|<!-- Custom theme stylesheets -->|<!-- Custom theme stylesheets -->\n    <link rel="stylesheet" href="theme/css/extra.css">|' "$f"
     done
 
     for f in "$dist"/methods/*.html "$dist"/experiments/*.html; do
         [ -f "$f" ] || continue
-        sed -i.bak 's|<!-- Custom theme stylesheets -->|<!-- Custom theme stylesheets -->\n    <link rel="stylesheet" href="../theme/css/extra.css">|' "$f"
-        rm -f "$f.bak"
+        sed "${SED_INPLACE[@]}" 's|<!-- Custom theme stylesheets -->|<!-- Custom theme stylesheets -->\n    <link rel="stylesheet" href="../theme/css/extra.css">|' "$f"
     done
 
     echo "  injected into $(find "$dist" -name '*.html' | wc -l) HTML files"
@@ -65,7 +68,14 @@ if [[ "${1:-}" == "--build" ]]; then
     echo "Generating summary-gen.typ from docs/_sidebar.md..."
     python3 "$SCRIPT_DIR/gen_summary.py"
 
+    # resolve shiroa command: either from script dir or from PATH
+    if [[ -x "$SCRIPT_DIR/shiroa" ]]; then
+        SHIROA="$SCRIPT_DIR/shiroa"
+    else
+        SHIROA="shiroa"
+    fi
+
     echo "Building shiroa..."
-    shiroa build "$SCRIPT_DIR/"
+    "$SHIROA" build "$SCRIPT_DIR/"
     inject_css "$SCRIPT_DIR/dist"
 fi
