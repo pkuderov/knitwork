@@ -23,6 +23,7 @@ from knitwork.common.utils import (
     to_numpy, to_torch,
 )
 from knitwork.gens.text import TextGenerator, load_dataset, tokenize
+from knitwork.visualization.cka import CKAVisualizerNew
 
 
 # Model registry
@@ -111,7 +112,7 @@ def main(config):
         from knitwork.visualization.attn_flow import AttnFlowVisualizerNew
         from knitwork.visualization.cka import CKAVisualizer
         attn_vis = AttnFlowVisualizerNew(n_layers=rnn.n_layers, n_columns=rnn.n_columns, lr=0.01)
-        cka_vis = CKAVisualizer(n_layers=rnn.n_layers, n_columns=rnn.n_columns, buffer_size=50)
+        cka_vis = CKAVisualizerNew(n_layers=rnn.n_layers, n_columns=rnn.n_columns, lr=0.01)
     gate_buffer: list = []
 
     def _inject_visualizations(step, *, scalars, figures):
@@ -119,8 +120,7 @@ def main(config):
             return
         if has_grid:
             figures |= attn_vis.get_figures()
-            # if cka_vis is not None:
-            #     cka_vis.log(logger, step=step)
+            figures |= cka_vis.get_figures()
             # if gate_buffer:
             #     arr = np.array(gate_buffer)
             #     for li in range(min(arr.shape[1], rnn.n_layers)):
@@ -180,8 +180,7 @@ def main(config):
         if collect_vis_data and extras and has_grid:
             attn_vis.update(extras['attn_weights'])
             h_for_cka = rnn_state[0] if isinstance(rnn_state, tuple) else rnn_state
-            # if cka_vis is not None:
-            #     cka_vis.update(h_for_cka)
+            cka_vis.update(h_for_cka)
             # gate_vals = [
             #     g.detach().sigmoid().mean().item()
             #     for g in extras.get('gates', [])

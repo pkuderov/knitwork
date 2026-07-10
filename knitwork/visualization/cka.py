@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import numpy as np
 import matplotlib
+
+from knitwork.common.torch import to_numpy
+from knitwork.common.tracking import EmaTracker, ListTracker
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from collections import deque
@@ -157,3 +160,58 @@ class CKAVisualizer:
             )
             plt.close(fig)
             io_buf.close()
+
+
+class CKAVisualizerNew:
+    def __init__(self, n_layers: int, n_columns: int, *, lr, fig_id=200):
+        self.n_layers = n_layers
+        self.n_columns = n_columns
+        self.tracker = EmaTracker(lr)
+        self._fig_id = fig_id
+
+    def update(self, h: torch.Tensor):
+        # (n_layers, n_cols, batch, hidden_size)
+        h = to_numpy(h)
+        cka = {}
+        for layer_idx in range(self.n_layers):
+            # [cols, batch, hidden]
+            layer_h = h[layer_idx]
+            layer_cka = np.zeros((self.n_columns, self.n_columns))
+            for i in range(self.n_columns):
+                for j in range(self.n_columns):
+                    layer_cka[i, j] = linear_cka(layer_h[i], layer_h[j])
+            cka[layer_idx] = layer_cka
+        self.tracker.put(cka)
+
+    def get_figures(self):
+        fig_id = self._fig_id
+        col_labels = [f"C{j}" for j in range(self.n_columns)]
+        figures = {}
+        
+        for layer_idx, cka in self.tracker.get().items():
+            cka = to_numpy(cka, copy=False)
+            fig = plt.figure(num=fig_id+1, clear=True)
+            ax = fig.subplots()
+
+            im = ax.imshow(cka, vmin=0.0, vmax=1.0, cmap="RdYlGn_r", aspect="equal")
+
+            ax.set_title(f"CKA Layer {layer_idx}")
+            ax.set_xlabel("Column j")
+            ax.set_ylabel("Column i")
+            ax.set_xticks(range(self.n_columns))
+            ax.set_yticks(range(self.n_columns))
+            ax.set_xticklabels(col_labels)
+            ax.set_yticklabels(col_labels)
+            for i in range(self.n_columns):
+                for j in range(self.n_columns):
+                    ax.text(
+                        j, i, f"{cka[i,j]:.2f}",
+                        ha="center", va="center", fontsize=9,
+                    )
+
+            plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+            fig.tight_layout()
+
+            figures[f'cka_layer_{layer_idx}'] = fig
+
+        return figures
