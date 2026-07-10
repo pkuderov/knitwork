@@ -15,15 +15,12 @@ from knitwork.common.logging_alt import start_logger
 from knitwork.common.numpy import get_seed
 from knitwork.common.scheduler import create_scheduler
 from knitwork.common.torch import DynamicLearningRate, to_loggable_metrics
-from knitwork.common.tracker import Tracker
 from knitwork.common.status import write_status
 from knitwork.common.utils import (
-    CE_ignore_index, FpsCounter, dont_throw, flatten_dict,
-    format_readable_num, get_device, get_dtype,
-    to_numpy, to_torch,
+    CE_ignore_index, dont_throw, format_readable_num, get_device, 
+    get_dtype, to_torch,
 )
 from knitwork.gens.text import TextGenerator, load_dataset, tokenize
-from knitwork.visualization.cka import CKAVisualizerNew
 
 
 # Model registry
@@ -110,7 +107,7 @@ def main(config):
     vis_inspect_scheduler = create_scheduler(config.get('vis_inspect_schedule'))
     if not vis_inspect_scheduler.is_infinite and has_grid:
         from knitwork.visualization.attn_flow import AttnFlowVisualizerNew
-        from knitwork.visualization.cka import CKAVisualizer
+        from knitwork.visualization.cka import CKAVisualizerNew
         attn_vis = AttnFlowVisualizerNew(n_layers=rnn.n_layers, n_columns=rnn.n_columns, lr=0.01)
         cka_vis = CKAVisualizerNew(n_layers=rnn.n_layers, n_columns=rnn.n_columns, lr=0.01)
     gate_buffer: list = []
