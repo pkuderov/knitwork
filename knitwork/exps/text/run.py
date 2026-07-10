@@ -397,7 +397,7 @@ def log_lru_spectrum(rnn, logger):
             metrics[f'r_H/L{li}_C{ci}'] = entropy
 
     metrics = to_loggable_metrics(metrics)
-    logger.accumulate(metrics, prefix='lru/', key='fast')
+    logger.accumulate(metrics, prefix='lru', key='fast')
 
 
 @torch.no_grad()
@@ -418,7 +418,7 @@ def log_attn_beta(rnn, logger):
         else:
             metrics[f'L{li}'] = beta.mean()
     metrics = to_loggable_metrics(metrics)
-    logger.accumulate(metrics, prefix='attn_beta/', key='fast')
+    logger.accumulate(metrics, prefix='attn_beta', key='fast')
 
 
 def model_forward(rnn, x, state, *, capture: bool):
