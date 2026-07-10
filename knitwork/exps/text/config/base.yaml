@@ -18,9 +18,10 @@ inspect_schedule: 1.0e+5
 vis_inspect_schedule: 1.0e+5
 
 eval:
-  enabled: false
-  split: 0.1
+  enabled: true
   on_start: true
+  split: 0.1
+  context_window: 100
   schedule: 5.0e+6
   max_rollout: 1.0e+4
 
@@ -403,3 +404,4 @@ lr:
 trackers:
   slow: 2.0e-4
   fast: 1.0e-2
+  eval: null

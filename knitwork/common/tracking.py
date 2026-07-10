@@ -144,6 +144,7 @@ class TrackerCollection:
             return
 
         if key is not None:
+            assert key in self.trackers, f'Unknown key: {key!r}. You might mistook key and prefix args'
             self.trackers[key].put(values, prefix=prefix)
         else:
             # assume values are two-level dict, with 

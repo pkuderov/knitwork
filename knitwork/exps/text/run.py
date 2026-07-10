@@ -14,7 +14,7 @@ from knitwork.common.entrypoint import run_experiment
 from knitwork.common.logging_alt import start_logger
 from knitwork.common.numpy import get_seed
 from knitwork.common.scheduler import create_scheduler
-from knitwork.common.torch import DynamicLearningRate, to_loggable_metrics
+from knitwork.common.torch import DynamicLearningRate, to_loggable_metrics, to_numpy
 from knitwork.common.status import write_status
 from knitwork.common.utils import (
     CE_ignore_index, dont_throw, format_readable_num, get_device, 
@@ -82,11 +82,13 @@ def main(config):
     train_data = data
     eval_cfg = config.get('eval', {})
     do_eval = eval_cfg.get('enabled', False)
+    do_eval_on_start = eval_cfg.get('on_start', False)
 
     if do_eval:
         from knitwork.gens.text import split_train_test
         eval_schedule = create_scheduler(eval_cfg['schedule'])
         max_rollout = int(eval_cfg.get('max_rollout', 1e+8))
+        context_window = eval_cfg.get('context_window', None)
         train_frac = 1.0 - eval_cfg['split']
         train_data, val_data = split_train_test(data, train_frac=train_frac)
         val_gen = TextGenerator(val_data, n_envs=n_envs, ignore_index=CE_ignore_index, seed=get_seed(rng))
@@ -151,6 +153,13 @@ def main(config):
     batch_y_gt: list = []
     batch_kl: list = []
     acc_by_pos: dict[int, float] = {}
+
+    if do_eval_on_start:
+        run_eval(
+            step, rnn=rnn, gen=val_gen, logger=logger, n_envs=n_envs, max_rollout=max_rollout,
+            device=device, context_window=context_window
+        )
+        logger.log(step, flush=True, force=True)
 
     while step < n_steps:
         obs = gen.next()
@@ -242,7 +251,7 @@ def main(config):
         if do_eval and eval_schedule.tick(step_size):
             run_eval(
                 step, rnn=rnn, gen=val_gen, logger=logger, n_envs=n_envs, max_rollout=max_rollout,
-                device=device, ln_2=ln_2, context_window=None
+                device=device, context_window=context_window
             )
 
         logger.log(step, flush=True)
@@ -250,98 +259,84 @@ def main(config):
     logger.log(step, flush=True, force=True)
     logger.finish()
 
+
+@torch.no_grad()
 def run_eval(
-        step: int, *, rnn, gen, logger, n_envs, max_rollout, device, ln_2,
+        step: int, *, rnn, gen, logger, n_envs, max_rollout, device,
         context_window=None
 ):
     """Evaluate on val set; if context_window>0, also run context-memory probe."""
     rnn.eval()
-    val_state = None
-    val_loss_acc  = []
-    val_char_acc  = []
+    state = None
+    ce_loss, acc, tot_cnt = 0.0, 0.0, 0
 
     if context_window is not None:
-        cw_ix = np.zeros(n_envs, dtype=np.int64)
-        cw_ix_bpc = np.zeros(context_window)
-        cw_ix_cnt = np.zeros(context_window)
+        cw_ix = torch.zeros(n_envs, dtype=torch.int64, device=device)
+        cw_ix_ce = torch.zeros(context_window, device=device)
+        cw_ix_cnt = torch.zeros(context_window, device=device) + 1.0e-9
 
-    with torch.no_grad():
-        for _ in range(max_rollout):
-            obs = gen.next()
-            obs = {k: to_torch(v, device=device) for k, v in obs.items()}
+    for _ in range(max_rollout):
+        obs = gen.next()
+        obs = {k: to_torch(v, device=device) for k, v in obs.items()}
 
-            # reset at dataset wrap
-            val_state = rnn.reset_state(val_state, obs['reset_mask'])
+        # reset at dataset wrap [and at context window boundary]
+        reset_mask = obs['reset_mask']
+        if context_window is not None:
+            reset_mask = torch.logical_or(reset_mask, cw_ix == 0)
+        state = rnn.reset_state(state, reset_mask)
 
-            # context window reset: zero state for envs at boundary
-            if context_window is not None:
-                cw_reset = torch.from_numpy(cw_ix == 0).to(device)
-                val_state = rnn.reset_state(val_state, cw_reset)
+        x = obs['tokens'].view(-1, 1)
+        y, state, *_ = model_forward(rnn, x, state, capture=False)
 
-            x = obs['tokens'].view(-1, 1)
-            y, val_state, *_ = model_forward(rnn, x, val_state, capture=False)
+        targets = obs['targets']
+        valid = targets != CE_ignore_index
+        y, targets = y[valid], targets[valid]
+        tot_cnt += y.shape[0]
+        if y.shape[0] == 0:
+            continue
 
-            targets = obs['targets']
-            valid = targets != CE_ignore_index
-            if valid.any():
-                ce = nn.functional.cross_entropy(y[valid], targets[valid], reduction='none')
-                val_loss_acc.append(ce.mean().item())
-                acc_t = (y[valid].argmax(dim=-1) == targets[valid]).float().mean().item()
-                val_char_acc.append(acc_t)
-
-                if context_window is not None:
-                    cw_ix_bpc[cw_ix] += (ce / ln_2).cpu().numpy()
-                    cw_ix_cnt[cw_ix] += 1.0
-                    cw_ix = (cw_ix + 1) % context_window
-
-            val_state = rnn.detach_state(val_state)
+        ce = nn.functional.cross_entropy(y, targets, reduction='none')
+        ce_loss = ce_loss + ce.sum()
+        acc = acc + (y.argmax(dim=-1) == targets).sum()
+        if context_window is not None:
+            _cw_ix = cw_ix[valid]
+            cw_ix_ce.index_add_(0, _cw_ix, ce)
+            cw_ix_cnt += torch.bincount(_cw_ix, minlength=context_window)
+            cw_ix[valid] = (_cw_ix + 1) % context_window
 
     rnn.train()
 
-    if not val_loss_acc:
+    if tot_cnt == 0:
+        print('No valid data for evaluation!')
         return
 
-    # val_bpc  = float(np.mean(val_loss_acc)) / ln_2
-    # val_loss = float(np.mean(val_loss_acc))
-    # val_acc  = float(np.mean(val_char_acc))
-    # print(f'[EVAL step={format_readable_num(step)}]'
-    #         f' BPC:{val_bpc:.3f} Acc:{val_acc:.3f}')
-    # if logger is not None:
-    #     logger.track(val_bpc,  name='val/BPC',  step=step)
-    #     logger.track(val_loss, name='val/Loss', step=step)
-    #     logger.track(val_acc,  name='val/Acc',  step=step)
+    ce_loss, acc = ce_loss / tot_cnt, acc / tot_cnt
 
-    # if context_window > 0:
-    #     bpc_curve = np.array([
-    #         float(np.mean(cw_ix_bpc[p])) if cw_ix_bpc[p] else float('nan')
-    #         for p in range(context_window)
-    #     ])
-    #     # log key percentiles numerically
-    #     for label, frac in [('p0', 0.0), ('p25', 0.25), ('p50', 0.50), ('p75', 0.75), ('p100', 0.99)]:
-    #         idx = min(int(frac * context_window), context_window - 1)
-    #         if not np.isnan(bpc_curve[idx]):
-    #             if logger is not None:
-    #                 logger.track(float(bpc_curve[idx]),
-    #                                 name=f'val/ctx/{label}', step=step)
-    #     # visual plot
-    #     if logger is not None:
-    #         try:
-    #             import matplotlib
-    #             matplotlib.use('Agg')
-    #             import matplotlib.pyplot as plt
-    #             from knitwork.exps.sdq._viz import log_figure
-    #             fig, ax = plt.subplots(figsize=(8, 4))
-    #             valid_mask = ~np.isnan(bpc_curve)
-    #             ax.plot(np.where(valid_mask)[0], bpc_curve[valid_mask], lw=1.5)
-    #             ax.set_xlabel('Position in context window (tokens)')
-    #             ax.set_ylabel('BPC')
-    #             ax.set_title(f'Context memory probe (window={context_window}) step={format_readable_num(step)}')
-    #             ax.grid(True, alpha=0.3)
-    #             plt.tight_layout()
-    #             log_figure(logger, fig, 'val/ctx/bpc_curve', step)
-    #             plt.close(fig)
-    #         except Exception as e:
-    #             print(f'[EVAL ctx plot] {e}')
+    ln_2 = np.log(2.0)
+    metrics = to_loggable_metrics({
+        'Loss': ce_loss,
+        'BPC': ce_loss / ln_2,
+        'Acc': acc,
+    })
+    logger.accumulate(metrics, prefix='val', key='eval')
+
+    if context_window is not None:
+        cw_ix_bpc = to_numpy(cw_ix_ce / cw_ix_cnt / ln_2)
+        # log key percentiles numerically
+        label_fracs = [('p0', 0.0), ('p25', 0.25), ('p50', 0.50), ('p75', 0.75), ('p100', 1.0)]
+        def _frac_to_ix(frac):
+            return round(frac * (context_window-1))
+        metrics = {
+            f'BPC_{label}': cw_ix_bpc[_frac_to_ix(frac)]
+            for label, frac in label_fracs
+        }
+        logger.accumulate(metrics, prefix='val.context_window', key='eval')
+
+        from knitwork.visualization.context_analysis import plot_bpc_by_context_pos
+        figures = {
+            'bpc_curve': plot_bpc_by_context_pos(cw_ix_bpc, step=step),
+        }
+        logger.accumulate(figures, prefix='val.context_window', key='eval')
 
 
 @torch.no_grad()
@@ -349,7 +344,6 @@ def run_eval(
 def log_col_similarity(rnn, state, logger):
     """Log max/mean pairwise cosine similarity between column activations (last layer)."""
     # Column collapse monitoring
-    # TODO: for LSTM it might be more reasonable to use state[1]
     h = state[0] if isinstance(state, tuple) else state
     if not isinstance(h, torch.Tensor) or h.ndim != 4:
         return
@@ -454,6 +448,7 @@ def update_intra_word_metrics(
     space_idx: int = 0,
 ) -> None:
     """Intra-word accuracy"""
+    # FIXME: initial pos is incorrect
     pos = 0
     for t, a in zip(tokens.tolist(), acc.tolist()):
         if t == space_idx:
@@ -466,17 +461,28 @@ def update_intra_word_metrics(
 
 def print_short_summary(step, *, scalars, figures, max_steps, use_vae, lr):
     m = scalars
-    fps = m['perf/fps']
-    kl_s = f' KL:{m.get("KL", 0):.2e}(x{m.get("KL_scale", 0):.2f}) |' if use_vae else ''
-    print(
-        f'[{format_readable_num(step)}/{format_readable_num(max_steps, frac=0)}]'
-        f' {format_readable_num(fps, frac=0)}fps |'
-        f' LR:{int(100*m["LR"]/lr.base_val)}%'
-        f' T:{int(m["T"])} |{kl_s}'
-        f' L:{m["Loss"]:.3f}'
-        f' BPC:{m["BPC"]:.3f}'
-        f' A:{m["Acc"]:.3f}'
-    )
+    if 'Loss' in m:
+        # Train data is available
+        fps = m['perf/fps']
+        kl_s = f' KL:{m.get("KL", 0):.2e}(x{m.get("KL_scale", 0):.2f}) |' if use_vae else ''
+        print(
+            f'[{format_readable_num(step)}/{format_readable_num(max_steps, frac=0)}]'
+            f' {format_readable_num(fps, frac=0)}fps |'
+            f' LR:{int(100*m["LR"]/lr.base_val)}%'
+            f' T:{int(m["T"])} |{kl_s}'
+            f' L:{m["Loss"]:.3f}'
+            f' BPC:{m["BPC"]:.3f}'
+            f' A:{m["Acc"]:.3f}'
+        )
+
+    if 'val/Loss' in m:
+        # Val data is available
+        print(
+            f'[{format_readable_num(step)}/{format_readable_num(max_steps, frac=0)} EVAL]'
+            f' L:{m["val/Loss"]:.3f}'
+            f' BPC:{m["val/BPC"]:.3f}'
+            f' A:{m["val/Acc"]:.3f}'
+        )
 
 
 def build_model(rnn_type: str, rnn_cfg: dict, n_chars: int):

@@ -1,16 +1,14 @@
 
 from __future__ import annotations
+from collections import deque
 
 import numpy as np
 import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 
 from knitwork.common.torch import to_numpy
 from knitwork.common.tracking import EmaTracker
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
-from collections import deque
-from typing import Optional
-
 
 class AttnFlowVisualizer:
     """

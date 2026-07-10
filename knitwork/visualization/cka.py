@@ -1,15 +1,15 @@
 from __future__ import annotations
+from collections import deque
 
 import numpy as np
 import matplotlib
-
-from knitwork.common.torch import to_numpy
-from knitwork.common.tracking import EmaTracker, ListTracker
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from collections import deque
-
 import torch
+
+from knitwork.common.torch import to_numpy
+from knitwork.common.tracking import EmaTracker
+
 
 def _centering(K: np.ndarray) -> np.ndarray:
     """Центрирование ядерной матрицы."""
