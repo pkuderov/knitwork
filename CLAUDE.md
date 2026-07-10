@@ -108,7 +108,7 @@ Each `docs/methods/<name>.md` should contain:
 1. **One-paragraph summary** — what problem the method solves and the core idea
 2. **Key mechanism** — the most important part of the implementation with a short inline code snippet
 3. **Hyperparameters** — the non-obvious ones worth noting
-4. Write in Russian.
+4. Write in English. (The 37 pre-existing `docs/methods/*.md` written before this rule remain in Russian and are not retro-translated; all new docs are English.)
 
 When adding a new model file, always create the corresponding `docs/methods/` doc alongside it.
 
