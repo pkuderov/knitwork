@@ -154,11 +154,14 @@ def main(config):
     batch_kl: list = []
     acc_by_pos: dict[int, float] = {}
 
-    if do_eval_on_start:
+    def _run_eval(step):
         run_eval(
             step, rnn=rnn, gen=val_gen, logger=logger, n_envs=n_envs, max_rollout=max_rollout,
             device=device, context_window=context_window
         )
+
+    if do_eval and do_eval_on_start:
+        _run_eval(step)
         logger.log(step, flush=True, force=True)
 
     while step < n_steps:
@@ -249,13 +252,12 @@ def main(config):
             log_attn_beta(rnn, logger)
 
         if do_eval and eval_schedule.tick(step_size):
-            run_eval(
-                step, rnn=rnn, gen=val_gen, logger=logger, n_envs=n_envs, max_rollout=max_rollout,
-                device=device, context_window=context_window
-            )
+            _run_eval(step)
 
         logger.log(step, flush=True)
 
+    if do_eval and eval_schedule.tick(step_size):
+        _run_eval(step)
     logger.log(step, flush=True, force=True)
     logger.finish()
 
