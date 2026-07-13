@@ -3,6 +3,7 @@ name: null
 log:
   logger: comet
   project: knitwork-text
+  dump_status: false
   schedule: 2.0e+6
 
 device: null
