@@ -2,20 +2,24 @@ seed: null
 name: null
 log:
   logger: comet
-  project: knitwork-text
+  project: knitwork-mikasa
   schedule: 2.0e+6
 
 device: null
 dtype: float32
 
-gen: tinysh
+env-id: 0
 model: rnn
-n_envs: 64
+n_envs: 128
+async_envs: false
 rollout_len: 8
 n_steps: 2.0e+7
 
 inspect_schedule: 1.0e+5
 vis_inspect_schedule: 1.0e+5
+
+vis_interval: 5.0e+6
+entropy_coef: 0.005
 
 eval:
   enabled: true
@@ -24,22 +28,6 @@ eval:
   context_window: 100
   schedule: 5.0e+6
   max_rollout: 1.0e+4
-
-gens:
-  text8:
-    path: ~/data/text/text8_100M.txt
-    reset_prob:
-      val: 0.01
-      tar: 1e-4
-      lr: 0.007
-      schedule: 1000
-  tinysh:
-    path: ~/data/text/tinyshakespeare_1.1M.txt
-    reset_prob:
-      val: 0.01
-      tar: 1e-4
-      lr: 0.007
-      schedule: 1000
 
 # ======> Models
 rnn:
@@ -52,95 +40,122 @@ rnn:
 grnn:
   embedding_size: 64
   base_hidden_size: 128
-  n_layers: 1
-  n_columns: 2
+  n_layers: 3
+  n_columns: 4
   n_attn_heads: 4
   messaging: post
   use_bias: true
-  dropout: 0.0
   col_identities: true
+  dropout: 0.0
 
-grnn_err:
+grnn_lru:
   embedding_size: 64
-  base_hidden_size: 115
-  n_layers: 1
-  n_columns: 2
+  hidden_size: 128
+  n_layers: 3
+  n_columns: 4
   n_attn_heads: 4
   messaging: post
   use_bias: true
-  dropout: 0.0
   col_identities: true
+  dropout: 0.0
+  ff_mult: 2
+  r_min: 0.0
+  r_max: 0.999
+  lru_r_per_col: true
+
+grnn_lru_wide:
+  embedding_size: 96
+  hidden_size: 192
+  n_layers: 4
+  n_columns: 4
+  n_attn_heads: 4
+  messaging: post
+  use_bias: true
+  col_identities: true
+  dropout: 0.0
+  ff_mult: 3
+  r_min: 0.0
+  r_max: 0.9995
+  lru_r_per_col: true
 
 hgrnn:
   embedding_size: 64
-  hidden_size: 110
-  n_layers: 1
-  n_columns: 2
-  n_attn_heads: 4
-  messaging: post
-  use_bias: true
-  dropout: 0.0
-
-grnn2:
-  embedding_size: 72
   hidden_size: 128
-  n_layers: 2
-  n_columns: 3
+  n_layers: 3
+  n_columns: 4
   n_attn_heads: 4
   messaging: post
   use_bias: true
   dropout: 0.0
+
+hgrnn_lru:
+  embedding_size: 64
+  hidden_size: 128
+  n_layers: 3
+  n_columns: 4
+  n_attn_heads: 4
+  messaging: post
+  use_bias: true
+  dropout: 0.0
+  ffn_expansion: 2
+  attn_dropout: 0.0
+  lru_r_min: 0.0
+  lru_r_max: 0.999
+
+hgrn_grnn:
+  embedding_size: 64
+  hidden_size: 128
+  n_layers: 3
+  n_columns: 4
+  n_attn_heads: 4
+  messaging: post
   col_identities: true
+  use_bias: true
+  dropout: 0.0
 
-  vae_latent_dim: 64
-  vae_kl_weight: 1.0e-3
-  use_time_gate: false
+grnn_fw:
+  embedding_size: 64
+  hidden_size: 128
+  n_layers: 3
+  n_columns: 4
+  n_attn_heads: 4
+  messaging: post
+  col_identities: true
+  use_bias: true
+  dropout: 0.0
 
-  time_gate_delay_scale: -2.0
-
-  col_drop_prob: 0.0
+grnn_reservoir:
+  embedding_size: 64
+  hidden_size: 128
+  n_layers: 3
+  n_columns: 4
+  n_attn_heads: 4
+  messaging: post
+  col_identities: true
+  use_bias: true
+  dropout: 0.0
 
 grnn_loss:
   embedding_size: 64
   hidden_size: 128
-  n_layers: 4
+  n_layers: 3
   n_columns: 4
   n_attn_heads: 4
   messaging: post
+  col_identities: true
   use_bias: true
   dropout: 0.0
-  col_identities: true
-
-grnn_res:
-  hidden_size: 300
-  embedding_size: 64
-  n_layers: 3
-  n_columns: 5 
-  n_reservoir_cols: 2
-  n_attn_heads: 4
-  messaging: post
-  col_identities: true
-  spectral_radius: 0.9 
-  reservoir_scale: 0.1 
 
 grnn_engram:
   embedding_size: 64
+  hidden_size: 128
+  n_layers: 3
+  n_columns: 4
   n_attn_heads: 4
   messaging: post
+  col_identities: true
   use_bias: true
   dropout: 0.0
-  n_columns: 4
-  hidden_size: 128
-
-  n_layers: 4
-  col_identities: true
-
-  n_engram_slots: 16
-
-  engram_top_k: 4
-
-  engram_hebb_lr: 0.1
-  engram_gate_write: true
 
 grnn_prec_delta:
   embedding_size: 64
@@ -169,69 +184,39 @@ grnn_ema_mem:
 grnn_delta:
   embedding_size: 64
   hidden_size: 128
-  n_layers: 4
-  n_columns: 4
+  n_layers: 2
+  n_columns: 3
   n_attn_heads: 4
   messaging: post
-  dropout: 0.05
-  ff_mult: 4
-  r_min_layers: 0.2
-  r_max_layers: 0.9995
+  dropout: 0.0
+  ff_mult: 2
+  r_min_layers: 0.0
+  r_max_layers: 0.999
   lru_r_per_col: true
-  dk_fast: 16
-  dv_fast: 16
-  dk_slow: 32
-  dv_slow: 32
-  mem_decay_fast: [0.5, 0.7, 0.85, 0.9]
-  mem_decay_slow: [0.97, 0.985, 0.995, 0.999]
-  use_cross_layer_skip: false
-
-grnn_delta_wide:
-  embedding_size: 96
-  hidden_size: 160
-  n_layers: 4
-  n_columns: 4
-  n_attn_heads: 4
-  messaging: post
-  dropout: 0.05
-  ff_mult: 4
-  r_min_layers: 0.1
-  r_max_layers: 0.9995
-  lru_r_per_col: true
-  dk_fast: 20
-  dv_fast: 20
-  dk_slow: 40
-  dv_slow: 40
-  mem_decay_fast: [0.4, 0.6, 0.75, 0.9]
-  mem_decay_slow: [0.96, 0.98, 0.993, 0.999]
-  use_cross_layer_skip: true
 
 grnn_harmonic:
-  embedding_size: 64
-  hidden_size: 128
-  n_layers: 3
+  embedding_size: 40
+  hidden_size: 76
+  n_layers: 2
   n_columns: 4
   n_attn_heads: 4
   messaging: post
   dropout: 0.0
   ffn_expansion: 2
   attn_dropout: 0.0
-  # 2D spectral LRU hierarchy
   r_min_col: 0.3
   r_min_layers: 0.7
   r_max_layers: 0.999
-  # Surprise-Delta Memory
   ema_beta: 0.9
-  ema_beta_min: 0.7    # per-layer EMA beta: layer0=0.7 (fast) → layerL=0.9 (slow)
+  ema_beta_min: 0.7
   delta_decay: 0.99
   delta_decay_min: 0.95
   lam_base: 0.01
-  # Frozen Reservoir — for long-range BPC
-  n_reservoir_cols: 4
-  reservoir_hidden_size: 64
+  n_reservoir_cols: 0      # reservoir wrong for short RL episodes (τ≫ep_len)
+  reservoir_hidden_size: 32
   r_res_min: 0.90
   r_res_max: 0.999
-  multi_col_head: true    # mean over all columns for LM prediction
+  multi_col_head: false    # col0 only — focused policy representation for RL
 
 # --- external baselines ---
 delta_net:
@@ -249,50 +234,6 @@ mlstm:
   embedding_size: 64
   hidden_size: 128
   n_layers: 3
-
-grnn_base:
-  embedding_size: 64
-  hidden_size: 90
-  n_layers: 1
-  n_columns: 4
-  use_bias: true
-  dropout: 0.0
-
-# Transformer configs at different scales
-transformer:
-  embedding_size: 64
-  hidden_size: 128    # ~540K params: 4L, 4H, ff=256, mem=256
-  n_layers: 4
-  n_heads: 4
-  d_ff: 256
-  mem_len: 256
-  dropout: 0.0
-
-transformer_1m:
-  embedding_size: 64
-  hidden_size: 160    # ~840K params: 4L, 4H, ff=320, mem=256
-  n_layers: 4
-  n_heads: 4
-  d_ff: 320
-  mem_len: 256
-  dropout: 0.0
-
-transformer_2m:
-  embedding_size: 64
-  hidden_size: 256    # ~2.1M params: 4L, 4H, ff=512, mem=512
-  n_layers: 4
-  n_heads: 4
-  d_ff: 512
-  mem_len: 512
-  dropout: 0.1
-
-mamba:
-  embedding_size: 64
-  hidden_size: 128
-  n_layers: 3
-  d_state: 16
-  d_conv: 4
-  expand: 2
 
 # fixed attention variants (architecture_analysis.md §7.1), ~200K params
 grnn_fix:
@@ -388,6 +329,62 @@ grnn_fix_v5:
   use_bias: true
   dropout: 0.1
 # <====== Models
+
+# Auxiliary column loss (anti-collapse regulariser for grid models)
+aux_col_idx: 2
+aux_col_weight: 0.0  # set > 0 to enable, e.g. 0.1
+
+env-ids:
+# ==> discrete obs + discrete actions:
+  # object memory
+  - popgym-RepeatFirstEasy-v0
+  - popgym-RepeatFirstMedium-v0
+  - popgym-RepeatFirstHard-v0
+  # object + sequential
+  - popgym-RepeatPreviousEasy-v0
+  - popgym-RepeatPreviousMedium-v0
+  - popgym-RepeatPreviousHard-v0
+  - popgym-HigherLowerEasy-v0
+  - popgym-HigherLowerMedium-v0
+  - popgym-HigherLowerHard-v0
+  # object + capacity
+  - popgym-MultiarmedBanditEasy-v0
+  - popgym-MultiarmedBanditMedium-v0
+  - popgym-MultiarmedBanditHard-v0
+# ==> continuous obs (use continuous-wrappers from rl_wrappers.py):
+  # capacity
+  - popgym-CountRecallEasy-v0
+  # sequential
+  - popgym-AutoencodeEasy-v0
+
+overrides:
+  HalfCheetah-v5:
+    reward_scale: 0.25
+  Walker2d-v5:
+  Hopper-v5:
+  Pusher-v5:
+    reward_scale: 10.0
+  Humanoid-v5:
+    reward_scale: 0.3
+    agents.base.replay_buffer: 5.0e+6
+    trackers.rl: 0.001
+  Ant-v5:
+    agents.base.replay_buffer: 18.0e+6
+  InvertedDoublePendulum-v5:
+    reward_scale: 0.5
+  Reacher-v5:
+    reward_scale: 50.0
+
+# # LR schedule
+# lr:
+#   val: 8.0e-4
+#   rel: 0.02
+#   lr: 0.005
+#   schedule: 2000
+#   warmup:
+#     val: 1e-9
+#     n_linear_steps: 1    # 1 × 20 × 16384 ≈ 330K steps warmup
+#     schedule: 20
 
 # base LR config
 lr:
