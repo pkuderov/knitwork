@@ -14,7 +14,7 @@ gen: text8
 model: rnn
 n_envs: 128
 rollout_len: 32
-n_steps: 3.0e+8
+n_steps: 4.0e+8
 
 inspect_schedule: 1.0e+5
 vis_inspect_schedule: 1.0e+5
@@ -31,15 +31,15 @@ gens:
   text8:
     path: ~/data/text/text8_100M.txt
     reset_prob:
-      val: 0.015
-      tar: 2.0e-4
+      val: 0.005
+      tar: 5.0e-5
       lr: 0.02
       schedule: 1000
   tinysh:
     path: ~/data/text/tinyshakespeare_1.1M.txt
     reset_prob:
-      val: 0.015
-      tar: 2.0e-4
+      val: 0.005
+      tar: 5.0e-5
       lr: 0.02
       schedule: 1000
 
