@@ -32,7 +32,7 @@ class DynamicParameter:
 
         if warmup is not None:
             warmup_cfg = dict(
-                val=0.0, tar=self.param.tar, name=f'{self.param.name}_warmup', warmup=None
+                val=0.0, tar=self.param.val, name=f'{self.param.name}_warmup', warmup=None
             )
             if isinstance(warmup, dict):
                 warmup = DynamicParameter(**(warmup_cfg | warmup))
