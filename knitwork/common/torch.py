@@ -6,7 +6,7 @@ from knitwork.common.base import isnone
 from knitwork.common.dynamic_param import DynamicParameter
 import numpy as np
 import torch
-from torch import nn
+from torch import nn, softmax
 
 
 def get_device(device: str = None):
@@ -195,6 +195,11 @@ def fw(module, x):
 def safe_mean(x, default):
     x = x if len(x) > 0 else x.new([default])
     return x.mean()
+
+
+def to_softmax_distr(q, softmax_temp):
+    probs = softmax(q / softmax_temp, dim=-1)
+    return torch.distributions.Categorical(probs)
 
 
 def get_weights_ema_step_fn(weights_ema_lr):

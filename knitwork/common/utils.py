@@ -338,3 +338,7 @@ def dont_throw(tag: str):
                 print(f'[{tag}]: {e}')
         return wrapper
     return decorator
+
+def count_learnable_params(module, as_str=False):
+    param_count = sum(p.numel() for p in module.parameters() if p.requires_grad)
+    return param_count if not as_str else format_readable_num(param_count).upper()
