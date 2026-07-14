@@ -41,7 +41,7 @@ class Logger:
     def log(self, step, metrics=None, *, prefix=None, flush=False, force=False, **tracker_kwargs):
         """Log == accumulate + [optional and scheduled] flush."""
         self.accumulate(metrics, prefix=prefix, **tracker_kwargs)
-        if flush and step > self.last_flush_step and (step >= self.next_flush or force):
+        if flush and (step == 0 or step > self.last_flush_step) and (step >= self.next_flush or force):
             self.flush(step)
 
     def flush(self, step, *, suppress_printing=None):
