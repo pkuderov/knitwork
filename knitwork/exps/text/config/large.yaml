@@ -1,0 +1,422 @@
+seed: null
+name: null
+log:
+  logger: comet
+  project: knitwork-text
+  dump_status: false
+  schedule: 2.0e+6
+
+device: null
+dtype: float32
+
+exp: text
+gen: text8
+model: rnn
+n_envs: 128
+rollout_len: 32
+n_steps: 3.0e+8
+
+inspect_schedule: 1.0e+5
+vis_inspect_schedule: 1.0e+5
+
+eval:
+  enabled: true
+  on_start: true
+  split: 0.1
+  # context_window: 100
+  schedule: 10.0e+6
+  max_rollout: 1.0e+4
+
+gens:
+  text8:
+    path: ~/data/text/text8_100M.txt
+    reset_prob:
+      val: 0.015
+      tar: 2.0e-4
+      lr: 0.02
+      schedule: 1000
+  tinysh:
+    path: ~/data/text/tinyshakespeare_1.1M.txt
+    reset_prob:
+      val: 0.015
+      tar: 2.0e-4
+      lr: 0.02
+      schedule: 1000
+
+# ======> Models
+rnn:
+  embedding_size: 64
+  base_hidden_size: 1800
+  n_layers: 1
+  use_bias: true
+  dropout: 0.0
+
+rnn_2L:
+  embedding_size: 64
+  base_hidden_size: 1800
+  n_layers: 1
+  use_bias: true
+  dropout: 0.0
+
+rnn_3L:
+  embedding_size: 64
+  base_hidden_size: 1800
+  n_layers: 1
+  use_bias: true
+  dropout: 0.0
+
+grnn:
+  embedding_size: 64
+  base_hidden_size: 128
+  n_layers: 1
+  n_columns: 2
+  n_attn_heads: 4
+  messaging: post
+  use_bias: true
+  dropout: 0.0
+  col_identities: true
+
+grnn_err:
+  embedding_size: 64
+  base_hidden_size: 115
+  n_layers: 1
+  n_columns: 2
+  n_attn_heads: 4
+  messaging: post
+  use_bias: true
+  dropout: 0.0
+  col_identities: true
+
+hgrnn:
+  embedding_size: 64
+  hidden_size: 110
+  n_layers: 1
+  n_columns: 2
+  n_attn_heads: 4
+  messaging: post
+  use_bias: true
+  dropout: 0.0
+
+grnn2:
+  embedding_size: 72
+  hidden_size: 128
+  n_layers: 2
+  n_columns: 3
+  n_attn_heads: 4
+  messaging: post
+  use_bias: true
+  dropout: 0.0
+  col_identities: true
+
+  vae_latent_dim: 64
+  vae_kl_weight: 1.0e-3
+  use_time_gate: false
+
+  time_gate_delay_scale: -2.0
+
+  col_drop_prob: 0.0
+
+grnn_loss:
+  embedding_size: 64
+  hidden_size: 128
+  n_layers: 4
+  n_columns: 4
+  n_attn_heads: 4
+  messaging: post
+  use_bias: true
+  dropout: 0.0
+  col_identities: true
+
+grnn_res:
+  hidden_size: 300
+  embedding_size: 64
+  n_layers: 3
+  n_columns: 5 
+  n_reservoir_cols: 2
+  n_attn_heads: 4
+  messaging: post
+  col_identities: true
+  spectral_radius: 0.9 
+  reservoir_scale: 0.1 
+
+grnn_engram:
+  embedding_size: 64
+  n_attn_heads: 4
+  messaging: post
+  use_bias: true
+  dropout: 0.0
+  n_columns: 4
+  hidden_size: 128
+
+  n_layers: 4
+  col_identities: true
+
+  n_engram_slots: 16
+
+  engram_top_k: 4
+
+  engram_hebb_lr: 0.1
+  engram_gate_write: true
+
+grnn_prec_delta:
+  embedding_size: 64
+  hidden_size: 128
+  n_layers: 2
+  n_columns: 3
+  n_attn_heads: 4
+  messaging: post
+  col_identities: true
+  delta_lr: 0.01
+  delta_decay: 0.99
+  beta2: 0.999
+  eps: 1.0e-8
+
+grnn_ema_mem:
+  embedding_size: 64
+  hidden_size: 128
+  n_layers: 2
+  n_columns: 3
+  n_attn_heads: 4
+  messaging: post
+  col_identities: true
+  ema_beta: 0.9
+  lam_base: 0.01
+
+grnn_delta:
+  embedding_size: 64
+  hidden_size: 128
+  n_layers: 4
+  n_columns: 4
+  n_attn_heads: 4
+  messaging: post
+  dropout: 0.05
+  ff_mult: 4
+  r_min_layers: 0.2
+  r_max_layers: 0.9995
+  lru_r_per_col: true
+  dk_fast: 16
+  dv_fast: 16
+  dk_slow: 32
+  dv_slow: 32
+  mem_decay_fast: [0.5, 0.7, 0.85, 0.9]
+  mem_decay_slow: [0.97, 0.985, 0.995, 0.999]
+  use_cross_layer_skip: false
+
+grnn_delta_wide:
+  embedding_size: 96
+  hidden_size: 160
+  n_layers: 4
+  n_columns: 4
+  n_attn_heads: 4
+  messaging: post
+  dropout: 0.05
+  ff_mult: 4
+  r_min_layers: 0.1
+  r_max_layers: 0.9995
+  lru_r_per_col: true
+  dk_fast: 20
+  dv_fast: 20
+  dk_slow: 40
+  dv_slow: 40
+  mem_decay_fast: [0.4, 0.6, 0.75, 0.9]
+  mem_decay_slow: [0.96, 0.98, 0.993, 0.999]
+  use_cross_layer_skip: true
+
+grnn_harmonic:
+  embedding_size: 64
+  hidden_size: 128
+  n_layers: 3
+  n_columns: 4
+  n_attn_heads: 4
+  messaging: post
+  dropout: 0.0
+  ffn_expansion: 2
+  attn_dropout: 0.0
+  # 2D spectral LRU hierarchy
+  r_min_col: 0.3
+  r_min_layers: 0.7
+  r_max_layers: 0.999
+  # Surprise-Delta Memory
+  ema_beta: 0.9
+  ema_beta_min: 0.7    # per-layer EMA beta: layer0=0.7 (fast) → layerL=0.9 (slow)
+  delta_decay: 0.99
+  delta_decay_min: 0.95
+  lam_base: 0.01
+  # Frozen Reservoir — for long-range BPC
+  n_reservoir_cols: 4
+  reservoir_hidden_size: 64
+  r_res_min: 0.90
+  r_res_max: 0.999
+  multi_col_head: true    # mean over all columns for LM prediction
+
+# --- external baselines ---
+delta_net:
+  embedding_size: 64
+  hidden_size: 128
+  n_layers: 3
+
+hgrn2:
+  embedding_size: 64
+  hidden_size: 128
+  n_layers: 3
+  expand: 4
+
+mlstm:
+  embedding_size: 64
+  hidden_size: 128
+  n_layers: 3
+
+grnn_base:
+  embedding_size: 64
+  hidden_size: 90
+  n_layers: 1
+  n_columns: 4
+  use_bias: true
+  dropout: 0.0
+
+# Transformer configs at different scales
+transformer:
+  embedding_size: 64
+  hidden_size: 128    # ~540K params: 4L, 4H, ff=256, mem=256
+  n_layers: 4
+  n_heads: 4
+  d_ff: 256
+  mem_len: 256
+  dropout: 0.0
+
+transformer_1m:
+  embedding_size: 64
+  hidden_size: 160    # ~840K params: 4L, 4H, ff=320, mem=256
+  n_layers: 4
+  n_heads: 4
+  d_ff: 320
+  mem_len: 256
+  dropout: 0.0
+
+transformer_2m:
+  embedding_size: 64
+  hidden_size: 256    # ~2.1M params: 4L, 4H, ff=512, mem=512
+  n_layers: 4
+  n_heads: 4
+  d_ff: 512
+  mem_len: 512
+  dropout: 0.1
+
+mamba:
+  embedding_size: 64
+  hidden_size: 128
+  n_layers: 3
+  d_state: 16
+  d_conv: 4
+  expand: 2
+
+# fixed attention variants (architecture_analysis.md §7.1), ~200K params
+grnn_fix:
+  embedding_size: 32
+  hidden_size: 64
+  n_layers: 1
+  n_columns: 3
+  n_attn_heads: 4
+  use_bias: true
+  dropout: 0.0
+
+hgrnn_fix:
+  embedding_size: 64
+  hidden_size: 104
+  n_layers: 1
+  n_columns: 2
+  n_attn_heads: 4
+  use_bias: true
+  dropout: 0.0
+
+grnn_fix_v3:
+  embedding_size: 64
+  hidden_size: 64
+  n_layers: 2
+  n_columns: 3
+  n_attn_heads: 4
+  beta_scale: 3.0
+  aux_div_weight: 0.05
+  aux_gate_weight: 0.02
+  aux_act_weight: 0.02
+  aux_every: 8
+  gate_std_target: 0.15
+  use_bias: true
+  dropout: 0.0
+
+grnn_fix_v4:
+  embedding_size: 64
+  hidden_size: 64
+  n_layers: 2
+  n_columns: 3
+  n_attn_heads: 4
+  beta_scale: 3.0
+  timescale_spread: 1.0
+  aux_div_weight: 0.05
+  aux_gate_weight: 0.1
+  aux_act_weight: 0.02
+  aux_sat_weight: 0.02
+  aux_every: 8
+  gate_std_target: 0.15
+  sat_target: 0.8
+  use_bias: true
+  dropout: 0.1
+
+hgrnn_fix_v4:
+  embedding_size: 64
+  hidden_size: 56
+  n_layers: 2
+  n_columns: 3
+  n_attn_heads: 4
+  beta_scale: 3.0
+  timescale_spread: 1.0
+  aux_div_weight: 0.05
+  aux_gate_weight: 0.1
+  aux_act_weight: 0.02
+  aux_sat_weight: 0.02
+  aux_every: 8
+  gate_std_target: 0.15
+  sat_target: 0.8
+  use_bias: true
+  dropout: 0.0
+
+grnn_fix_v5:
+  embedding_size: 64
+  hidden_size: 60
+  n_layers: 2
+  n_columns: 3
+  n_attn_heads: 4
+  n_lru_cols: 1
+  beta_scale: 3.0
+  timescale_spread: 1.0
+  r_floor_min: 0.9
+  r_floor_max: 0.95
+  lru_grad_scale: 0.1
+  reservoir_mult: 2
+  spectral_radius: 0.95
+  aux_div_weight: 0.05
+  aux_gate_weight: 0.1
+  aux_act_weight: 0.02
+  aux_sat_weight: 0.02
+  aux_every: 8
+  gate_std_target: 0.15
+  sat_target: 0.8
+  use_bias: true
+  dropout: 0.1
+# <====== Models
+
+# base LR config
+lr:
+  val: 8.0e-4
+  tar: 5.0e-5
+  lr: 0.005
+  schedule: 2000
+  warmup:
+    val: 1.0e-9
+    n_linear_steps: 50
+    schedule: 100
+
+trackers:
+  slow: 2.0e-4
+  fast: 1.0e-2
+  eval: null
