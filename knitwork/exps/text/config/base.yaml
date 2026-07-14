@@ -9,6 +9,7 @@ log:
 device: null
 dtype: float32
 
+exp: text
 gen: tinysh
 model: rnn
 n_envs: 64

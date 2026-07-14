@@ -16,7 +16,7 @@ from knitwork.common.scheduler import create_scheduler
 from knitwork.common.torch import DynamicLearningRate, to_loggable_metrics, to_numpy
 from knitwork.common.status import write_status
 from knitwork.common.utils import (
-    CE_ignore_index, dont_throw, format_readable_num, get_device, 
+    CE_ignore_index, count_learnable_params, dont_throw, format_readable_num, get_device, 
     get_dtype, to_torch,
 )
 from knitwork.gens.text import TextGenerator, load_dataset, tokenize
@@ -25,9 +25,7 @@ from knitwork.models.utils import build_model, model_forward
 
 def main(config):
     _default_name = f"{config['model']}"
-    run_name = config.get('name') or config.get('log', {}).get('name') or _default_name
-    config.setdefault('log', {})['name'] = run_name
-    print(f'Run name: {run_name}')
+    run_name = config.get('name') or config['log'].get('name') or _default_name
 
     rng = np.random.default_rng(config['seed'])
     device = get_device(config.get('device'))
@@ -60,6 +58,10 @@ def main(config):
     rnn = build_model(rnn_type, rnn_cfg, n_chars)
     rnn = rnn.to(device=device, dtype=dtype)
     print(f'Model on {next(rnn.parameters()).device} | dtype {next(rnn.parameters()).dtype}')
+
+    run_name = f"{run_name}_{count_learnable_params(rnn, as_str=True)}"
+    config['log']['name'] = run_name
+    print(f'Run name: {run_name}')
 
     use_vae = getattr(rnn, 'use_vae', False)
     has_grid = hasattr(rnn, 'n_layers') and hasattr(rnn, 'n_columns')
