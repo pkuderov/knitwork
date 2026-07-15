@@ -64,6 +64,10 @@ def create_scheduler(cfg: int | dict | Scheduler | None = None) -> Scheduler:
     elif isinstance(cfg, dict):
         ...
     else:
-        # schedule, it may be specified as float as well
-        cfg = dict(schedule=int(cfg))
+        cfg = dict(schedule=cfg)
+
+    # schedule, it may be specified as float as well
+    if 'schedule' in cfg:
+        cfg['schedule'] = int(cfg['schedule'])
+
     return Scheduler(**cfg)
