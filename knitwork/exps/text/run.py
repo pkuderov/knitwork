@@ -49,9 +49,9 @@ def main(config):
         context_window = eval_cfg.get('context_window', None)
         train_frac = 1.0 - eval_cfg['split']
         train_data, val_data = split_train_test(data, train_frac=train_frac)
-        val_gen = TextGenerator(val_data, n_envs=n_envs, ignore_index=CE_ignore_index, seed=get_seed(rng))
+        val_gen = TextGenerator(val_data, n_envs=n_envs, ignore_index=CE_ignore_index, seed=get_seed(rng), device=device)
 
-    gen = TextGenerator(train_data, n_envs=n_envs, ignore_index=CE_ignore_index, seed=get_seed(rng))
+    gen = TextGenerator(train_data, n_envs=n_envs, ignore_index=CE_ignore_index, seed=get_seed(rng), device=device)
 
     rnn_type = config['model']
     rnn_cfg = config[rnn_type]
@@ -62,6 +62,10 @@ def main(config):
     run_name = f"{run_name}_{count_learnable_params(rnn, as_str=True)}"
     config['log']['name'] = run_name
     print(f'Run name: {run_name}')
+
+    rollout_len = config['rollout_len']
+    # update frequency relative to "default" rollout=32
+    update_freq_alpha = rollout_len / 32
 
     use_vae = getattr(rnn, 'use_vae', False)
     has_grid = hasattr(rnn, 'n_layers') and hasattr(rnn, 'n_columns')
@@ -88,14 +92,21 @@ def main(config):
     kl_max = float(kl_cfg.get('max_weight', 1.0))
     kl_anneal = lambda step: kl_max if kl_steps == 0 else kl_max * min(1.0, step / kl_steps)
 
+    config['lr']['schedule'] /= update_freq_alpha
+    if 'warmup' in config['lr'] and 'schedule' in config['lr']['warmup']:
+        config['lr']['warmup']['schedule'] /= update_freq_alpha
+
     lr = DynamicLearningRate(name=f'LR', **config['lr'])
     optim = torch.optim.RMSprop(rnn.parameters(), lr=lr.val)
     lr.connect_to_optimiser(optim)
 
-    loss_fn = nn.CrossEntropyLoss(reduction='mean', ignore_index=CE_ignore_index)
-
     # p_reset schedule
+    gen_cfg['reset_prob']['val'] /= rollout_len
+    gen_cfg['reset_prob']['tar'] /= rollout_len
+    gen_cfg['reset_prob']['schedule'] /= update_freq_alpha
     p_reset = DynamicParameter(**gen_cfg['reset_prob'])
+
+    loss_fn = nn.CrossEntropyLoss(reduction='mean', ignore_index=CE_ignore_index)
 
     rollout_len = config['rollout_len']
     batch_size = gen.n_envs * rollout_len
@@ -134,9 +145,8 @@ def main(config):
 
     while step < n_steps:
         obs = gen.next()
-        obs = {k: to_torch(v, device=device) for k, v in obs.items()}
 
-        rnd_reset  = torch.from_numpy(rng.random(gen.n_envs) < p_reset.val).to(device)
+        rnd_reset = torch.rand(gen.n_envs, device=device, generator=gen.rng) < p_reset.val
         reset_mask = torch.logical_or(obs['reset_mask'], rnd_reset)
         rnn_state  = rnn.reset_state(rnn_state, reset_mask)
         x = obs['tokens'].view(-1, 1)
@@ -201,7 +211,7 @@ def main(config):
                 'Acc': acc,
                 '|Grad|': grad_norm,
                 'LR': lr.val,
-                'T': 1.0 / p_reset.val,
+                'T': min(1e+6, 1.0 / p_reset.val),
             }
             if use_vae:
                 metrics['KL'] = kl_mean

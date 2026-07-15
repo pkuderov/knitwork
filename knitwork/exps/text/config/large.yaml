@@ -31,17 +31,17 @@ gens:
   text8:
     path: ~/data/text/text8_100M.txt
     reset_prob:
-      val: 0.005
-      tar: 5.0e-5
-      lr: 0.02
-      schedule: 500
+      val: 0.2
+      tar: 0.001
+      lr: 0.04
+      schedule: 200
   tinysh:
     path: ~/data/text/tinyshakespeare_1.1M.txt
     reset_prob:
-      val: 0.005
-      tar: 5.0e-5
-      lr: 0.02
-      schedule: 500
+      val: 0.2
+      tar: 0.001
+      lr: 0.04
+      schedule: 200
 
 # ======> Models
 rnn:
@@ -54,14 +54,14 @@ rnn:
 rnn_2L:
   embedding_size: 64
   base_hidden_size: 1800
-  n_layers: 1
+  n_layers: 2
   use_bias: true
   dropout: 0.0
 
 rnn_3L:
   embedding_size: 64
   base_hidden_size: 1800
-  n_layers: 1
+  n_layers: 3
   use_bias: true
   dropout: 0.0
 
@@ -407,16 +407,16 @@ grnn_fix_v5:
 
 # base LR config
 lr:
-  val: 8.0e-4
+  val: 5.0e-4
   tar: 5.0e-5
-  lr: 0.005
-  schedule: 2000
+  lr: 0.01
+  schedule: 1000
   warmup:
     val: 1.0e-9
     n_linear_steps: 50
-    schedule: 100
+    schedule: 32
 
 trackers:
-  slow: 2.0e-4
+  slow: 5.0e-4
   fast: 1.0e-2
   eval: null
