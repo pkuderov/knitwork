@@ -121,6 +121,9 @@ def main(config):
     log_callbacks = [_print_short_summary, _inject_visualizations]
     if dump_status_enabled:
         log_callbacks.append(dump_status)
+    for _tr in config['trackers']:
+        if isinstance(config['trackers'][_tr], float):
+          config['trackers'][_tr] *= update_freq_alpha
     logger = start_logger(
         config, tracker=config['trackers'],
         suppress_printing=True, callbacks=log_callbacks
