@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import numpy as np
@@ -98,9 +99,9 @@ def tokenize(data):
 
 
 def load_dataset(path: str | Path, dtype=np.uint8):
-    if isinstance(path, str):
-        path = Path(path)
-    path = path.expanduser().as_posix()
+    path = os.path.expandvars(str(path))
+    path = os.path.expanduser(path)
+    path = os.path.realpath(path)
     return np.fromfile(path, dtype=dtype)
 
 

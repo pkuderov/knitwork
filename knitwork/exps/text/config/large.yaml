@@ -29,14 +29,14 @@ eval:
 
 gens:
   text8:
-    path: ~/data/text/text8_100M.txt
+    path: $MY_HOME/data/text/text8_100M.txt
     reset_prob:
       val: 0.2
       tar: 0.001
       lr: 0.04
       schedule: 200
   tinysh:
-    path: ~/data/text/tinyshakespeare_1.1M.txt
+    path: $MY_HOME/data/text/tinyshakespeare_1.1M.txt
     reset_prob:
       val: 0.2
       tar: 0.001
@@ -414,7 +414,7 @@ lr:
   warmup:
     val: 1.0e-9
     n_linear_steps: 50
-    schedule: 32
+    schedule: 48
 
 trackers:
   slow: 5.0e-4
