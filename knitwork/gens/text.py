@@ -3,9 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 
 import numpy as np
+import torch
 
 from knitwork.common.utils import CE_ignore_index
-
 
 
 class TextGenerator:
@@ -26,35 +26,39 @@ class TextGenerator:
         self,
         data: np.ndarray,
         *,
-        n_envs: int, ignore_index: int,
-        seed: int = None,
+        n_envs: int, ignore_index: int, 
+        device, seed: int = None
     ):
         data = np.asarray(data)
         assert data.ndim == 1, f"Expected flat 1D token array, got shape={data.shape}"
         assert n_envs >= 1
 
-        self.rng = np.random.default_rng(seed)
+        self.device = device
         self.ignore_index = ignore_index
 
-        self.data = data
+        self.rng = torch.Generator(device)
+        if seed is not None:
+            self.rng.manual_seed(seed)
+
+        self.data = torch.from_numpy(data).to(device)
         self.data_len = len(self.data)
         self.n_envs = n_envs
 
-        self.pos = np.linspace(0, self.data_len, num=n_envs, endpoint=False, dtype=int)
+        self.pos = torch.arange(n_envs, dtype=torch.int64, device=device) * self.data_len // n_envs
 
     def next(self):
-        tokens = self.data[self.pos]
+        tokens = self.data[self.pos].clone()
 
         self.pos += 1
         wrap_mask = self.pos >= self.data_len
         self.pos[wrap_mask] = 0
 
-        targets = self.data[self.pos]
+        targets = self.data[self.pos].clone()
         targets[wrap_mask] = self.ignore_index
 
         return {
-            "tokens": tokens.copy(),
-            "targets": targets.copy(),
+            "tokens": tokens,
+            "targets": targets,
             "reset_mask": wrap_mask,
         }
 
