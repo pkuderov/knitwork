@@ -15,7 +15,7 @@ from knitwork.common.scheduler import create_scheduler
 from knitwork.common.torch import DynamicLearningRate
 from knitwork.common.tracker import Tracker
 from knitwork.common.utils import (
-    FpsCounter, flatten_dict,
+    FpsCounter, count_learnable_params, flatten_dict,
     format_readable_num, get_device, get_dtype,
     to_numpy, to_torch,
 )
@@ -24,29 +24,6 @@ from knitwork.exps.sdq._viz import VizManager
 
 # ---------------------------------------------------------------------------
 # Model registries
-
-# For Discrete observation spaces — pass tokens directly to existing models
-_REGISTRY_DISCRETE: dict[str, tuple[str, str]] = {
-    'rnn':            ('knitwork.models.gru',           'GruBaseline'),
-    'grnn':           ('knitwork.models.grnn',           'GridRnn'),
-    'grnn_lru':       ('knitwork.models.grnn_lru',       'GridLRU'),
-    'grnn_lru_wide':  ('knitwork.models.grnn_lru',       'GridLRU'),
-    'hgrnn':          ('knitwork.models.hgrnn',          'HopfieldGridRnn'),
-    'hgrnn_lru':      ('knitwork.models.hgrnn_lru',      'HopfieldGridLRU'),
-    'hgrn_grnn':      ('knitwork.models.hgrn_grnn',      'HGRN_GridRnn'),
-    'grnn_fw':        ('knitwork.models.grnn_fw',        'GridRnnFW'),
-    'grnn_reservoir': ('knitwork.models.grnn_reservoir', 'GridRnnReservoir'),
-    'grnn_loss':      ('knitwork.models.grnn_loss',      'GridRnnLoss'),
-    'grnn_engram':    ('knitwork.models.engram_grnn',    'EngramGridRnn'),
-    'grnn_prec_delta':('knitwork.models.grnn_prec_delta','GridRnnPrecDelta'),
-    'grnn_ema_mem':   ('knitwork.models.grnn_ema_mem',   'GridRnnEmaMem'),
-    'grnn_delta':     ('knitwork.models.grnn_delta',     'GridDelta'),
-    'grnn_harmonic':  ('knitwork.models.grnn_harmonic',  'HarmonicGridRNN'),
-    # external baselines
-    'delta_net':      ('knitwork.models.baseline.delta_net', 'DeltaNet'),
-    'hgrn2':          ('knitwork.models.baseline.hgrn2',     'HGRN2'),
-    'mlstm':          ('knitwork.models.baseline.mlstm',     'mLSTM'),
-}
 
 # For MultiDiscrete / Box / Tuple observation spaces — linear encoder replaces Embedding
 _REGISTRY_CONTINUOUS: dict[str, tuple[str, str]] = {
@@ -57,7 +34,6 @@ _REGISTRY_CONTINUOUS: dict[str, tuple[str, str]] = {
     'hgrnn_lru': ('knitwork.models.rl_wrappers', 'HopfieldGridLRUContinuous'),
 }
 
-
 def build_model(
     model_type: str,
     model_cfg: dict,
@@ -67,8 +43,10 @@ def build_model(
     n_actions: int,
 ):
     if obs_type == 'discrete':
-        registry = _REGISTRY_DISCRETE
+        from knitwork.models.utils import REGISTRY
+        registry = REGISTRY
         extra = {'input_size': n_tokens, 'output_size': n_actions}
+        return
     else:
         registry = _REGISTRY_CONTINUOUS
         extra = {'obs_dim': obs_dim, 'output_size': n_actions}
@@ -118,22 +96,19 @@ def compute_gae(
 # Main
 
 def main(config):
-    env_id = config['env']
-    _env_slug = env_id.replace('popgym-', '').replace('-v0', '').replace('-', '_')
-    _default_name = f"knitwork_rl_mikasa_{config['model']}_{_env_slug}"
-    run_name = config.get('name') or config.get('log', {}).get('name') or _default_name
-    if not run_name.startswith('knitwork_'):
-        run_name = 'knitwork_' + run_name
-    config.setdefault('log', {})['name'] = run_name
+    env_id = config.get('env') or config['env-ids'][config['env-id']]
+    config['env'] = env_id
 
-    rng          = np.random.default_rng(config['seed'])
-    device       = get_device(config.get('device', None))
-    dtype        = get_dtype(config.get('dtype', None))
-    n_envs       = config['n_envs']
-    entropy_coef = config.get('entropy_coef', 0.05)
+    _env_slug = env_id.replace('popgym-', '').replace('-v0', '').replace('-', '_')
+    _default_name = f"{config['model']}_{_env_slug}"
+    run_name = config.get('name') or config['log'].get('name') or _default_name
+
+    rng = np.random.default_rng(config['seed'])
+    device = get_device(config.get('device'))
+    dtype = get_dtype(config.get('dtype'))
+    n_envs = config['n_envs']
 
     # env
-    env_id    = config['env']
     async_envs = config.get('async_envs', True)
     gen = MikasakWrapper(
         env_id=env_id,
@@ -148,23 +123,23 @@ def main(config):
         f'  n_tokens={gen.n_tokens}'
         f'  n_actions={gen.n_actions}'
     )
+    entropy_coef = config.get('entropy_coef', 0.05)
 
     # model
-    model_type = config['model']
-    model_cfg  = config['models'][model_type]
+    rnn_type = config['model']
+    rnn_cfg  = config[rnn_type]
     rnn = build_model(
-        model_type=model_type,
-        model_cfg=model_cfg,
+        model_type=rnn_type,
+        model_cfg=rnn_cfg,
         obs_type=gen.obs_type,
         n_tokens=gen.n_tokens,
         obs_dim=gen.obs_dim,
         n_actions=gen.n_actions,
     )
     rnn = rnn.to(device=device, dtype=dtype)
+    print(f'Model on {next(rnn.parameters()).device} | dtype {next(rnn.parameters()).dtype}')
 
-    n_active = sum(p.numel() for p in rnn.parameters() if p.requires_grad)
-    _size = format_readable_num(n_active).upper()  # active (trainable) params, e.g. "200K"
-    run_name = f"{run_name}_{_size}"
+    run_name = f"{run_name}_{count_learnable_params(rnn, as_str=True)}"
     config['log']['name'] = run_name
     print(f'Run name: {run_name}')
 
@@ -183,7 +158,7 @@ def main(config):
     # Aux observation-reconstruction head for a specific column (anti-collapse regulariser)
     aux_col_idx = int(config.get('aux_col_idx', 2))
     aux_loss_w  = float(config.get('aux_col_weight', 0.0))
-    _n_cols     = getattr(rnn, 'n_columns', 0)
+    _n_cols = getattr(rnn, 'n_columns', 0)
     aux_enabled = aux_loss_w > 0 and _n_cols > aux_col_idx
     if aux_enabled:
         _obs_out = gen.n_tokens if gen.obs_type == 'discrete' else gen.obs_dim
@@ -206,8 +181,9 @@ def main(config):
     step         = 0
 
     log_stats_schedule   = create_scheduler(config['log']['schedule'])
-    print_stats_schedule = create_scheduler(config['log']['print_schedule'])
+    # print_stats_schedule = create_scheduler(config['log']['print_schedule'])
 
+    return
     logger = create_logger(config)
     stats       = Tracker(lr=2e-4)
     fps_counter = FpsCounter()

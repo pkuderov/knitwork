@@ -3,12 +3,15 @@ name: null
 log:
   logger: comet
   project: knitwork-mikasa
+  dump_status: false
   schedule: 2.0e+6
 
 device: null
 dtype: float32
 
+exp: rl_mikasa
 env-id: 0
+env: null
 model: rnn
 n_envs: 128
 async_envs: false
