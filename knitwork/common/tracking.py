@@ -6,30 +6,28 @@ from knitwork.common.base import prefix_dict
 
 
 class EmaTracker:
-    """Track floating values in aggregated EMA form."""
+    """Track EMA of key-indexed values."""
 
     lr: float
     stats: dict
 
     def __init__(self, lr):
         self.lr = lr
+        self._decay = 1.0 - lr
+        # EMA is tracked as EMA = stats / norms = exp_sum(vals) / exp_sum(1.0)
         self.stats = dict()
-        self._step = 1.0
+        self.norms = dict()
 
-    def put(self, values: dict, *, inc_step=True, prefix: str = None):
+    def put(self, values: dict, *, prefix: str = None):
         """Update EMA of the tracked values."""
         if values is None or len(values) == 0:
             return
-
-        lr = max(self.lr, 1.0 / self._step)
-        if inc_step:
-            # step tracking is needed only for lr "warmup"-period decay.
-            self._step += 1.0
-
+        
+        decay = self._decay
         values = prefix_dict(values, prefix)
         for k, v in values.items():
-            delta = v - self.stats.setdefault(k, 0.0)
-            self.stats[k] += lr * delta
+            self.stats[k] = self.stats.setdefault(k, 0.0) * decay + v
+            self.norms[k] = self.norms.setdefault(k, 0.0) * decay + 1.0
 
     def set(self, values: dict, *, prefix: str = None):
         """Replace tracked values with new ones, i.e as if lr = 1.0."""
@@ -39,9 +37,13 @@ class EmaTracker:
         values = prefix_dict(values, prefix)
         for k, v in values.items():
             self.stats[k] = v
+            self.norms[k] = 1.0
 
     def get(self):
-        return self.stats
+        return {
+            k: v / self.norms[k]
+            for k, v in self.stats.items()
+        }
 
     def __getitem__(self, key):
         return self.stats[key]
@@ -56,6 +58,59 @@ class EmaTracker:
 
     def flush(self):
         return self.stats.copy()
+
+
+class SplitEmaTracker:
+    """
+    Track EMA of key-indexed metrics split by indices.
+    That is, for each metrics key a `bins` subtrackers are created,
+    while self.ix contains an array of these bins indices defining
+    which bins incoming values belong to [for each metrics key].
+
+    For convenience, self.ix is init to None and not used, 
+    so it's possible to set/manage bins indices externally, utilizing this attr.
+
+    NB: compared to EmaTracker, this tracker assumes all metrics keys
+    are passed each put call, such that it doesn't track per-key norms.
+    Instead, it tracks per-bin norms shared between all keys.
+    """
+
+    def __init__(self, bins: int, lr: float):
+        self.n_bins = bins
+        self.lr = lr
+        self._decay = 1.0 - lr
+        self.ixs = None
+        self.stats = dict()
+        self.norms = np.zeros(bins) + 1.0e-9
+
+    def put(self, values: dict, *, ixs, prefix: str = None):
+        """Update EMA of the tracked values."""
+        if values is None or len(values) == 0:
+            return
+        
+        decay = self._decay
+        values = prefix_dict(values, prefix)
+        for k, v in values.items():
+            if k not in self.stats:
+                self.stats[k] = np.zeros_like(self.norms)
+            np.multiply.at(self.stats[k], ixs, decay)
+            np.add.at(self.stats[k], ixs, v)
+
+        np.multiply.at(self.norms, ixs, decay)
+        np.add.at(self.norms, ixs, 1)
+
+    def get(self, split=False):
+        emas = {
+            k: v / self.norms
+            for k, v in self.stats.items()
+        }
+        if split:
+            emas = {
+                f'{k}[{ix}]': v[ix]
+                for k, v in emas.items()
+                for ix in range(self.n_bins)
+            }
+        return emas
 
 
 class ListTracker:

@@ -15,9 +15,10 @@ from knitwork.common.numpy import get_seed
 from knitwork.common.scheduler import create_scheduler
 from knitwork.common.torch import DynamicLearningRate, to_loggable_metrics, to_numpy
 from knitwork.common.status import write_status
+from knitwork.common.tracking import SplitEmaTracker
 from knitwork.common.utils import (
     CE_ignore_index, count_learnable_params, dont_throw, format_readable_num, get_device, 
-    get_dtype, to_torch,
+    get_dtype,
 )
 from knitwork.gens.text import TextGenerator, load_dataset, tokenize
 from knitwork.models.utils import build_model, model_forward
@@ -36,6 +37,8 @@ def main(config):
     data_path = Path(gen_cfg['path']).expanduser()
     data, charset = tokenize(load_dataset(data_path))
     n_chars = charset.size
+    # print(f"{charset.tobytes().decode('utf-8')!r}")
+    space_token = charset.tobytes().decode('utf-8').find(' ')
 
     train_data = data
     eval_cfg = config.get('eval', {})
@@ -85,7 +88,8 @@ def main(config):
     def _inject_visualizations(step, *, scalars, figures):
         if vis_inspect_scheduler.is_infinite:
             return
-        if has_grid:
+        if has_grid and 'val/Loss' in scalars:
+            # log figures only with eval schedule
             figures |= attn_vis.get_figures()
             figures |= cka_vis.get_figures()
 
@@ -132,12 +136,13 @@ def main(config):
         suppress_printing=True, callbacks=log_callbacks
     )
 
+    in_word_acc = SplitEmaTracker(bins=config['inspect_n_in_word_acc'], lr=0.01)
+    in_word_acc.ixs = torch.zeros(step_size, dtype=torch.int64, device=device)
+
     ln_2 = np.log(2.0)
     rnn_state = None
-    batch_y: list = []
-    batch_y_gt: list = []
-    batch_kl: list = []
-    acc_by_pos: dict[int, float] = {}
+    batch_y, batch_y_gt, batch_kl = [], [], []
+    batch_in_word_pos = []
 
     def _run_eval(step):
         run_eval(
@@ -177,19 +182,23 @@ def main(config):
 
         batch_y.append(y)
         batch_y_gt.append(obs['targets'])
-        batch_kl.append(kl if kl is not None else torch.tensor(0.0, device=device, dtype=dtype))
+        batch_in_word_pos.append(in_word_acc.ixs)
+        if use_vae:
+            batch_kl.append(kl if kl is not None else torch.tensor(0.0, device=device, dtype=dtype))
 
         step += step_size
+        in_word_acc.ixs = torch.where(x.view(-1) == space_token, 0, in_word_acc.ixs + 1)
 
         if step % batch_size == 0:
             y_cat  = torch.cat(batch_y, dim=0)
             y_gt_cat = torch.cat(batch_y_gt, dim=0)
             m_active = y_gt_cat != CE_ignore_index
 
-            ce_loss = loss_fn(y_cat, y_gt_cat)
-            kl_mean = torch.stack(batch_kl).mean()
-            kl_scale = kl_anneal(step)
-            total_loss = ce_loss + kl_scale * kl_mean
+            total_loss = ce_loss = loss_fn(y_cat, y_gt_cat)
+            if use_vae:
+                kl_mean = torch.stack(batch_kl).mean()
+                kl_scale = kl_anneal(step)
+                total_loss = total_loss + kl_scale * kl_mean
 
             with torch.no_grad():
                 logits_a = y_cat[m_active]
@@ -197,7 +206,7 @@ def main(config):
                 acc = (logits_a.argmax(dim=-1) == gt_a).float()
                 bpc = ce_loss / ln_2
                 perplexity = torch.exp(ce_loss)
-                update_intra_word_metrics(acc_by_pos, obs['tokens'].view(-1), acc)
+                update_in_word_acc(in_word_acc, batch_in_word_pos, acc, m_active)
 
             optim.zero_grad()
             total_loss.backward()
@@ -222,10 +231,9 @@ def main(config):
             if use_vae:
                 metrics['KL'] = kl_mean
                 metrics['KL_scale'] = kl_scale
-            for pos, val in list(acc_by_pos.items())[:4]:
-                metrics[f'Acc[{pos}]'] = val
             metrics = to_loggable_metrics(metrics)
             logger.accumulate(metrics, key='slow')
+            logger.accumulate(in_word_acc.get(split=True), key='fast')
 
             rnn_state = rnn.detach_state(rnn_state)
             batch_y.clear(); batch_y_gt.clear(); batch_kl.clear()
@@ -263,7 +271,6 @@ def run_eval(
 
     for _ in range(max_rollout):
         obs = gen.next()
-        obs = {k: to_torch(v, device=device) for k, v in obs.items()}
 
         # reset at dataset wrap [and at context window boundary]
         reset_mask = obs['reset_mask']
@@ -316,13 +323,13 @@ def run_eval(
             f'BPC_{label}': cw_ix_bpc[_frac_to_ix(frac)]
             for label, frac in label_fracs
         }
-        logger.accumulate(metrics, prefix='val.context_window', key='eval')
+        logger.accumulate(metrics, prefix='val.context_window', key='list')
 
         from knitwork.visualization.context_analysis import plot_bpc_by_context_pos
         figures = {
             'bpc_curve': plot_bpc_by_context_pos(cw_ix_bpc, step=step),
         }
-        logger.accumulate(figures, prefix='val.context_window', key='eval')
+        logger.accumulate(figures, prefix='val.context_window', key='list')
 
 
 @torch.no_grad()
@@ -401,23 +408,16 @@ def log_attn_beta(rnn, logger):
     logger.accumulate(metrics, prefix='attn_beta', key='fast')
 
 
-def update_intra_word_metrics(
-    acc_by_pos: dict[int, float],
-    tokens: torch.Tensor,   # [B]
-    acc:    torch.Tensor,   # [B]
-    lr: float = 0.01,
-    space_idx: int = 0,
-) -> None:
-    """Intra-word accuracy"""
-    # FIXME: initial pos is incorrect
-    pos = 0
-    for t, a in zip(tokens.tolist(), acc.tolist()):
-        if t == space_idx:
-            pos = 0
-        else:
-            old = acc_by_pos.get(pos, a)
-            acc_by_pos[pos] = old + lr * (a - old)
-            pos += 1
+@torch.no_grad()
+def update_in_word_acc(in_word_acc, batch_in_word_pos, acc, m_active):
+    acc = to_numpy(acc, copy=False).ravel()
+    in_word_pos = to_numpy(torch.concat(batch_in_word_pos), copy=False)
+    batch_in_word_pos.clear()
+
+    # take only "active" samples and merge all "outer" positions into the last bin
+    in_word_pos = np.minimum(in_word_pos[m_active], in_word_acc.n_bins - 1)
+
+    in_word_acc.put({'in_word_stats/Acc': acc}, ixs=in_word_pos)
 
 
 def print_short_summary(step, *, scalars, figures, max_steps, use_vae, lr):

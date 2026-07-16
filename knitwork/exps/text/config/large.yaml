@@ -4,7 +4,7 @@ log:
   logger: comet
   project: knitwork-text
   dump_status: false
-  schedule: 2.0e+6
+  schedule: 2.5e+6
 
 device: null
 dtype: float32
@@ -16,8 +16,9 @@ n_envs: 128
 rollout_len: 32
 n_steps: 4.0e+8
 
-inspect_schedule: 1.0e+5
-vis_inspect_schedule: 1.0e+5
+inspect_schedule: 2.5e+5
+vis_inspect_schedule: 2.5e+5
+inspect_n_in_word_acc: 5
 
 eval:
   enabled: true
@@ -68,8 +69,8 @@ rnn_3L:
 grnn:
   embedding_size: 64
   base_hidden_size: 1800
-  n_layers: 1
-  n_columns: 2
+  n_layers: 2
+  n_columns: 4
   n_attn_heads: 4
   messaging: post
   use_bias: true
@@ -78,9 +79,9 @@ grnn:
 
 grnn_err:
   embedding_size: 64
-  base_hidden_size: 115
-  n_layers: 1
-  n_columns: 2
+  base_hidden_size: 1800
+  n_layers: 2
+  n_columns: 4
   n_attn_heads: 4
   messaging: post
   use_bias: true
@@ -418,5 +419,6 @@ lr:
 
 trackers:
   slow: 5.0e-4
-  fast: 1.0e-2
+  fast: 4.0e-2
+  list: null
   eval: null

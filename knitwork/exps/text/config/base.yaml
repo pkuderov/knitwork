@@ -18,6 +18,7 @@ n_steps: 2.0e+7
 
 inspect_schedule: 1.0e+5
 vis_inspect_schedule: 1.0e+5
+inspect_n_in_word_acc: 5
 
 eval:
   enabled: true
@@ -29,19 +30,19 @@ eval:
 
 gens:
   text8:
-    path: ~/data/text/text8_100M.txt
+    path: $MY_HOME/data/text/text8_100M.txt
     reset_prob:
-      val: 0.01
-      tar: 1e-4
-      lr: 0.007
-      schedule: 1000
+      val: 0.2
+      tar: 0.001
+      lr: 0.04
+      schedule: 200
   tinysh:
-    path: ~/data/text/tinyshakespeare_1.1M.txt
+    path: $MY_HOME/data/text/tinyshakespeare_1.1M.txt
     reset_prob:
-      val: 0.01
-      tar: 1e-4
-      lr: 0.007
-      schedule: 1000
+      val: 0.2
+      tar: 0.001
+      lr: 0.04
+      schedule: 200
 
 # ======> Models
 rnn:
@@ -393,16 +394,17 @@ grnn_fix_v5:
 
 # base LR config
 lr:
-  val: 8.0e-4
+  val: 5.0e-4
   tar: 5.0e-5
-  lr: 0.005
-  schedule: 2000
+  lr: 0.01
+  schedule: 1000
   warmup:
-    val: 1e-9
+    val: 1.0e-9
     n_linear_steps: 50
-    schedule: 100
+    schedule: 48
 
 trackers:
-  slow: 2.0e-4
-  fast: 1.0e-2
+  slow: 5.0e-4
+  fast: 4.0e-2
+  list: null
   eval: null

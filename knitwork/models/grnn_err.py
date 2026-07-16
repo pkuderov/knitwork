@@ -108,7 +108,7 @@ class GridRnn(BaseGridRnn):
 
     def _cell_input_dim(self, ix_layer: int, ix_col) -> int:
         if ix_layer == 0:
-            # only the first col gets non-empty external input, 
+            # only the first two cols get non-empty external input, 
             # the others get dummy 1-dim zero tensor
             return self.embedding_size if ix_col < 2 else 1
 
@@ -122,10 +122,11 @@ class GridRnn(BaseGridRnn):
         xl = [x_pred, x_true - x_pred]
 
         if self.n_columns > 2:
+            ix_no_input_col = 2
             bsz, n_features = x_pred.shape
-            in_dim = self._cell_input_dim(ix_layer=0, ix_col=2)
+            in_dim = self._cell_input_dim(ix_layer=0, ix_col=ix_no_input_col)
             dummy_input = torch.zeros(bsz, in_dim, device=x_true.device, dtype=x_true.dtype)
-            for _ in range(1, self.n_columns):
+            for _ in range(ix_no_input_col, self.n_columns):
                 xl.append(dummy_input)
 
         return xl

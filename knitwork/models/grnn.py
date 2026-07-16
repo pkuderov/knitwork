@@ -201,10 +201,11 @@ class GridRnn(nn.Module):
         # the first "layer" (=row) may have input of different size,
         # therefore it is stored as list, not as contiguous stacked array [for the later rows]
         xl = [x]
+        ix_no_input_col = 1
         bsz, n_features = x.shape
-        in_dim = self._cell_input_dim(ix_layer=0, ix_col=1)
+        in_dim = self._cell_input_dim(ix_layer=0, ix_col=ix_no_input_col)
         dummy_input = torch.zeros(bsz, in_dim, device=x.device, dtype=x.dtype)
-        for _ in range(1, self.n_columns):
+        for _ in range(ix_no_input_col, self.n_columns):
             xl.append(dummy_input)
 
         return xl
