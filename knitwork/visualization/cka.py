@@ -163,11 +163,13 @@ class CKAVisualizer:
 
 
 class CKAVisualizerNew:
-    def __init__(self, n_layers: int, n_columns: int, *, lr, fig_id=200):
+    # stable fig ids allow the object reuse to improve performance and memory consumption
+    _fig_id = "CKA Layer {layer_idx}"
+
+    def __init__(self, n_layers: int, n_columns: int, *, lr):
         self.n_layers = n_layers
         self.n_columns = n_columns
         self.tracker = EmaTracker(lr)
-        self._fig_id = fig_id
 
     def update(self, h: torch.Tensor):
         # (n_layers, n_cols, batch, hidden_size)
@@ -184,13 +186,13 @@ class CKAVisualizerNew:
         self.tracker.put(cka)
 
     def get_figures(self):
-        fig_id = self._fig_id
         col_labels = [f"C{j}" for j in range(self.n_columns)]
         figures = {}
         
         for layer_idx, cka in self.tracker.get().items():
             cka = to_numpy(cka, copy=False)
-            fig = plt.figure(num=fig_id+1, clear=True)
+            fig_id = self._fig_id.format(layer_idx=layer_idx)
+            fig = plt.figure(num=fig_id, clear=True)
             ax = fig.subplots()
 
             im = ax.imshow(cka, vmin=0.0, vmax=1.0, cmap="RdYlGn_r", aspect="equal")

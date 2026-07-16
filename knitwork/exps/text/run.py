@@ -64,7 +64,10 @@ def main(config):
     print(f'Run name: {run_name}')
 
     rollout_len = config['rollout_len']
-    # update frequency relative to "default" rollout=32
+    # factor explressing an update frequency relative to the "default" rollout=32
+    # NB: see its usages for how it affects schedules of some trackers. 
+    # Such adaptation is not ideal, and reasonable only in a short range. Definitely should need manual config
+    # tuning for large rollouts (>256)
     update_freq_alpha = rollout_len / 32
 
     use_vae = getattr(rnn, 'use_vae', False)
