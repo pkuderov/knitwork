@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 
-from knitwork.common.utils import convert_hidden_size, format_readable_num, to_torch
+from knitwork.common.utils import convert_hidden_size, count_learnable_params, to_torch
 
 
 class GruBaseline(nn.Module):
@@ -48,8 +48,7 @@ class GruBaseline(nn.Module):
 
         self.head = nn.Linear(self.hidden_size, self.output_size)
 
-        param_count = sum(p.numel() for p in self.parameters() if p.requires_grad)
-        print(f'Param count: {format_readable_num(param_count)}')
+        print(f'Param count: {count_learnable_params(self, as_str=True)}')
 
     def forward(self, tokens: torch.Tensor, h0=None):
         tokens = to_torch(tokens)
