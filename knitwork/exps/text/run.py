@@ -411,11 +411,13 @@ def log_attn_beta(rnn, logger):
 @torch.no_grad()
 def update_in_word_acc(in_word_acc, batch_in_word_pos, acc, m_active):
     acc = to_numpy(acc, copy=False).ravel()
-    in_word_pos = to_numpy(torch.concat(batch_in_word_pos), copy=False)
+    # take only "active" samples to align with acc
+    in_word_pos = torch.concat(batch_in_word_pos)[m_active.view(-1)]
+    in_word_pos = to_numpy(in_word_pos, copy=False)
     batch_in_word_pos.clear()
 
-    # take only "active" samples and merge all "outer" positions into the last bin
-    in_word_pos = np.minimum(in_word_pos[m_active], in_word_acc.n_bins - 1)
+    # merge all "outer" positions into the last bin
+    in_word_pos = np.minimum(in_word_pos, in_word_acc.n_bins - 1)
 
     in_word_acc.put({'in_word_stats/Acc': acc}, ixs=in_word_pos)
 
