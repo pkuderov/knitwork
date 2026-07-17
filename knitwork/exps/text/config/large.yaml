@@ -14,7 +14,7 @@ gen: text8
 model: rnn
 n_envs: 128
 rollout_len: 32
-n_steps: 4.0e+8
+n_steps: 8.0e+8
 
 inspect_schedule: 2.5e+5
 vis_inspect_schedule: 2.5e+5
@@ -314,7 +314,7 @@ mamba:
 # fixed attention variants (architecture_analysis.md §7.1), ~200K params
 grnn_fix:
   embedding_size: 64
-  hidden_size: 480
+  hidden_size: 464
   n_layers: 2
   n_columns: 4
   n_attn_heads: 4
@@ -347,9 +347,9 @@ grnn_fix_v3:
 
 grnn_fix_v4:
   embedding_size: 64
-  hidden_size: 64
+  hidden_size: 464
   n_layers: 2
-  n_columns: 3
+  n_columns: 4
   n_attn_heads: 4
   beta_scale: 3.0
   timescale_spread: 1.0
@@ -357,7 +357,7 @@ grnn_fix_v4:
   aux_gate_weight: 0.1
   aux_act_weight: 0.02
   aux_sat_weight: 0.02
-  aux_every: 8
+  aux_every: 32
   gate_std_target: 0.15
   sat_target: 0.8
   use_bias: true
