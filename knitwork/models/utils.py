@@ -3,7 +3,9 @@ import importlib
 
 # Model registry
 REGISTRY: dict[str, tuple[str, str] | None] = {
-    'rnn':            ('knitwork.models.gru',           'GruBaseline'),
+    'rnn':            ('knitwork.models.gru',            'GruBaseline'),
+    'rnn_2L':         ('knitwork.models.gru',            'GruBaseline'),
+    'rnn_3L':         ('knitwork.models.gru',            'GruBaseline'),
     'grnn':           ('knitwork.models.grnn',           'GridRnn'),
     'grnn_err':       ('knitwork.models.grnn_err',       'GridRnn'),
     'grnn2':          ('knitwork.models.grnn2',          'GridRnn2'),
