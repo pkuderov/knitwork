@@ -4,7 +4,7 @@ log:
   logger: comet
   project: knitwork-text
   dump_status: false
-  schedule: 2.5e+6
+  schedule: 5.0e+6
 
 device: null
 dtype: float32
@@ -12,12 +12,12 @@ dtype: float32
 exp: text
 gen: text8
 model: rnn
-n_envs: 128
+n_envs: 512
 rollout_len: 32
-n_steps: 8.0e+8
+n_steps: 7.5e+8
 
-inspect_schedule: 2.5e+5
-vis_inspect_schedule: 2.5e+5
+inspect_schedule: 5.0e+5
+vis_inspect_schedule: 5.0e+5
 inspect_n_in_word_acc: 5
 
 eval:
@@ -25,8 +25,8 @@ eval:
   on_start: true
   split: 0.1
   # context_window: 100
-  schedule: 10.0e+6
-  max_rollout: 1.0e+4
+  schedule: 2.0e+7
+  max_rollout: 2.0e+4
 
 gens:
   text8:
@@ -35,14 +35,14 @@ gens:
       val: 0.2
       tar: 0.001
       lr: 0.04
-      schedule: 200
+      schedule: 100
   tinysh:
     path: $MY_HOME/data/text/tinyshakespeare_1.1M.txt
     reset_prob:
       val: 0.2
       tar: 0.001
       lr: 0.04
-      schedule: 200
+      schedule: 100
 
 # ======> Models
 rnn:
@@ -411,14 +411,14 @@ lr:
   val: 5.0e-4
   tar: 5.0e-5
   lr: 0.01
-  schedule: 1000
+  schedule: 250
   warmup:
     val: 1.0e-9
     n_linear_steps: 50
-    schedule: 48
+    schedule: 24
 
 trackers:
-  slow: 5.0e-4
-  fast: 4.0e-2
+  slow: 2.0e-3
+  fast: 3.0e-2
   list: null
   eval: null

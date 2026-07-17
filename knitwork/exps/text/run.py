@@ -67,11 +67,18 @@ def main(config):
     print(f'Run name: {run_name}')
 
     rollout_len = config['rollout_len']
-    # factor explressing an update frequency relative to the "default" rollout=32
+    batch_size = gen.n_envs * rollout_len
+    n_steps, step_size = int(config['n_steps']), gen.n_envs
+
+    # factor explressing an update frequency relative to the "default" rollout=32 bsz=512
     # NB: see its usages for how it affects schedules of some trackers. 
-    # Such adaptation is not ideal, and reasonable only in a short range. Definitely should need manual config
-    # tuning for large rollouts (>256)
-    update_freq_alpha = rollout_len / 32
+    # Such adaptation is not ideal, and reasonable only in a short range
+    update_freq_alpha = (batch_size / 32 / 512)**0.5
+    n_steps = int(n_steps * update_freq_alpha)
+    config['log']['schedule'] *= update_freq_alpha
+    config['eval']['schedule'] *= update_freq_alpha
+    config['lr']['schedule'] /= update_freq_alpha
+    config['lr']['warmup']['schedule'] /= update_freq_alpha
 
     use_vae = getattr(rnn, 'use_vae', False)
     has_grid = hasattr(rnn, 'n_layers') and hasattr(rnn, 'n_columns')
@@ -99,10 +106,6 @@ def main(config):
     kl_max = float(kl_cfg.get('max_weight', 1.0))
     kl_anneal = lambda step: kl_max if kl_steps == 0 else kl_max * min(1.0, step / kl_steps)
 
-    config['lr']['schedule'] /= update_freq_alpha
-    if 'warmup' in config['lr'] and 'schedule' in config['lr']['warmup']:
-        config['lr']['warmup']['schedule'] /= update_freq_alpha
-
     lr = DynamicLearningRate(name=f'LR', **config['lr'])
     optim = torch.optim.RMSprop(rnn.parameters(), lr=lr.val)
     lr.connect_to_optimiser(optim)
@@ -114,11 +117,6 @@ def main(config):
     p_reset = DynamicParameter(**gen_cfg['reset_prob'])
 
     loss_fn = nn.CrossEntropyLoss(reduction='mean', ignore_index=CE_ignore_index)
-
-    rollout_len = config['rollout_len']
-    batch_size = gen.n_envs * rollout_len
-    n_steps, step_size = int(config['n_steps']), gen.n_envs
-    step, i_update = 0, 0
 
     dump_status_enabled = config.get('dump_status', False)
     def dump_status(step, *, scalars, figures):
@@ -140,6 +138,7 @@ def main(config):
     in_word_acc.ixs = torch.zeros(step_size, dtype=torch.int64, device=device)
 
     ln_2 = np.log(2.0)
+    step, i_update = 0, 0
     rnn_state = None
     batch_y, batch_y_gt, batch_kl = [], [], []
     batch_in_word_pos = []
