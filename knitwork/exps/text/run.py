@@ -70,17 +70,18 @@ def main(config):
     batch_size = gen.n_envs * rollout_len
     n_steps, step_size = int(config['n_steps']), gen.n_envs
 
-    # factor explressing an update frequency relative to the "default" rollout=32 bsz=512
-    # NB: see its usages for how it affects schedules of some trackers. 
-    # Such adaptation is not ideal, and reasonable only in a short range
-    update_freq_alpha = (batch_size / 32 / 512)**0.5
-    n_steps = int(n_steps * update_freq_alpha)
-    config['log']['schedule'] *= update_freq_alpha
-    config['eval']['schedule'] *= update_freq_alpha
-    config['lr']['schedule'] /= update_freq_alpha
-    config['lr']['warmup']['schedule'] /= update_freq_alpha
-    gen_cfg['reset_prob']['schedule'] /= update_freq_alpha
-    config['trackers']['slow'] *= update_freq_alpha
+    if config.get('adapt_to_bsz', None) == 'auto':
+        # factor explressing an update frequency relative to the "default" rollout=32 bsz=512
+        # NB: see its usages for how it affects schedules of some trackers. 
+        # Such adaptation is not ideal, and reasonable only in a short range
+        update_freq_alpha = (batch_size / 32 / 512)**0.5
+        n_steps = int(n_steps * update_freq_alpha)
+        config['log']['schedule'] *= update_freq_alpha
+        config['eval']['schedule'] *= update_freq_alpha
+        config['lr']['schedule'] /= update_freq_alpha
+        config['lr']['warmup']['schedule'] /= update_freq_alpha
+        gen_cfg['reset_prob']['schedule'] /= update_freq_alpha
+        config['trackers']['slow'] *= update_freq_alpha
 
     use_vae = getattr(rnn, 'use_vae', False)
     has_grid = hasattr(rnn, 'n_layers') and hasattr(rnn, 'n_columns')

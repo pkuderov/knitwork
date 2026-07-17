@@ -16,6 +16,8 @@ n_envs: 512
 rollout_len: 32
 n_steps: 7.5e+8
 
+adapt_to_bsz: auto
+
 inspect_schedule: 5.0e+5
 vis_inspect_schedule: 5.0e+5
 inspect_n_in_word_acc: 5
