@@ -86,6 +86,8 @@ def main(config):
         config['lr']['warmup']['schedule'] /= update_freq_alpha
         gen_cfg['reset_prob']['schedule'] /= update_freq_alpha
         config['trackers']['slow'] *= update_freq_alpha
+        if do_eval:
+            eval_schedule = create_scheduler(eval_cfg['schedule'])
 
     use_vae = getattr(rnn, 'use_vae', False)
     has_grid = hasattr(rnn, 'n_layers') and hasattr(rnn, 'n_columns')
