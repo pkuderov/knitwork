@@ -118,7 +118,7 @@ def main(config):
     rollout_len = config['rollout_len']
     batch_size = gen.n_envs * rollout_len
     n_steps, step_size = int(config['n_steps']), gen.n_envs
-    step = 0
+    step, i_update = 0, 0
 
     dump_status_enabled = config.get('dump_status', False)
     def dump_status(step, *, scalars, figures):
@@ -218,6 +218,7 @@ def main(config):
 
             p_reset.step()
             lr.step()
+            i_update += 1
 
             metrics = {
                 'Loss': ce_loss,
@@ -227,6 +228,7 @@ def main(config):
                 '|Grad|': grad_norm,
                 'LR': lr.val,
                 'T': min(1e+6, 1.0 / p_reset.val),
+                'Upd': i_update,
             }
             if use_vae:
                 metrics['KL'] = kl_mean
