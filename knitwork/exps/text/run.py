@@ -79,6 +79,8 @@ def main(config):
     config['eval']['schedule'] *= update_freq_alpha
     config['lr']['schedule'] /= update_freq_alpha
     config['lr']['warmup']['schedule'] /= update_freq_alpha
+    gen_cfg['reset_prob']['schedule'] /= update_freq_alpha
+    config['trackers']['slow'] *= update_freq_alpha
 
     use_vae = getattr(rnn, 'use_vae', False)
     has_grid = hasattr(rnn, 'n_layers') and hasattr(rnn, 'n_columns')
@@ -113,7 +115,6 @@ def main(config):
     # p_reset schedule
     gen_cfg['reset_prob']['val'] /= rollout_len
     gen_cfg['reset_prob']['tar'] /= rollout_len
-    gen_cfg['reset_prob']['schedule'] /= update_freq_alpha
     p_reset = DynamicParameter(**gen_cfg['reset_prob'])
 
     loss_fn = nn.CrossEntropyLoss(reduction='mean', ignore_index=CE_ignore_index)
@@ -126,9 +127,6 @@ def main(config):
     log_callbacks = [_print_short_summary, _inject_visualizations]
     if dump_status_enabled:
         log_callbacks.append(dump_status)
-    for _tr in config['trackers']:
-        if isinstance(config['trackers'][_tr], float):
-          config['trackers'][_tr] *= update_freq_alpha
     logger = start_logger(
         config, tracker=config['trackers'],
         suppress_printing=True, callbacks=log_callbacks
