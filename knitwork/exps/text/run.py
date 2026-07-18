@@ -25,6 +25,8 @@ from knitwork.models.utils import build_model, model_forward
 
 
 def main(config):
+    torch.set_float32_matmul_precision('high')
+
     _default_name = f"{config['model']}"
     run_name = config.get('name') or config['log'].get('name') or _default_name
 
@@ -64,6 +66,7 @@ def main(config):
     rnn_cfg = config[rnn_type]
     rnn = build_model(rnn_type, rnn_cfg, n_chars)
     rnn = rnn.to(device=device, dtype=dtype)
+    rnn = torch.compile(rnn)
     print(f'Model on {next(rnn.parameters()).device} | dtype {next(rnn.parameters()).dtype}')
 
     run_name = f"{run_name}_{count_learnable_params(rnn, as_str=True)}"

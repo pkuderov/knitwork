@@ -101,31 +101,33 @@ class GridRnn(nn.Module):
         return y, h
 
     def grid_step_postmsg(self, x, *, h: torch.Tensor, return_attn=True):
-        h_n, attn_list, gate_list = [], [], []
+        h_n, attn_ws, gate_vs = [], [], []
         # it is a list of inputs, each input is [batch, col_in_dim]
         x = self._prepare_grid_input(x)
 
-        for cells, attn, attn_gate, hl in zip(self.cells, self.attn, self.attn_gates, h):
+        for layer in range(self.n_layers):
             hl_n = [
-                self.cell_forward(cells, x, hl, ix_col=ix_col)
+                self.cell_forward(self.cells[layer], x, h[layer], ix_col=ix_col)
                 for ix_col in range(self.n_columns)
             ]
             hl_n = torch.stack(hl_n, dim=0)
 
-            msg, attn_w = attn(hl_n, return_weights=return_attn)
-            g = torch.sigmoid(attn_gate(
+            msg, attn_w = self.attn[layer](hl_n, return_weights=return_attn)
+            g = torch.sigmoid(self.attn_gates[layer](
                 torch.cat([hl_n, msg], dim=-1)
             ))
-            hl_n = (1 - g) * hl_n + g * msg
+            hl_n = torch.lerp(hl_n, msg, g)
 
             h_n.append(hl_n)
-            attn_list.append(attn_w)
-            gate_list.append(g)   
+            attn_ws.append(attn_w)
+            gate_vs.append(g.detach())
             # starting from there, x is a contiguous tensor [cols, batch, hidden_size]
             x = hl_n
 
         h_n = torch.stack(h_n, dim=0)
-        return h_n, {"attn_weights": attn_list, "gates": gate_list} 
+        info = {"attn_weights": attn_ws, "gates": gate_vs} 
+
+        return h_n, info
 
     def grid_step_premsg(self, x, *, h: torch.Tensor):
         h_n = []
@@ -167,18 +169,8 @@ class GridRnn(nn.Module):
         if state is None:
             return self.init_state(reset_mask.shape[0])
 
-        ixs = torch.nonzero(reset_mask).flatten()
-        if ixs.numel() == 0:
-            return state
-
-        def _reset(h):
-            # shape: (layers, cols, batch, hidden_size)
-            h = h.clone()
-            h[:, :, ixs, :] *= 0.0
-            return h
-
-        state = _reset(state)
-        return state
+        keep = (~reset_mask.flatten())[None, None, :, None]
+        return state * keep
 
     def detach_state(self, state):
         if state is None:
@@ -242,9 +234,9 @@ class MessagePassingLayer(nn.Module):
         if self.ids is not None:
             qh = kh = qh + self.ids
 
-        h_mixed, attn_w  = self.mha(qh, kh, vh, average_attn_weights=True)
+        h_mixed, attn_w = self.mha(qh, kh, vh, need_weights=return_weights, average_attn_weights=True)
 
         # Layer norm ensures we are in a good range
-        if return_weights and attn_w is not None:
-            attn_w = attn_w.mean(dim=0)
-        return self.norm(h_mixed), attn_w 
+        if return_weights:
+            attn_w = attn_w.detach().mean(dim=0)
+        return self.norm(h_mixed), attn_w
