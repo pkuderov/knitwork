@@ -68,7 +68,8 @@ def main(config):
     rnn_cfg = config[rnn_type]
     rnn = build_model(rnn_type, rnn_cfg, n_chars)
     rnn = rnn.to(device=device, dtype=dtype)
-    rnn = torch.compile(rnn)
+    if config.get('compile', False):
+        rnn = torch.compile(rnn)
     print(f'Model on {next(rnn.parameters()).device} | dtype {next(rnn.parameters()).dtype}')
 
     run_name = f"{run_name}_{count_learnable_params(rnn, as_str=True)}"

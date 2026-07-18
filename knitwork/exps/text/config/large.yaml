@@ -17,6 +17,7 @@ rollout_len: 32
 n_steps: 7.5e+8
 
 adapt_to_bsz: auto
+compile: true
 
 inspect_schedule: 5.0e+5
 vis_inspect_schedule: 5.0e+5
