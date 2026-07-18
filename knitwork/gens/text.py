@@ -9,7 +9,7 @@ import torch
 from knitwork.common.utils import CE_ignore_index
 
 
-class TextGenerator:
+class TextGenerator(torch.nn.Module):
     """
     Vectorized text-stream generator over one flat array.
 
@@ -30,6 +30,7 @@ class TextGenerator:
         n_envs: int, ignore_index: int, 
         device, seed: int = None
     ):
+        super().__init__()
         data = np.asarray(data)
         assert data.ndim == 1, f"Expected flat 1D token array, got shape={data.shape}"
         assert n_envs >= 1
@@ -41,11 +42,13 @@ class TextGenerator:
         if seed is not None:
             self.rng.manual_seed(seed)
 
-        self.data = torch.from_numpy(data).to(device)
+        data = torch.from_numpy(data)
+        self.register_buffer('data', data)
         self.data_len = len(self.data)
         self.n_envs = n_envs
 
-        self.pos = torch.arange(n_envs, dtype=torch.int64, device=device) * self.data_len // n_envs
+        pos = torch.arange(n_envs, dtype=torch.int64) * self.data_len // n_envs
+        self.register_buffer('pos', pos)
 
     def next(self):
         tokens = self.data[self.pos].clone()

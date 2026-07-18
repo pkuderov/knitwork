@@ -55,12 +55,14 @@ def main(config):
         train_frac = 1.0 - eval_cfg['split']
         train_data, val_data = split_train_test(data, train_frac=train_frac)
         val_gen = TextGenerator(val_data, n_envs=n_envs, ignore_index=CE_ignore_index, seed=get_seed(rng), device=device)
+        val_gen = torch.compile(val_gen.to(device))
         max_rollout = min(
             max_rollout, 
             max(100*config['rollout_len'], round(len(val_data) / n_envs))
         )
 
     gen = TextGenerator(train_data, n_envs=n_envs, ignore_index=CE_ignore_index, seed=get_seed(rng), device=device)
+    gen = torch.compile(gen.to(device))
 
     rnn_type = config['model']
     rnn_cfg = config[rnn_type]

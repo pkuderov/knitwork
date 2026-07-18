@@ -59,7 +59,7 @@ class GridRnnFixV4(nn.Module):
         self.sat_target = sat_target
         self.use_aux = (aux_div_weight + aux_div_max_weight + aux_gate_weight
                         + aux_act_weight + aux_sat_weight) > 0
-        self._aux_tick = 0
+        self._aux_tick = torch.zeros((1,), dtype=torch.int64)
         # Barlow weight grows with depth: top-layer redundancy is the failure mode
         if n_layers > 1:
             self._div_layer_w = [0.5 + 1.5 * l / (n_layers - 1) for l in range(n_layers)]
@@ -133,7 +133,7 @@ class GridRnnFixV4(nn.Module):
     def grid_step(self, x, *, h, return_attn=False):
         h_n, attn_list, gate_list = [], [], []
         aux_div = aux_div_max = aux_gate = aux_act = aux_sat = 0.0
-        do_aux = self.use_aux and self.training and (self._aux_tick % self.aux_every == 0)
+        do_aux = self.use_aux and self.training and (self._aux_tick % self.aux_every == 0).any()
         if self.use_aux and self.training:
             self._aux_tick += 1
         x = self.drop(torch.stack(
