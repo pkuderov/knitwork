@@ -51,7 +51,10 @@ def build_model(rnn_type: str, rnn_cfg: dict, n_chars: int):
         raise ValueError(f'Unknown model type: {rnn_type!r}')
     mod_path, cls_name = entry
     cls = getattr(importlib.import_module(mod_path), cls_name)
-    return cls(**rnn_cfg, input_size=n_chars, output_size=n_chars)
+    model = cls(**rnn_cfg, input_size=n_chars, output_size=n_chars)
+    # in case the model gonna be compiled, check it early to cache the result
+    _supports_attn(model)
+    return model
 
 
 def model_forward(rnn, x, state, *, capture: bool):
