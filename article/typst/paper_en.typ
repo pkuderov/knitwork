@@ -146,24 +146,7 @@
 )
 
 #aaai-abstract[
-  Sequential decision-making under partial observability requires agents to maintain
-  structured, selective memory over long horizons. Standard recurrent architectures
-  (GRU, LSTM) rely on a single homogeneous hidden state, offering no structural
-  mechanism for simultaneous specialization of memory roles across temporal scales.
-  We propose *Grid Recurrent Networks (Grid RNN)*, a two-dimensional recurrent
-  architecture that organizes cells into an $L times C$ grid of layers and columns,
-  where inter-column multi-head attention with learnable column identities enables
-  spontaneous role specialization without explicit supervision. Grid RNN is a modular
-  framework: column cells can be GRU, Linear Recurrent Units (LRU) with per-column
-  spectral radii, or EMA surprise-gated fast weights, while the cross-column message
-  layer can range from scaled dot-product attention to Modern Hopfield retrieval.
-  We evaluate across three complementary benchmarks: the Store-Distract-Query (SDQ)
-  associative memory task, the MIKASA/POPGym partially observable reinforcement
-  learning suite, and character-level language modeling. Our *HopfieldGridLRU*
-  variant achieves 96.7% accuracy on SDQ-Hard (vs.\ ~50% for GRU); *GridRNN-EMA*
-  achieves episode return $approx 0.95$ on POPGym RepeatFirst, approaching optimal.
-  With 2.1M parameters, GridHarmonic reaches 1.68 BPC on text8. These results
-  demonstrate consistent improvements from grid structure across all three settings.
+Sequence models must simultaneously solve two competing problems: flexibly binding and retaining key–value associations for later exact retrieval, and modelling the smooth statistics of natural language. In recurrent networks with a single hidden state these functions are entangled in a shared memory, so that new information overwrites previously bound associations and no specialisation of subtasks emerges across the computational units. Yet modular organisation and sparse communication through attention are known to improve generalisation and robustness to perturbations (Vaswani et al. 2017; Goyal et al. 2019). We introduce MoSAIC (Modular Specialised Attentive Interacting Columns), a recurrent architecture of parallel columns, each holding a protected private memory and specialising through its own input projection and its own attention identities and sharpness. Columns communicate sparingly via Hopfield-style associative attention (Ramsauer et al. 2020): messages are mixed in through learnable gates and never overwrite a neighbour's memory, protecting already-bound associations from interference. Hierarchy is built into the learning process itself: a multi-timescale prior (fast and slow columns) akin to hierarchical gating (Qin et al. 2023) and multiscale recurrent networks (Koutník et al. 2014; Chung et al. 2017), and a decorrelation objective whose weight grows with depth (Zbontar et al. 2021), which prevents the columns from collapsing to a shared representation and induces a division of labour among them. Training gives rise to pronounced functional specialisation of the columns; on associative-recall tasks (Arora et al. 2023) and on language modelling, MoSAIC yields reliable improvements over strong recurrent and linear-attention baselines and markedly improves robustness to distractors and noisy inputs.
 ]
 
 #v(1em)
