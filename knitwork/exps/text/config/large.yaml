@@ -13,8 +13,8 @@ exp: text
 gen: text8
 model: rnn
 n_envs: 512
-rollout_len: 32
-n_steps: 7.5e+8
+rollout_len: 64
+n_steps: 1.0e+9
 
 adapt_to_bsz: auto
 compile: true
@@ -421,7 +421,7 @@ lr:
     schedule: 24
 
 trackers:
-  slow: 2.0e-3
-  fast: 3.0e-2
+  slow: 5.0e-3
+  fast: 2.0e-2
   list: null
   eval: null

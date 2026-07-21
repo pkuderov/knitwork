@@ -81,10 +81,10 @@ def main(config):
     n_steps, step_size = int(config['n_steps']), gen.n_envs
 
     if config.get('adapt_to_bsz', None) == 'auto':
-        # factor explressing an update frequency relative to the "default" rollout=32 bsz=512
+        # factor explressing an update frequency relative to the "default" rollout=64 bsz=512
         # NB: see its usages for how it affects schedules of some trackers. 
         # Such adaptation is not ideal, and reasonable only in a short range
-        update_freq_alpha = (batch_size / 32 / 512)**0.5
+        update_freq_alpha = (batch_size / 64 / 512)**0.5
         n_steps = int(n_steps * update_freq_alpha)
         config['log']['schedule'] *= update_freq_alpha
         config['eval']['schedule'] *= update_freq_alpha
