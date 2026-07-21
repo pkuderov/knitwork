@@ -381,6 +381,80 @@ models:
     use_bias: true
     dropout: 0.1
 
+  # scale-up presets, optim=true (latent Barlow + batch-subsample aux + pooled head
+  # + per-step grad checkpointing). ~2.0M / ~10.1M params at V=27/E=64.
+  grnn_fix_v4_2m:
+    embedding_size: 64
+    hidden_size: 168
+    n_layers: 2
+    n_columns: 6
+    n_attn_heads: 4
+    beta_scale: 3.0
+    beta_floor: 0.2
+    timescale_spread: 1.0
+    aux_div_weight: 0.05
+    aux_div_max_weight: 0.1
+    aux_div_ramp_steps: 3e+7
+    aux_gate_weight: 0.1
+    aux_act_weight: 0.02
+    aux_sat_weight: 0.02
+    aux_every: 8
+    gate_std_target: 0.15
+    sat_target: 0.8
+    optim: true
+    div_latent_dim: 32
+    aux_batch_frac: 0.25
+    use_bias: true
+    dropout: 0.1
+
+  grnn_fix_v4_10m:
+    embedding_size: 64
+    hidden_size: 344
+    n_layers: 2
+    n_columns: 8
+    n_attn_heads: 4
+    beta_scale: 3.0
+    beta_floor: 0.2
+    timescale_spread: 1.0
+    aux_div_weight: 0.05
+    aux_div_max_weight: 0.1
+    aux_div_ramp_steps: 3e+7
+    aux_gate_weight: 0.1
+    aux_act_weight: 0.02
+    aux_sat_weight: 0.02
+    aux_every: 8
+    gate_std_target: 0.15
+    sat_target: 0.8
+    optim: true
+    div_latent_dim: 32
+    aux_batch_frac: 0.25
+    use_bias: true
+    dropout: 0.1
+
+  grnn_feedback:
+    embedding_size: 64
+    hidden_size: 128
+    n_layers: 3
+    n_columns: 4
+    n_attn_heads: 4
+    col_identities: true
+    seed_scale: 1.0
+    fb_init: 0.1
+    use_bias: true
+    dropout: 0.0
+
+  grnn_attn_cost:
+    embedding_size: 64
+    hidden_size: 128
+    n_layers: 3
+    n_columns: 4
+    n_attn_heads: 4
+    col_identities: true
+    attn_cost_weight: 0.02
+    cost_kind: linear     # linear | quad | logbarrier
+    use_bias: true
+    dropout: 0.0
+
 lr:
   val: 8e-4
   rel: 0.02

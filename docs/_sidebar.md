@@ -9,6 +9,8 @@
   - [GRU baseline](methods/gru.md)
   - [GridRNN](methods/grnn.md)
   - [GridRNN-err](methods/grnn_err.md)
+  - [GridRNN-Feedback](methods/grnn_feedback.md)
+  - [GridRNN-AttnCost](methods/grnn_attn_cost.md)
 
 - **Cell Modifications**
   - [GridRNN2 + VAE](methods/grnn2.md)

@@ -49,6 +49,10 @@ _REGISTRY: dict[str, tuple[str, str] | None] = {
     'grnn_fix_v3':    ('knitwork.models.grnn_fix_v3',    'GridRnnFixV3'),
     'grnn_fix_v4':    ('knitwork.models.grnn_fix_v4',    'GridRnnFixV4'),
     'hgrnn_fix_v4':   ('knitwork.models.hgrnn_fix_v4',   'HopfieldGridRnnFixV4'),
+    'grnn_fix_v4_2m': ('knitwork.models.grnn_fix_v4',    'GridRnnFixV4'),
+    'grnn_fix_v4_10m':('knitwork.models.grnn_fix_v4',    'GridRnnFixV4'),
+    'grnn_feedback':  ('knitwork.models.grnn_feedback',  'GridRnnFeedback'),
+    'grnn_attn_cost': ('knitwork.models.grnn_attn_cost', 'GridRnnAttnCost'),
     'grnn_fix_v5':    ('knitwork.models.grnn_fix_v5',    'GridRnnFixV5'),
     'hgrnn_fix':      ('knitwork.models.hgrnn_fix',      'HopfieldGridRnnFix'),
     'grnn_fusion':    None,  # factory
@@ -126,6 +130,28 @@ def model_forward(rnn, x, state, *, capture: bool):
     if len(result) == 4:
         return y, state, result[2], result[3]
     return y, state, {}, None
+
+
+def _ckpt_step(rnn, x, state):
+    """Per-timestep gradient checkpointing (enabled via rnn.grad_checkpoint)."""
+    import torch.utils.checkpoint as _ckpt
+    def fn(state_):
+        y, new_state, _extras, aux = model_forward(rnn, x, state_, capture=False)
+        aux_t = aux if isinstance(aux, torch.Tensor) \
+            else torch.zeros((), device=y.device, dtype=y.dtype)
+        return y, new_state, aux_t
+    y, new_state, aux = _ckpt.checkpoint(fn, state, use_reentrant=False)
+    return y, new_state, {}, aux
+
+
+def save_checkpoint(rnn, config, step, ckpt_dir: Path, rnn_type: str) -> None:
+    ckpt_dir.mkdir(parents=True, exist_ok=True)
+    path = ckpt_dir / f'step_{step}.pt'
+    torch.save({
+        'model_state': rnn.state_dict(), 'config': config,
+        'step': step, 'model_type': rnn_type,
+    }, path)
+    print(f'[checkpoint] saved {path}')
 
 
 def log_lru_spectrum(rnn, logger, step: int) -> None:
@@ -272,6 +298,15 @@ def main(config):
     stats       = Tracker(lr=2e-4)
     fps_counter = FpsCounter()
 
+    # checkpointing (disabled by default)
+    ckpt_cfg     = config.get('checkpoint', {})
+    ckpt_enabled = ckpt_cfg.get('enabled', False)
+    ckpt_dir     = Path(ckpt_cfg.get('save_dir', 'runs/checkpoints')) / run_name
+    ckpt_save_at = sorted(int(float(s)) for s in ckpt_cfg.get('save_at', []))
+    ckpt_every   = int(float(ckpt_cfg.get('save_every', 0)))
+    ckpt_saved: set = set()
+    ckpt_next    = ckpt_every if ckpt_every > 0 else None
+
     ln_2 = np.log(2.0)
     rnn_state   = None
     batch_y:    list = []
@@ -390,7 +425,10 @@ def main(config):
 
         capture = vis_enabled and (step >= next_vis_step - gen.n_envs)
         capture_extras = capture or has_harmonic
-        y, rnn_state, extras, kl = model_forward(rnn, x, rnn_state, capture=capture_extras)
+        if getattr(rnn, 'grad_checkpoint', False) and rnn.training and not capture_extras:
+            y, rnn_state, extras, kl = _ckpt_step(rnn, x, rnn_state)
+        else:
+            y, rnn_state, extras, kl = model_forward(rnn, x, rnn_state, capture=capture_extras)
 
         if has_harmonic and extras:
             batch_harmonic.append(rnn.flatten_extras_stats(extras))
@@ -425,6 +463,15 @@ def main(config):
         batch_kl.append(kl if kl is not None else torch.tensor(0.0, device=device, dtype=dtype))
 
         step += gen.n_envs
+
+        if ckpt_enabled:
+            due = [s for s in ckpt_save_at if s <= step and s not in ckpt_saved]
+            if ckpt_next is not None and step >= ckpt_next:
+                due.append(step)
+                ckpt_next += ckpt_every
+            for s in due:
+                save_checkpoint(rnn, config, step, ckpt_dir, rnn_type)
+                ckpt_saved.add(s)
 
         if step % batch_size == 0:
             y_cat    = torch.cat(batch_y,    dim=0)

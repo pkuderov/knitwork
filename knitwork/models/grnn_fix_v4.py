@@ -34,6 +34,9 @@ class GridRnnFixV4(nn.Module):
             aux_every: int = 8,
             gate_std_target: float = 0.15,
             sat_target: float = 0.8,
+            optim: bool = False,
+            div_latent_dim: int = 32,
+            aux_batch_frac: float = 0.25,
             use_bias = True, dropout = 0.0
     ):
         super().__init__()
@@ -60,6 +63,19 @@ class GridRnnFixV4(nn.Module):
         self.use_aux = (aux_div_weight + aux_div_max_weight + aux_gate_weight
                         + aux_act_weight + aux_sat_weight) > 0
         self._aux_tick = torch.zeros((1,), dtype=torch.int64)
+
+        # --optim: single switch for all memory optimizations (see docs/grnn_fix_v4.md).
+        # Backward-compatible: default False keeps the original behavior/weights.
+        self.optim = optim
+        self.grad_checkpoint = optim          # honored by run scripts (per-step ckpt)
+        self.div_latent_dim = div_latent_dim
+        self.aux_batch_frac = aux_batch_frac
+        if optim:
+            # optimized variant drops the activity-decorrelation aux loss
+            self.aux_act_weight = 0.0
+        # optional per-column attention mask [C, C] bool (True=allowed); inference-only
+        # ablation, does not affect training when None
+        self.attn_col_mask = None
         # Barlow weight grows with depth: top-layer redundancy is the failure mode
         if n_layers > 1:
             self._div_layer_w = [0.5 + 1.5 * l / (n_layers - 1) for l in range(n_layers)]
@@ -69,7 +85,7 @@ class GridRnnFixV4(nn.Module):
         print(
             f'GridRnnFixV4 {n_layers}L x {n_columns}C GRU'
             f' hidden={self.hidden_size} beta_scale={beta_scale}'
-            f' ts_spread={timescale_spread} aux={self.use_aux}'
+            f' ts_spread={timescale_spread} aux={self.use_aux} optim={self.optim}'
         )
 
         self.col_input_projs = nn.ModuleList(
@@ -113,7 +129,17 @@ class GridRnnFixV4(nn.Module):
             nn.RMSNorm(H) for _ in range(max(n_layers - 1, 0))
         )
 
-        self.head = nn.Linear(self.n_columns * H, output_size)
+        # optim: Barlow decorrelation runs in a low-dim latent to avoid the
+        # [C,C,H,H] cross-covariance tensor. Fixed orthonormal projection (buffer,
+        # not learnable) so the penalty can't be gamed by rotating features away.
+        if self.optim:
+            d = min(div_latent_dim, H)
+            proj = torch.empty(H, d)
+            nn.init.orthogonal_(proj)
+            self.register_buffer('div_proj', proj)          # [H, d]
+        # optim: mean-pool over columns -> narrow head (fewer params + activations)
+        head_in = H if self.optim else self.n_columns * H
+        self.head = nn.Linear(head_in, output_size)
 
         param_count = sum(p.numel() for p in self.parameters() if p.requires_grad)
         print(f'Param count: {format_readable_num(param_count)}')
@@ -133,9 +159,14 @@ class GridRnnFixV4(nn.Module):
     def grid_step(self, x, *, h, return_attn=False):
         h_n, attn_list, gate_list = [], [], []
         aux_div = aux_div_max = aux_gate = aux_act = aux_sat = 0.0
-        do_aux = self.use_aux and self.training and (self._aux_tick % self.aux_every == 0).any()
+        # Increment tick BEFORE reading do_aux so both passes of grad checkpointing
+        # agree: use_reentrant=False runs the original pass under no_grad and the
+        # recompute pass under enable_grad, so gate the increment on grad state to
+        # advance the counter exactly once (on the original pass).
         if self.use_aux and self.training:
-            self._aux_tick += 1
+            if not self.grad_checkpoint or not torch.is_grad_enabled():
+                self._aux_tick += 1
+        do_aux = self.use_aux and self.training and (self._aux_tick % self.aux_every == 0).any()
         x = self.drop(torch.stack(
             [proj(x) for proj in self.col_input_projs], dim=0))  # [C, B, E]
 
@@ -147,7 +178,7 @@ class GridRnnFixV4(nn.Module):
                 cells[ic](x[ic], hl[ic]) for ic in range(self.n_columns)
             ], dim=0)                                            # [C, B, H]
 
-            msg, attn_w = attn(hl_n, return_weights=return_attn)
+            msg, attn_w = attn(hl_n, return_weights=return_attn, col_mask=self.attn_col_mask)
             g = torch.sigmoid(gates).view(self.n_columns, 1, 1)  # [C, 1, 1]
             o = hl_n + g * msg
 
@@ -166,7 +197,10 @@ class GridRnnFixV4(nn.Module):
             x = self.drop(self.mid_norms[layer](o)) if layer < self.n_layers - 1 else o
 
         h_n = torch.stack(h_n, dim=0)
-        o_top = o.permute(1, 0, 2).reshape(o.shape[1], -1)       # [B, C*H]
+        if self.optim:
+            o_top = o.mean(dim=0)                                # [B, H]
+        else:
+            o_top = o.permute(1, 0, 2).reshape(o.shape[1], -1)   # [B, C*H]
 
         aux = None
         if self.use_aux:
@@ -200,8 +234,17 @@ class GridRnnFixV4(nn.Module):
         # (1) Barlow-style feature decorrelation between columns
         z = hl_n - hl_n.mean(dim=1, keepdim=True)                # [C, B, H]
         z = z / (z.std(dim=1, keepdim=True) + 1e-6)
+        if self.optim:
+            # subsample batch, then project H -> d_latent to shrink the cross tensor
+            # from [C,C,H,H] to [C,C,d,d] (the dominant memory term at large H)
+            B_full = z.shape[1]
+            k = max(1, int(B_full * self.aux_batch_frac))
+            if k < B_full:
+                idx = torch.randperm(B_full, device=z.device)[:k]
+                z = z[:, idx, :]
+            z = z @ self.div_proj                                # [C, B', d]
         B = z.shape[1]
-        cross = torch.einsum('cbh,dbk->cdhk', z, z) / B          # [C, C, H, H]
+        cross = torch.einsum('cbh,dbk->cdhk', z, z) / B          # [C, C, D, D], D=H or d
         pair_div = cross[iu, ju].pow(2).mean(dim=(-1, -2))       # [n_pairs]
         div = pair_div.mean()
         # target the single most-collapsed pair specifically (e.g. a CKA~0.8
@@ -283,7 +326,7 @@ class PerColumnAttention(nn.Module):
         nn.init.normal_(self.out_proj.weight, 0.0, 0.001)
         nn.init.zeros_(self.out_proj.bias)
 
-    def forward(self, h, return_weights: bool = False):
+    def forward(self, h, return_weights: bool = False, col_mask=None):
         # h: [C, B, D]
         C, B, D = h.shape
         q = self.W_q(h + self.ids_q).view(C, B, self.num_heads, self.head_dim).permute(2, 1, 0, 3)
@@ -292,7 +335,11 @@ class PerColumnAttention(nn.Module):
 
         # beta indexed by the query (receiving) column  [heads, 1, C, 1]
         beta = self.beta_floor + self.log_beta.exp().T.unsqueeze(1).unsqueeze(-1)
-        attn = torch.softmax(beta * torch.matmul(q, k.transpose(-2, -1)), dim=-1)
+        logits = beta * torch.matmul(q, k.transpose(-2, -1))     # [heads, B, C_q, C_k]
+        if col_mask is not None:
+            # col_mask: [C, C] bool, True = query i may attend to key j (ablation)
+            logits = logits.masked_fill(~col_mask.to(logits.device)[None, None], float('-inf'))
+        attn = torch.softmax(logits, dim=-1)
         out = torch.matmul(attn, v)                              # [heads, B, C, hd]
         out = out.permute(2, 1, 0, 3).contiguous().view(C, B, D)
         attn_w = attn.mean(dim=(0, 1)) if return_weights else None

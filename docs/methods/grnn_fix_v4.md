@@ -48,6 +48,17 @@ if layer > 0:
     aux_sat += F.relu(hl_n.abs().mean() - self.sat_target)
 ```
 
+## Memory optimization (`optim` flag)
+
+At >1M active weights and rollout=64 (text8) v4 blows up GPU memory. The dominant term is **not** the column attention (it is over <=8 columns) but the Barlow decorrelation tensor `cross = einsum('cbh,dbk->cdhk', z, z)` of shape `[C, C, H, H]`, i.e. `O(C^2 H^2)`, retained for backward on every aux step across the whole rollout. A single boolean `optim` switch (default off, fully backward-compatible) enables all of the following:
+
+1. **Latent Barlow.** Project `z` from `H` to a small latent `d` (default 32) with a fixed orthonormal buffer before the cross-covariance, shrinking `[C,C,H,H] -> [C,C,d,d]` (~64x at H=256, d=32). This is the correct place to apply a "latent/MLA-style" compression — the real bottleneck, the diversity loss.
+2. **Aux batch subsample.** Compute the Barlow statistic on a random `aux_batch_frac` (0.25) of the batch.
+3. **Pooled head.** Mean-pool over columns then `Linear(H, V)` instead of `Linear(C*H, V)` — fewer params (matters at the 10M budget) and smaller head-gradient activations.
+4. **Per-step gradient checkpointing.** The model sets `grad_checkpoint = optim`; the SDQ/text runners wrap each timestep in `torch.utils.checkpoint`, so BPTT over rollout=64 no longer stores every step's internals. The aux counter is incremented under a grad-state guard so the two checkpoint passes stay consistent.
+
+Measured (H=256, C=8, L=2, rollout=64, B=128): peak CUDA memory **3259 MB -> 305 MB (~10.7x)**. Scale presets `grnn_fix_v4_2m` (~2.0M) and `grnn_fix_v4_10m` (~10.1M) ship with `optim: true`.
+
 ## Hyperparameters
 
 | Parameter | Description |
@@ -56,3 +67,6 @@ if layer > 0:
 | `timescale_spread` | 1.0 — amplitude of the update-gate bias shift across columns (+-1) |
 | `aux_gate_weight` | 0.1 — boosted x5 after v3's gate-diversity failure |
 | `hidden_size` | 64 at 2L x 3C — ~203K parameters (parity with v2/v3) |
+| `optim` | false — master switch for the memory optimizations above |
+| `div_latent_dim` | 32 — latent width for the Barlow projection when `optim` |
+| `aux_batch_frac` | 0.25 — batch fraction used for the aux stats when `optim` |
