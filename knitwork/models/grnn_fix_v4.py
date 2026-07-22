@@ -224,7 +224,10 @@ class GridRnnFixV4(nn.Module):
         # even while the constant-weight mean term holds col_sim/mean near 0
         if self.aux_div_ramp_steps <= 0:
             return self.aux_div_weight, self.aux_div_max_weight
-        frac = min(1.0, self._aux_tick / self.aux_div_ramp_steps)
+        # _aux_tick is a CPU tensor (compile-friendly); read as a python float so the
+        # returned weights stay device-agnostic (they later multiply CUDA aux terms)
+        tick = self._aux_tick.item() if torch.is_tensor(self._aux_tick) else self._aux_tick
+        frac = min(1.0, tick / self.aux_div_ramp_steps)
         return self.aux_div_weight * frac, self.aux_div_max_weight * frac
 
     def _layer_aux(self, hl_n, hl, g):
