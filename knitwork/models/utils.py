@@ -23,9 +23,11 @@ REGISTRY: dict[str, tuple[str, str] | None] = {
     'grnn_fix':       ('knitwork.models.grnn_fix',       'GridRnnFix'),
     'grnn_fix_v3':    ('knitwork.models.grnn_fix_v3',    'GridRnnFixV3'),
     'grnn_fix_v4':    ('knitwork.models.grnn_fix_v4',    'GridRnnFixV4'),
+    'grnn_fix_v4_L2C8':    ('knitwork.models.grnn_fix_v4',    'GridRnnFixV4'),
     'hgrnn_fix_v4':   ('knitwork.models.hgrnn_fix_v4',   'HopfieldGridRnnFixV4'),
     'grnn_fix_v5':    ('knitwork.models.grnn_fix_v5',    'GridRnnFixV5'),
     'hgrnn_fix':      ('knitwork.models.hgrnn_fix',      'HopfieldGridRnnFix'),
+    'grnn_feedback':  ('knitwork.models.grnn_feedback',  'GridRnnFeedback'),
     'grnn_fusion':    None,  # factory
     # config aliases
     'grnn_res':       ('knitwork.models.grnn_reservoir', 'GridRnnReservoir'),

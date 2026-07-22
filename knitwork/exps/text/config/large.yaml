@@ -355,14 +355,44 @@ grnn_fix_v4:
   n_columns: 4
   n_attn_heads: 4
   beta_scale: 3.0
+  beta_floor: 0.2
   timescale_spread: 1.0
   aux_div_weight: 0.05
+  aux_div_max_weight: 0.1
+  aux_div_ramp_steps: 3e+7
   aux_gate_weight: 0.1
   aux_act_weight: 0.02
   aux_sat_weight: 0.02
-  aux_every: 32
+  aux_every: 64
   gate_std_target: 0.15
   sat_target: 0.8
+  optim: true
+  div_latent_dim: 32
+  aux_batch_frac: 0.25
+  use_bias: true
+  dropout: 0.1
+
+grnn_fix_v4_L2C8:
+  embedding_size: 64
+  hidden_size: 344
+  n_layers: 2
+  n_columns: 8
+  n_attn_heads: 4
+  beta_scale: 3.0
+  beta_floor: 0.2
+  timescale_spread: 1.0
+  aux_div_weight: 0.05
+  aux_div_max_weight: 0.1
+  aux_div_ramp_steps: 3e+7
+  aux_gate_weight: 0.1
+  aux_act_weight: 0.02
+  aux_sat_weight: 0.02
+  aux_every: 64
+  gate_std_target: 0.15
+  sat_target: 0.8
+  optim: true
+  div_latent_dim: 32
+  aux_batch_frac: 0.25
   use_bias: true
   dropout: 0.1
 
@@ -407,6 +437,18 @@ grnn_fix_v5:
   sat_target: 0.8
   use_bias: true
   dropout: 0.1
+
+grnn_feedback:
+  embedding_size: 64
+  base_hidden_size: 1800
+  n_layers: 2
+  n_columns: 4
+  n_attn_heads: 4
+  col_identities: true
+  seed_scale: 1.0
+  fb_init: 0.1
+  use_bias: true
+  dropout: 0.0
 # <====== Models
 
 # base LR config
