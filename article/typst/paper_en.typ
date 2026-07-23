@@ -140,13 +140,15 @@
 // ═════════════════════════════════════════════════════════════════════════════
 
 #aaai-title(
-  title: [Grid Recurrent Networks: Parallel Memory Columns \ for Partially Observable Environments],
+  title: [MoSAIC: Modular Self-Attentive Interacting Columns \ for Recurrent Memory],
   authors: [Anonymous Submission],
   affiliations: [],
 )
 
 #aaai-abstract[
-Sequence models must simultaneously solve two competing problems: flexibly binding and retaining key–value associations for later exact retrieval, and modelling the smooth statistics of natural language. In recurrent networks with a single hidden state these functions are entangled in a shared memory, so that new information overwrites previously bound associations and no specialisation of subtasks emerges across the computational units. Yet modular organisation and sparse communication through attention are known to improve generalisation and robustness to perturbations (Vaswani et al. 2017; Goyal et al. 2019). We introduce MoSAIC (Modular Specialised Attentive Interacting Columns), a recurrent architecture of parallel columns, each holding a protected private memory and specialising through its own input projection and its own attention identities and sharpness. Columns communicate sparingly via Hopfield-style associative attention (Ramsauer et al. 2020): messages are mixed in through learnable gates and never overwrite a neighbour's memory, protecting already-bound associations from interference. Hierarchy is built into the learning process itself: a multi-timescale prior (fast and slow columns) akin to hierarchical gating (Qin et al. 2023) and multiscale recurrent networks (Koutník et al. 2014; Chung et al. 2017), and a decorrelation objective whose weight grows with depth (Zbontar et al. 2021), which prevents the columns from collapsing to a shared representation and induces a division of labour among them. Training gives rise to pronounced functional specialisation of the columns; on associative-recall tasks (Arora et al. 2023) and on language modelling, MoSAIC yields reliable improvements over strong recurrent and linear-attention baselines and markedly improves robustness to distractors and noisy inputs.
+Standard stacked recurrent neural networks increase capacity by widening shared hidden states, leaving functional decomposition and information routing largely implicit. We introduce MoSAIC (Modular Self-Attentive Interacting Columns), a recurrent architecture that replaces each layer with parallel recurrent cells organized into vertical columns. Columns maintain local recurrent states and communicate at every layer through self-attention, with incoming messages incorporated through learned scalar gates. External inputs and outputs are restricted to designated columns, creating explicit information bottlenecks, while other columns use same-column delayed top-down feedback. This organization also allows different pre-encoded modalities to enter through separate columns and interact within a shared recurrent core.
+
+We evaluate MoSAIC under a matched 10-million-parameter budget on a token-level store–distract–query task combining associative retrieval, distractor integration, and key-specific counting. At a store–query gap of 30, MoSAIC achieves approximately 80% accuracy, compared with 60% for a stacked GRU and about 70% for the strongest tested recurrent and state-space baselines. On character-level text8 language modeling, it matches a parameter-matched stacked GRU. We additionally evaluate multimodal store–distract–query and memory-oriented reinforcement-learning tasks and analyze the effects of architectural configuration, connectivity, and inter-column communication.
 ]
 
 #v(1em)
@@ -168,64 +170,80 @@ key-value binding over many distractors. Solving these problems simultaneously
 demands memory with multiple specialized roles operating on different temporal
 scales.
 
-Standard recurrent architectures — GRU @cho2014gru and LSTM @hochreiter1997lstm —
-address this with a single hidden state vector updated at every timestep. While
-effective, this *single-stream* design offers no structural mechanism for
-specialization: all temporal scales and memory functions compete for the same
-state dimensions. A sequence model must simultaneously be a short-term buffer, a
-long-range integrator, and a content-addressable store — yet its architecture
-provides no structural separation of these roles.
+Standard stacked recurrent architectures — GRU @cho2014gru and LSTM @hochreiter1997lstm —
+scale capacity by widening a single hidden state vector that is updated at every
+timestep. While effective, this *single-stream* design offers no structural mechanism
+for specialization: all temporal scales and memory functions compete for the same
+state dimensions, so a sequence model must simultaneously be a short-term buffer, a
+long-range integrator, and a content-addressable store. Functional decomposition and
+the routing of information between these roles remain *implicit*, and newly written
+content tends to overwrite already-bound associations in the shared state.
 
-Prior work has approached this in two directions. *Hierarchical* architectures
-(HM-RNN @chung2017hmrnn, Fast-Slow RNN @mujika2017fastslow, HGRN2 @qin2024hgrn2)
-stack multiple timescales *vertically*, assigning each layer a different
-temporal resolution. This helps long-range modeling but does not support *lateral*
-specialization: each layer still processes a single sequential stream without
-peer communication. *Memory augmentation* approaches (Fast Weights @ba2016fastweights,
-Hopfield Networks @ramsauer2021hopfield, Engrams @szelogowski2025engram) add
-external associative structures to an existing recurrent backbone, but leave the
-backbone's single-stream topology unchanged.
+Prior work has attacked this in three directions. *Hierarchical* architectures
+(Clockwork RNN @koutnik2014clockwork, HM-RNN @chung2017hmrnn, Fast-Slow RNN
+@mujika2017fastslow, HGRN2 @qin2024hgrn2) stack multiple timescales *vertically*,
+assigning each layer a different temporal resolution; this helps long-range modeling
+but leaves each layer a single sequential stream without lateral peer communication.
+*Memory augmentation* approaches (Fast Weights @ba2016fastweights, Hopfield Networks
+@ramsauer2021hopfield, Engrams @szelogowski2025engram) add external associative
+structures to an existing recurrent backbone, but leave the backbone's single-stream
+topology unchanged. *Modular* approaches — Recurrent Independent Mechanisms
+@goyal2019rims, BRIMs @mittal2020brims, and shared global workspaces @goyal2021workspace
+— split computation into modules that communicate through attention, which improves
+systematic generalization; but they route information via *top-$k$ sparse* activation
+and typically dissolve per-module recurrence into a shared workspace, rather than
+protecting each module's memory from interference. The root technical issue persists:
+no existing recurrent design combines *column-local, interference-protected memory*
+with *explicit, learned inter-module routing* and a *built-in multi-timescale prior*
+so that specialization can emerge at a matched parameter budget.
 
 #figure(
   image("figure1_grid.svg", width: 100%),
-  caption: [*Grid RNN architecture.* Cells are arranged in an $L times C$ grid.
-    At each timestep, each column independently processes its input (column~0
-    receives the embedded token; others receive zero), then all columns exchange
-    information via multi-head attention with learnable column identity keys.
-    Different columns converge to distinct memory roles without explicit supervision.],
+  caption: [*MoSAIC architecture.* Recurrent cells are arranged in an $L times C$
+    grid of vertical columns, each with its own local recurrent state. *Designated
+    I/O columns* receive the external token and produce the readout, forming explicit
+    information bottlenecks; the remaining columns receive *same-column delayed
+    top-down feedback* (their own previous top-layer output plus a learnable seed).
+    At every layer, columns exchange messages via self-attention with learnable
+    column identities, incorporated through *learned scalar gates* that add to — and
+    never overwrite — a column's protected memory. Columns converge to distinct
+    memory roles without explicit supervision.],
   placement: top,
 ) <fig-arch>
 
-We propose *Grid Recurrent Networks (Grid RNN)*, which reconsiders the fundamental
-topology of recurrent computation. Rather than a single hidden vector, Grid RNN
-maintains a 2D state matrix $bold(H) in RR^{L times C times B times H}$ where
-$L$ layers provide temporal depth and $C$ columns operate *in parallel* (see
-@fig-arch). Columns share the input embedding but independently process it through
-their recurrent cells, then exchange information via multi-head attention with
-learnable column identity embeddings. This structure allows columns to *spontaneously
-specialize*: column 0 receives data and distributes it; other columns selectively
-absorb what is relevant to their emerging role; the output is recombined through
-attention aggregation. No explicit supervision of column roles is required.
-
-Grid RNN is designed as a modular framework: the per-column cell can be replaced
-with any recurrent unit, and the cross-column message layer can incorporate advanced
-retrieval. We explore three variants targeting different benchmarks:
-- *GridRNN* (GRU cells + scaled attention): strong baseline for associative tasks;
-- *HopfieldGridLRU*: LRU @orvieto2023lru cells with per-column spectral radii and
-  Modern Hopfield retrieval @ramsauer2021hopfield for sharp associative memory;
-- *GridRNN-EMA*: GRU cells with EMA surprise-gated delta-rule write for selective
-  memory in partially observable RL.
+We propose *MoSAIC (Modular Self-Attentive Interacting Columns)*, which reconsiders
+the topology of recurrent computation. Rather than a single hidden vector, MoSAIC
+maintains a 2D state $bold(H) in RR^{L times C times B times H}$ where $L$ layers
+provide temporal depth and $C$ columns operate *in parallel* (see @fig-arch), each
+column running its own recurrent cell over a *protected private state*. At every layer
+columns communicate through *self-attention* with learnable per-column query/key
+identities, and each incoming message is mixed in through a *learned scalar gate* that
+is *added* to the column output rather than blended into its recurrent state — so a
+column's bound associations are never overwritten by its neighbours. External input and
+output are restricted to *designated columns*, creating explicit bottlenecks, while the
+other columns are seeded by *same-column delayed top-down feedback* (their own previous
+top-layer output plus a learnable seed), breaking symmetry and letting roles specialize.
+Two priors make the division of labour emerge during training: a *multi-timescale prior*
+that staggers the columns' retention gates into fast and slow columns, and a
+*decorrelation objective* whose weight grows with depth @zbontar2021barlow, which
+prevents the columns from collapsing to a shared representation. The same design admits
+*pre-encoded modalities through separate columns*, which interact within the shared
+recurrent core.
 
 Our main contributions are:
-+ *Grid RNN architecture*: a 2D $L times C$ recurrent grid with inter-column
-  attention enabling structural column specialization, compatible with diverse
-  memory mechanisms.
-+ *HopfieldGridLRU*: achieves *96.7% accuracy* on SDQ-Hard, outperforming
-  single-stream GRU by a factor of $>$6$times$ on the hardest query metric (Acc++).
-+ *GridRNN-EMA*: achieves episode return $approx 0.95$ on POPGym RepeatFirst
-  (Easy), approaching optimal, with surprise-gated selective writing.
-+ *Systematic evaluation* across three benchmarks (SDQ, POPGym/MIKASA, text
-  modeling), showing consistent improvement over single-stream baselines.
++ *MoSAIC architecture*: a 2D $L times C$ grid of column-local recurrent cells with
+  per-layer scalar-gated self-attention, designated I/O bottleneck columns, and delayed
+  top-down feedback, so that interference-protected columns specialize without supervision.
++ *Store–distract–query results*: under a matched budget MoSAIC reaches roughly 86%
+  overall accuracy and 77% on the hardest (repeated/overwritten-key) queries, versus
+  75%/56% for a single-stream GRU and at most 69%/47% for the strongest state-space and
+  linear-attention baselines (mLSTM, DeltaNet, HGRN2).
++ *Language modeling and multimodality*: MoSAIC matches a parameter-matched stacked GRU
+  on character-level text8, and routes pre-encoded image and audio digits through
+  separate columns for a multimodal store–distract–query task.
++ *Analysis*: a systematic study of architectural configuration, connectivity, and
+  inter-column communication, including causal column-ablation of the learned attention
+  routes, plus memory-oriented reinforcement-learning evaluation.
 
 
 = Related Work
@@ -240,27 +258,44 @@ and time axes simultaneously. These works establish the grid topology but differ
 from our proposal in two critical ways: (a) they use *fixed* inter-cell connections
 determined by position, not *learned* content-based attention; (b) they target
 2D spatial sequences (images, text rendered as 2D grids), not generic sequence
-modeling with a free-standing memory structure. Grid RNN introduces *lateral
+modeling with a free-standing memory structure. MoSAIC introduces *lateral
 attention with learnable column identity keys*, enabling content-based routing
 and spontaneous role specialization that fixed positional connections cannot provide.
 The column structure also differs: all C columns share the time axis and are
 updated synchronously at each timestep, unlike MD-RNN where separate dimensions
 correspond to separate axes of a spatial grid.
 
+#par-heading[Modular Networks and Attention-Based Communication.]
+A parallel line replaces the monolithic hidden state with modules that communicate
+through attention. Recurrent Independent Mechanisms @goyal2019rims maintain independent
+recurrent modules that compete for input and exchange messages via sparse attention;
+BRIMs @mittal2020brims extend this with bidirectional top-down and bottom-up flow across
+a stack; and shared global workspaces @goyal2021workspace route module communication
+through a common bandwidth-limited channel. The Relational Memory Core @santoro2018relational
+lets a set of memory slots interact through multi-head attention, and Perceiver
+@jaegle2021perceiver distils large inputs into a small latent through a cross-attention
+bottleneck. MoSAIC shares the modular, attention-routed philosophy but differs in three
+ways: (a) it keeps *column-local recurrence* with a *protected private state* instead of
+dissolving modules into a shared workspace; (b) messages are incorporated through *dense
+per-layer learned scalar gates* that add to — and never overwrite — a column's memory,
+rather than *top-$k$ sparse* selection; and (c) it adds *designated I/O bottleneck
+columns*, *delayed top-down feedback*, and a *multi-timescale prior* that together shape
+where and how specialization emerges.
+
 #par-heading[Hierarchical Multi-Scale RNNs.]
 Several methods introduce temporal hierarchy by stacking layers with different
-timescales. HM-RNN @chung2017hmrnn learns discrete boundary events to separate
-fast and slow computation in a vertical hierarchy, improving long-range language
-modeling. Fast-Slow RNN @mujika2017fastslow maintains two decoupled networks with
-a fixed coupling period. HGRN @qin2023hgrn and HGRN2 @qin2024hgrn2 introduce a
-learnable $beta$ gate to control per-layer state retention in a linear RNN,
-achieving competitive performance with selective state-space models. All of these
-approaches extend *depth* to create timescale hierarchies, but each layer remains
-a single sequential stream without lateral peer communication. Grid RNN complements
-vertical depth with *horizontal* columns connected via attention, enabling
-specialization orthogonal to temporal abstraction. Empirically, 4 columns with
-3 layers outperforms 2 columns with 1 layer at the same parameter budget by
-$+42$ percentage points on Acc++ in SDQ-Hard.
+timescales. The Clockwork RNN @koutnik2014clockwork partitions the hidden state into
+modules that tick at fixed, distinct clock rates. HM-RNN @chung2017hmrnn learns discrete
+boundary events to separate fast and slow computation in a vertical hierarchy, improving
+long-range language modeling. Fast-Slow RNN @mujika2017fastslow maintains two decoupled
+networks with a fixed coupling period. HGRN @qin2023hgrn and HGRN2 @qin2024hgrn2 introduce
+a learnable $beta$ gate to control per-layer state retention in a linear RNN, achieving
+competitive performance with selective state-space models. All of these approaches extend
+*depth* to create timescale hierarchies, but each layer remains a single sequential stream
+without lateral peer communication. MoSAIC complements vertical depth with *horizontal*
+columns connected via attention, enabling specialization orthogonal to temporal
+abstraction; its multi-timescale prior stems from the same fast/slow intuition but is
+applied *across columns* rather than across depth.
 
 #par-heading[Associative and Fast Memory Augmentation.]
 A rich line of work augments RNNs with external memory structures. Fast Weights
@@ -273,12 +308,15 @@ reduced representations for interference-free binding. Modern Hopfield Networks
 sharp, energy-based retrieval equivalent to attention with large $beta$.
 Szelogowski @szelogowski2025engram revisits Hebbian engram neurons as sparse
 slot memory in deep networks. Lansner et al. @lansner2023hebbian systematically
-benchmark Hebbian update rules for associative capacity. These works add memory
-*on top of* an unchanged single-stream recurrent backbone. In Grid RNN, associative
-mechanisms are instantiated *per column* of the grid: the Hopfield message layer
-routes information between columns, while fast-weight matrices within each column
-store column-specific associations, allowing different columns to specialize in
-reading vs. writing roles.
+benchmark Hebbian update rules for associative capacity. The difficulty of exact
+recall under an efficient recurrent state has itself become a diagnostic: multi-query
+associative-recall benchmarks @arora2023zoology show that gated-convolution and
+linear-attention models lag attention precisely on in-context recall — the regime our
+store–distract–query task targets. These works add memory *on top of* an unchanged
+single-stream recurrent backbone. In MoSAIC, associative binding is instead protected
+*per column*: each column keeps a private recurrent state, and inter-column attention
+routes information between columns without overwriting it, allowing different columns to
+specialize in reading versus writing roles.
 
 #par-heading[Memory for Partially Observable RL.]
 Training RL agents in POMDPs with recurrent networks has a long history: DRQN
@@ -289,9 +327,10 @@ RL across four types — object, sequential, capacity, and spatial — providing
 standardized suite of partially observable environments. MIKASA @cherepanov2025mikasa
 extends this taxonomy with richer task variants. These benchmarks consistently show
 that standard LSTM/GRU plateaus well below the theoretical maximum on object-memory
-tasks such as RepeatFirst, motivating architectural improvements. GridRNN-EMA
-addresses this gap with a surprise-gated selective write mechanism that writes only
-when observations are unexpected, achieving near-optimal performance on RepeatFirst.
+tasks such as RepeatFirst, motivating architectural improvements. We evaluate MoSAIC on
+these object-memory tasks, where its interference-protected memory columns and
+surprise-gated selective writing target exactly the retain-and-recall failure mode that
+single-stream policies exhibit.
 
 #par-heading[Linear Recurrent Units.]
 Orvieto et al. @orvieto2023lru (LRU) show that a linear recurrence with diagonal
