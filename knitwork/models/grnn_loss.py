@@ -55,7 +55,7 @@ class GridRnnLoss(GridRnn):
             return {k: zero for k in ('cosine', 'covariance', 'variance', 'gate_entropy', 'total')}
         return self.diversity_loss_fn(h_layers, gates)
 
-    def grid_step_postmsg(self, x: torch.Tensor, *, h: torch.Tensor, return_attn: bool = True):
+    def grid_step(self, x: torch.Tensor, *, h: torch.Tensor, return_attn: bool = True):
         h_n, attn_list, gate_list, h_layer_list = [], [], [], []
         x = self._prepare_grid_input(x)
 

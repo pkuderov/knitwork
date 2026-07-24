@@ -43,9 +43,6 @@ class GridRnn(nn.Module):
             f' w/ {self.hidden_size} hidden units'
         )
 
-        # pre- or post- messaging, i.e. when attention is applied
-        self.use_postmsg = messaging == "post"
-
         # Build a grid of cells: layers x columns
         self.cells = nn.ModuleList()
         self.attn = nn.ModuleList()
@@ -85,14 +82,8 @@ class GridRnn(nn.Module):
         x = self.embedding(tokens.view(-1))
 
         # shape: (layers, cols, batch, hidden_size)
-        #h = self.grid_step_postmsg(x, h=h) if self.use_postmsg else self.grid_step_premsg(x, h=h)
+        h, extras = self.grid_step(x, h=h, return_attn=return_attn)
         # top (=last) layer, first col as grid output
-        
-        if self.use_postmsg:
-            h, extras = self.grid_step_postmsg(x, h=h, return_attn=return_attn)
-        else:
-            h, extras = self.grid_step_premsg(x, h=h), {}
-                      
         z = h[-1][0]
 
         y = self.head(z)
@@ -100,7 +91,7 @@ class GridRnn(nn.Module):
             return y, h, extras
         return y, h
 
-    def grid_step_postmsg(self, x, *, h: torch.Tensor, return_attn=True):
+    def grid_step(self, x, *, h: torch.Tensor, return_attn=True):
         h_n, attn_ws, gate_vs = [], [], []
         # it is a list of inputs, each input is [batch, col_in_dim]
         x = self._prepare_grid_input(x)
@@ -128,38 +119,6 @@ class GridRnn(nn.Module):
         info = {"attn_weights": attn_ws, "gates": gate_vs} 
 
         return h_n, info
-
-    def grid_step_premsg(self, x, *, h: torch.Tensor):
-        h_n = []
-        # it is a list of inputs, each input is [batch, col_in_dim]
-        x = self._prepare_grid_input(x)
-        first_row = True
-
-        for cells, attn, hl in zip(self.cells, self.attn, h):
-            msg, _ = attn(hl, return_weights=False)
-            if first_row:
-                # a list, not a contiguous tensor
-                x = [
-                    torch.cat([xc, msgc], -1)
-                    for xc, msgc in zip(x, msg)
-                ]
-            else:
-                # a contiguous tensor
-                x = torch.cat([x, msg], dim=-1) # type: ignore
-
-            hl_n = [
-                self.cell_forward(cells, x, hl, ix_col=ix_col)
-                for ix_col in range(self.n_columns)
-            ]
-            hl_n = torch.stack(hl_n, dim=0)
-
-            h_n.append(hl_n)
-            # starting from there, x is a contiguous tensor [cols, batch, hidden_size]
-            x = hl_n
-            first_row = False
-
-        h_n = torch.stack(h_n, dim=0)
-        return h_n
 
     def cell_forward(self, cells, x, h, *, ix_col):
         cells, x, h = cells[ix_col], x[ix_col], h[ix_col]

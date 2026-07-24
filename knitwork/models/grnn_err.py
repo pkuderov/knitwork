@@ -48,14 +48,14 @@ class GridRnn(BaseGridRnn):
             x_pred = torch.zeros_like(x_true)
 
         # shape: (layers, cols, batch, hidden_size)
-        h = self.grid_step_postmsg(x_true=x_true, x_pred=x_pred, h=h)
+        h = self.grid_step(x_true=x_true, x_pred=x_pred, h=h)
         # top (=last) layer, first col as grid output
         z = h[-1][0]
 
         y = self.head(z)
         return y, h
 
-    def grid_step_postmsg(self, *, x_true, x_pred, h: torch.Tensor):
+    def grid_step(self, *, x_true, x_pred, h: torch.Tensor):
         h_n = []
         # it is a list of inputs, each input is [batch, col_in_dim]
         x = self._prepare_grid_input(x_true=x_true, x_pred=x_pred)
