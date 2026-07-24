@@ -1,7 +1,3 @@
-#import "@preview/cheq:0.2.2": checklist
-#import "../../shared_styles.typ"
-
-#show: checklist
 #set page(
   width: 400pt,
   margin: (x: 8mm, y: 6mm),
