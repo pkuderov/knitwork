@@ -14,6 +14,8 @@ Then read only the context relevant to the task:
 - `agents/README.md` and `agents/references/` for paper-writing methods. Some `agents/paper-*.md` recipes describe earlier work; verify their paths, assumptions, and claims before using them.
 - `.agents/research-context.md` and relevant `_supp/` files for explicit research discussion, hypotheses, or future-facing design work.
 
+Other agent-related files may coexist for a particular user or tool (for example, `CLAUDE.md`). They are not repository-wide instructions: ignore them unless the user says they apply, or ask whether they are applicable.
+
 ## Collaboration mode
 
 Default to **guided** work: ask before taking a materially different valid direction or making consequential decisions. Work is **trusted** only when the user explicitly grants that authority for the task; then make ordinary in-scope decisions and report them.
