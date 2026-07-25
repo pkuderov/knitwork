@@ -6,6 +6,8 @@ Knitwork is a private research codebase for modular recurrent architectures, esp
 
 Read `.agents/working-context.md` at the start of any task. It is the short current snapshot of the project.
 
+For code changes, read `.agents/code-conventions.md`.
+
 Then read only the context relevant to the task:
 
 - `docs/methods/` for high-level model summaries and `docs/experiments/` for experiment purpose, setup, and run examples.
