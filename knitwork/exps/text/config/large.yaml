@@ -10,6 +10,7 @@ device: null
 dtype: float32
 
 exp: text
+wrapper_model: token
 gen: text8
 model: rnn
 n_envs: 512
