@@ -181,11 +181,9 @@ class MessagePassingLayer(nn.Module):
         self.ids = None
         if n_participants is not None:
             # (col, batch, dim)
-            self.q_ids = nn.Parameter(torch.empty(n_participants, 1, dim))
-            self.k_ids = nn.Parameter(torch.empty(n_participants, 1, dim))
+            self.ids = nn.Parameter(torch.empty(2, n_participants, 1, dim))
             # init them with different near-zero vectors
-            nn.init.normal_(self.q_ids, 0.0, 0.01 * xavier_alpha)
-            nn.init.normal_(self.k_ids, 0.0, 0.01 * xavier_alpha)
+            nn.init.normal_(self.ids, 0.0, 0.01 * xavier_alpha)
 
         # Set very small out_proj to make the initial "message" negligible
         nn.init.normal_(self.mha.out_proj.weight, 0.0, 0.01 * xavier_alpha)
@@ -194,8 +192,8 @@ class MessagePassingLayer(nn.Module):
     def forward(self, q, k, v, return_weights: bool = False):
         # qkv: (C, B, D)
         if self.ids is not None:
-            q = q + self.q_ids
-            k = k + self.k_ids
+            q = q + self.ids[0]
+            k = k + self.ids[1]
 
         msg, attn_w = self.mha(q, k, v, need_weights=return_weights, average_attn_weights=True)
 
@@ -218,9 +216,8 @@ class MessagePassingLayer1(nn.Module):
         # learnable identities "bias" to distinguish self-attention participants
         self.ids = None
         if n_participants is not None:
-            # (C, B, D)
-            self.q_ids = nn.Parameter(torch.empty(n_participants, 1, dim))
-            self.k_ids = nn.Parameter(torch.empty(n_participants, 1, dim))
+            # (q/k, C, B, D)
+            self.ids = nn.Parameter(torch.empty(2, n_participants, 1, dim))
 
         self.reset_parameters()
 
@@ -248,16 +245,15 @@ class MessagePassingLayer1(nn.Module):
         if self.mha.out_proj.bias is not None:
             nn.init.zeros_(self.mha.out_proj.bias)
 
-        if self.q_ids is not None:
+        if self.ids is not None:
             # init them with different near-zero vectors
-            nn.init.normal_(self.q_ids, 0.0, 0.01 * xavier_alpha)
-            nn.init.normal_(self.k_ids, 0.0, 0.01 * xavier_alpha)
+            nn.init.normal_(self.ids, 0.0, 0.01 * xavier_alpha)
 
     def forward(self, q, k, v, return_weights: bool = False):
         # qkv: (C, B, D)
         if self.ids is not None:
-            q = q + self.q_ids
-            k = k + self.k_ids
+            q = q + self.ids[0]
+            k = k + self.ids[1]
 
         msg, attn_w = self.mha(q, k, v, need_weights=return_weights, average_attn_weights=True)
 
