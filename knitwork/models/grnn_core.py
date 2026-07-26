@@ -4,8 +4,6 @@ import math
 import torch
 from torch import nn
 
-from knitwork.common.utils import format_readable_num
-
 
 class GridRnn(nn.Module):
     has_attn = True
@@ -75,10 +73,10 @@ class GridRnn(nn.Module):
             ))
             hl_n = torch.lerp(hl_n, msg, g)
 
-            h_new.append(hl_n)
             if capture:
                 attn_ws.append(attn_w)
                 gate_vs.append(g.detach())
+            h_new.append(hl_n)
             x = hl_n
 
         h_new = torch.stack(h_new, dim=0)

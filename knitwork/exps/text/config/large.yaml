@@ -27,8 +27,8 @@ vis_inspect_schedule: 5.0e+5
 inspect_n_in_word_acc: 5
 
 eval:
-  enabled: false
-  on_start: true
+  enabled: true
+  on_start: false
   split: 0.1
   schedule: 2.0e+7
   max_rollout: 2.0e+4
