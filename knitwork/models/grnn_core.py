@@ -7,6 +7,8 @@ from knitwork.common.utils import format_readable_num
 
 
 class GridRnn(nn.Module):
+    has_attn = True
+
     def __init__(
             self, *,
             hidden_size, n_layers: int, n_columns: int,
@@ -20,6 +22,8 @@ class GridRnn(nn.Module):
         assert 0 < n_inputs <= n_columns
         assert 0 < n_outputs <= n_columns
 
+        self.n_inputs = n_inputs
+        self.n_outputs = n_outputs
         self.hidden_size = hidden_size
         self.n_layers = n_layers
         self.n_columns = n_columns
@@ -28,9 +32,6 @@ class GridRnn(nn.Module):
 
         self.dtype = dtype
         self.device = device
-
-        self.input_dim = (n_inputs, hidden_size)
-        self.output_dim = (n_outputs, hidden_size)
 
         # Hidden size should be a multiply of the n_attn_heads
         self.hidden_size -= self.hidden_size % self.n_attn_heads
@@ -63,13 +64,15 @@ class GridRnn(nn.Module):
         param_count = sum(p.numel() for p in self.parameters() if p.requires_grad)
         print(f'Param count: {format_readable_num(param_count)}')
 
-    def forward(self, x: torch.Tensor, state: dict, *, out_attn=False, **_):
+    def forward(self, x: torch.Tensor, state: dict, *, capture=False, **_):
         # x shape: (n_inputs, batch, hidden_size)
         assert x.shape[0] == self.n_inputs
         # h shape: (layers, cols, batch, hidden_size)
         h = state['h']
 
-        h_new, attn_ws, gate_vs = [], [], []
+        h_new = []
+        if capture:
+            attn_ws, gate_vs = [], []
         x = self._prepare_grid_input(x, h)
 
         for layer in range(self.n_layers):
@@ -79,15 +82,16 @@ class GridRnn(nn.Module):
             ]
             hl_n = torch.stack(hl_n, dim=0)
 
-            msg, attn_w = self.attn[layer](hl_n, return_weights=out_attn)
+            msg, attn_w = self.attn[layer](hl_n, return_weights=capture)
             g = torch.sigmoid(self.attn_gates[layer](
                 torch.cat([hl_n, msg], dim=-1)
             ))
             hl_n = torch.lerp(hl_n, msg, g)
 
             h_new.append(hl_n)
-            attn_ws.append(attn_w)
-            gate_vs.append(g.detach())
+            if capture:
+                attn_ws.append(attn_w)
+                gate_vs.append(g.detach())
             x = hl_n
 
         h_new = torch.stack(h_new, dim=0)
@@ -95,38 +99,11 @@ class GridRnn(nn.Module):
         # top (=last) layer, first col as grid output
         y = h[-1][0]
         state = {'h': h_new}
-        info = {"attn_weights": attn_ws, "gates": gate_vs} 
+        info = {}
+        if capture:
+            info |= {"attn_weights": attn_ws, "gates": gate_vs}
 
         return y, state, info
-
-    def grid_step(self, x, *, h: torch.Tensor, return_attn=True):
-        h_n, attn_ws, gate_vs = [], [], []
-        # it is a list of inputs, each input is [batch, col_in_dim]
-        x = self._prepare_grid_input(x)
-
-        for layer in range(self.n_layers):
-            hl_n = [
-                self.cell_forward(self.cells[layer], x, h[layer], ix_col=ix_col)
-                for ix_col in range(self.n_columns)
-            ]
-            hl_n = torch.stack(hl_n, dim=0)
-
-            msg, attn_w = self.attn[layer](hl_n, return_weights=return_attn)
-            g = torch.sigmoid(self.attn_gates[layer](
-                torch.cat([hl_n, msg], dim=-1)
-            ))
-            hl_n = torch.lerp(hl_n, msg, g)
-
-            h_n.append(hl_n)
-            attn_ws.append(attn_w)
-            gate_vs.append(g.detach())
-            # starting from there, x is a contiguous tensor [cols, batch, hidden_size]
-            x = hl_n
-
-        h_n = torch.stack(h_n, dim=0)
-        info = {"attn_weights": attn_ws, "gates": gate_vs} 
-
-        return h_n, info
 
     def cell_forward(self, cells, x, h, *, ix_col):
         cells, x, h = cells[ix_col], x[ix_col], h[ix_col]
@@ -155,7 +132,7 @@ class GridRnn(nn.Module):
         x = torch.cat([x, internal_input], dim=0)
         return x
 
-    def reset_state(self, state=None, *, reset_mask=None, bsz=None):
+    def reset_state(self, state=None, reset_mask=None, *, bsz=None):
         if state is None:
             bsz = reset_mask.shape[0] if reset_mask is not None else bsz
             return self.init_state(bsz)

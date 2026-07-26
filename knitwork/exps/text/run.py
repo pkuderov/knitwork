@@ -21,14 +21,14 @@ from knitwork.common.utils import (
     get_dtype,
 )
 from knitwork.gens.text import TextGenerator, load_dataset, tokenize
-from knitwork.models.utils import build_model, model_forward
+from knitwork.models.utils import build_model
 
 
 def main(config):
     torch.set_float32_matmul_precision('high')
 
-    _default_name = f"{config['model']}"
-    run_name = config.get('name') or config['log'].get('name') or _default_name
+    default_name = config['model']
+    name_sfx = config.get('name') or config['log'].get('name') or ''
 
     rng = np.random.default_rng(config['seed'])
     device = get_device(config.get('device'))
@@ -46,7 +46,6 @@ def main(config):
     eval_cfg = config.get('eval', {})
     do_eval = eval_cfg.get('enabled', False)
     do_eval_on_start = eval_cfg.get('on_start', False)
-
     if do_eval:
         from knitwork.gens.text import split_train_test
         eval_schedule = create_scheduler(eval_cfg['schedule'])
@@ -64,36 +63,32 @@ def main(config):
     gen = TextGenerator(train_data, n_envs=n_envs, ignore_index=CE_ignore_index, seed=get_seed(rng), device=device)
     gen = torch.compile(gen.to(device))
 
-    rnn_type = config['model']
-    rnn_cfg = config[rnn_type]
-    rnn = build_model(rnn_type, rnn_cfg, n_chars)
-    rnn = rnn.to(device=device, dtype=dtype)
-    if config.get('compile', False):
-        rnn = torch.compile(rnn)
-    print(f'Model on {next(rnn.parameters()).device} | dtype {next(rnn.parameters()).dtype}')
+    config['model_cfg'] = config['model'].replace('.', '_')
+    config['model'] = config['model'].split('.', 1)[0]
 
-    run_name = f"{run_name}_{count_learnable_params(rnn, as_str=True)}"
+    wrapper_cfg = config[f'{config["wrapper_model"]}_wrapper'] | dict(
+        input_size=n_chars, output_size=n_chars,
+        dtype=dtype, device=device
+    )
+    model = build_model(
+        wrapper_type=config['wrapper_model'],
+        wrapper_cfg=wrapper_cfg,
+        rnn_type=config['model'],
+        rnn_cfg=config[config['model_cfg']],
+    )
+    model = model.to(device=device, dtype=dtype)
+    if config.get('compile', False):
+        model = torch.compile(model)
+    rnn = model.rnn
+    print(f'Model on {next(model.parameters()).device} | dtype {next(model.parameters()).dtype}')
+
+    run_name = f"{default_name}_{count_learnable_params(rnn, as_str=True)} {name_sfx}"
     config['log']['name'] = run_name
     print(f'Run name: {run_name}')
 
     rollout_len = config['rollout_len']
     batch_size = gen.n_envs * rollout_len
     n_steps, step_size = int(config['n_steps']), gen.n_envs
-
-    if config.get('adapt_to_bsz', None) == 'auto':
-        # factor explressing an update frequency relative to the "default" rollout=64 bsz=512
-        # NB: see its usages for how it affects schedules of some trackers. 
-        # Such adaptation is not ideal, and reasonable only in a short range
-        update_freq_alpha = (batch_size / 64 / 512)**0.5
-        n_steps = int(n_steps * update_freq_alpha)
-        config['log']['schedule'] *= update_freq_alpha
-        config['eval']['schedule'] *= update_freq_alpha
-        config['lr']['schedule'] /= update_freq_alpha
-        config['lr']['warmup']['schedule'] /= update_freq_alpha
-        gen_cfg['reset_prob']['schedule'] /= update_freq_alpha
-        config['trackers']['slow'] *= update_freq_alpha
-        if do_eval:
-            eval_schedule = create_scheduler(eval_cfg['schedule'])
 
     use_vae = getattr(rnn, 'use_vae', False)
     has_grid = hasattr(rnn, 'n_layers') and hasattr(rnn, 'n_columns')
@@ -122,7 +117,7 @@ def main(config):
     kl_anneal = lambda step: kl_max if kl_steps == 0 else kl_max * min(1.0, step / kl_steps)
 
     lr = DynamicLearningRate(name=f'LR', **config['lr'])
-    optim = torch.optim.RMSprop(rnn.parameters(), lr=lr.val)
+    optim = torch.optim.RMSprop(model.parameters(), lr=lr.val)
     lr.connect_to_optimiser(optim)
 
     # p_reset schedule
@@ -150,13 +145,13 @@ def main(config):
 
     ln_2 = np.log(2.0)
     step, i_update = 0, 0
-    rnn_state = None
+    state = None
     batch_y, batch_y_gt, batch_kl = [], [], []
     batch_in_word_pos = []
 
     def _run_eval(step):
         run_eval(
-            step, rnn=rnn, gen=val_gen, logger=logger, n_envs=n_envs, max_rollout=max_rollout,
+            step, model=model, gen=val_gen, logger=logger, n_envs=n_envs, max_rollout=max_rollout,
             device=device, context_window=context_window
         )
 
@@ -169,31 +164,36 @@ def main(config):
 
         rnd_reset = torch.rand(gen.n_envs, device=device, generator=gen.rng) < p_reset.val
         reset_mask = torch.logical_or(obs['reset_mask'], rnd_reset)
-        rnn_state  = rnn.reset_state(rnn_state, reset_mask)
+        state  = rnn.reset_state(state, reset_mask)
         x = obs['tokens'].view(-1, 1)
 
-        collect_vis_data = vis_inspect_scheduler.tick(step_size)
-        y, rnn_state, extras, kl = model_forward(rnn, x, rnn_state, capture=collect_vis_data or has_harmonic)
+        capture_details = inspect_scheduler.tick(step_size)
+        capture_vis_data = vis_inspect_scheduler.tick(step_size)
+        capture = capture_details or capture_vis_data or has_harmonic
 
-        if has_harmonic and extras:
-            harmonic_stats = to_loggable_metrics(rnn.flatten_extras_stats(extras))
-            logger.accumulate(harmonic_stats, key='slow')
+        y, state, info = model(x, state, capture=capture)
 
-        if collect_vis_data and extras and has_grid:
-            attn_vis.update(extras['attn_weights'])
-            h_for_cka = rnn_state[0] if isinstance(rnn_state, tuple) else rnn_state
-            cka_vis.update(h_for_cka)
+        if capture:
+            # FIXME: not yet supported after rework
+            if has_harmonic and False:
+                harmonic_stats = to_loggable_metrics(rnn.flatten_extras_stats(extras))
+                logger.accumulate(harmonic_stats, key='slow')
 
-            gate_metrics = {
-                f'attn_gate/L{li}': g.detach().sigmoid().mean()
-                for li, g in enumerate(extras.get('gates', []))
-            }
-            logger.accumulate(gate_metrics, key='fast')
+            cka_vis.update(state['h'])
+            if 'attn_weights' in info:
+                attn_vis.update(info['attn_weights'])
+            if 'gates' in info:
+                gate_metrics = {
+                    f'attn_gate/L{li}': g.sigmoid().mean()
+                    for li, g in enumerate(info['gates'])
+                }
+                logger.accumulate(gate_metrics, key='fast')
 
         batch_y.append(y)
         batch_y_gt.append(obs['targets'])
         batch_in_word_pos.append(in_word_acc.ixs)
         if use_vae:
+            kl = info['kl']
             batch_kl.append(kl if kl is not None else torch.tensor(0.0, device=device, dtype=dtype))
 
         step += step_size
@@ -220,7 +220,7 @@ def main(config):
 
             optim.zero_grad()
             total_loss.backward()
-            grad_norm = nn.utils.clip_grad_norm_(rnn.parameters(), 1.0)
+            grad_norm = nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             if torch.isfinite(grad_norm):
                 optim.step()
             else:
@@ -247,11 +247,11 @@ def main(config):
             logger.accumulate(metrics, key='slow')
             logger.accumulate(in_word_acc.get(split=True), key='fast')
 
-            rnn_state = rnn.detach_state(rnn_state)
+            state = rnn.detach_state(state)
             batch_y.clear(); batch_y_gt.clear(); batch_kl.clear()
 
         if has_grid and inspect_scheduler.tick(step_size):
-            log_col_similarity(rnn, rnn_state, logger)
+            log_col_similarity(rnn, state, logger)
             log_lru_spectrum(rnn, logger)
             log_attn_beta(rnn, logger)
 
@@ -268,11 +268,11 @@ def main(config):
 
 @torch.no_grad()
 def run_eval(
-        step: int, *, rnn, gen, logger, n_envs, max_rollout, device,
+        step: int, *, model, gen, logger, n_envs, max_rollout, device,
         context_window=None
 ):
     """Evaluate on val set; if context_window>0, also run context-memory probe."""
-    rnn.eval()
+    model.eval()
     state = None
     ce_loss, acc, tot_cnt = 0.0, 0.0, 0
 
@@ -288,10 +288,10 @@ def run_eval(
         reset_mask = obs['reset_mask']
         if context_window is not None:
             reset_mask = torch.logical_or(reset_mask, cw_ix == 0)
-        state = rnn.reset_state(state, reset_mask)
+        state = model.rnn.reset_state(state, reset_mask)
 
         x = obs['tokens'].view(-1, 1)
-        y, state, *_ = model_forward(rnn, x, state, capture=False)
+        y, state, _ = model(x, state, capture=False)
 
         targets = obs['targets']
         valid = targets != CE_ignore_index
@@ -309,7 +309,7 @@ def run_eval(
             cw_ix_cnt += torch.bincount(_cw_ix, minlength=context_window)
             cw_ix[valid] = (_cw_ix + 1) % context_window
 
-    rnn.train()
+    model.train()
 
     if tot_cnt == 0:
         print('No valid data for evaluation!')
@@ -349,7 +349,7 @@ def run_eval(
 def log_col_similarity(rnn, state, logger):
     """Log max/mean pairwise cosine similarity between column activations (last layer)."""
     # Column collapse monitoring
-    h = state[0] if isinstance(state, tuple) else state
+    h = state['h']
     if not isinstance(h, torch.Tensor) or h.ndim != 4:
         return
 

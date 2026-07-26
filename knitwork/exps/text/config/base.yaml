@@ -11,7 +11,9 @@ dtype: float32
 
 exp: text
 gen: tinysh
-model: rnn
+wrapper_model: token
+model: rnn.L1
+
 n_envs: 64
 rollout_len: 8
 n_steps: 2.0e+7
@@ -24,7 +26,7 @@ eval:
   enabled: true
   on_start: true
   split: 0.1
-  context_window: 100
+  # context_window: 100
   schedule: 5.0e+6
   max_rollout: 1.0e+4
 
@@ -44,24 +46,21 @@ gens:
       lr: 0.04
       schedule: 200
 
+token_wrapper: {}
+
 # ======> Models
-rnn:
+rnn_L1:
   embedding_size: 64
   base_hidden_size: 128
   n_layers: 1
   use_bias: true
   dropout: 0.0
 
-grnn:
-  embedding_size: 64
-  base_hidden_size: 128
+grnn_L1C2:
+  hidden_size: 70
   n_layers: 1
   n_columns: 2
   n_attn_heads: 4
-  messaging: post
-  use_bias: true
-  dropout: 0.0
-  col_identities: true
 
 grnn_err:
   embedding_size: 64
@@ -397,14 +396,14 @@ lr:
   val: 5.0e-4
   tar: 5.0e-5
   lr: 0.01
-  schedule: 1000
+  schedule: 500
   warmup:
     val: 1.0e-9
     n_linear_steps: 50
     schedule: 48
 
 trackers:
-  slow: 5.0e-4
-  fast: 4.0e-2
+  slow: 5.0e-3
+  fast: 2.0e-2
   list: null
   eval: null
