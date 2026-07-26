@@ -5,7 +5,7 @@ import importlib
 MODELS_ROOT = 'knitwork.models'
 
 REGISTRY = {
-    'rnn': 'gru.GruBaseline',
+    'rnn': 'gru.GruCore',
     'grnn': 'grnn_core.GridRnn',
     # 'grnn_err':       ('knitwork.models.grnn_err',       'GridRnn'),
     # 'grnn2':          ('knitwork.models.grnn2',          'GridRnn2'),

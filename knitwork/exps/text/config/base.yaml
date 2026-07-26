@@ -50,14 +50,19 @@ token_wrapper: {}
 
 # ======> Models
 rnn_L1:
-  embedding_size: 64
-  base_hidden_size: 128
+  hidden_size: 128
   n_layers: 1
   use_bias: true
   dropout: 0.0
 
+rnn_L2:
+  hidden_size: 92
+  n_layers: 2
+  use_bias: true
+  dropout: 0.0
+
 grnn_L1C2:
-  hidden_size: 70
+  hidden_size: 80
   n_layers: 1
   n_columns: 2
   n_attn_heads: 4

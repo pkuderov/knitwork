@@ -82,7 +82,7 @@ def main(config):
     rnn = model.rnn
     print(f'Model on {next(model.parameters()).device} | dtype {next(model.parameters()).dtype}')
 
-    run_name = f"{default_name}_{count_learnable_params(rnn, as_str=True)} {name_sfx}"
+    run_name = f"{default_name}_{count_learnable_params(model, as_str=True)} {name_sfx}"
     config['log']['name'] = run_name
     print(f'Run name: {run_name}')
 
@@ -179,7 +179,8 @@ def main(config):
                 harmonic_stats = to_loggable_metrics(rnn.flatten_extras_stats(extras))
                 logger.accumulate(harmonic_stats, key='slow')
 
-            cka_vis.update(state['h'])
+            if has_grid:
+                cka_vis.update(state['h'])
             if 'attn_weights' in info:
                 attn_vis.update(info['attn_weights'])
             if 'gates' in info:

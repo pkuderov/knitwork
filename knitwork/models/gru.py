@@ -86,3 +86,72 @@ class GruBaseline(nn.Module):
         if state is None:
             return state
         return state.detach()
+
+
+class GruCore(nn.Module):
+    cell_type: str = 'gru'
+    has_attn = False
+
+    def __init__(
+            self, *,
+            hidden_size, n_layers, 
+            use_bias = True, dropout = 0.0,
+            dtype, device,
+    ):
+        super().__init__()
+        self.n_layers = n_layers
+        self.hidden_size = hidden_size
+
+        self.dtype = dtype
+        self.device = device
+
+        print(
+            f'RNN ({self.cell_type.upper()})'
+            f' {self.n_layers}-layers w/ {self.hidden_size} hidden units'
+        )
+
+        if self.n_layers == 1:
+            dropout = 0.0
+        self.rnn = nn.GRU(
+            input_size=self.hidden_size,
+            hidden_size=self.hidden_size,
+            num_layers=self.n_layers,
+            batch_first=False,
+            bias=use_bias,
+            dropout=dropout,
+        )
+
+    def forward(self, x: torch.Tensor, state: dict, **_):
+        # x shape: (n_inputs, batch, hidden_size)
+        # keep the same shape, using the first dim as sequence dim
+        # but make sure it's always 1
+        assert x.shape[0] == 1
+        y, h_new = self.rnn(x, state['h'])
+
+        # remove sequence dim
+        y = y.squeeze(0)
+        state = {'h': h_new}
+        info = {}
+
+        return y, state, info
+
+    def reset_state(self, state=None, reset_mask=None, *, bsz=None):
+        if state is None:
+            bsz = reset_mask.shape[0] if reset_mask is not None else bsz
+            return self.init_state(bsz)
+
+        keep = (~reset_mask.flatten())[None, :, None]
+        h = state['h'] * keep
+        return {'h': h}
+
+    def detach_state(self, state):
+        if state is None:
+            return state
+        return {'h': state['h'].detach()}
+
+    def init_state(self, bsz):
+        h = torch.zeros(
+            self.n_layers, bsz, self.hidden_size,
+            device=self.device, dtype=self.dtype
+        )
+        return {'h': h}

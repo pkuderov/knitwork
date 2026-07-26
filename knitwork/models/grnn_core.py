@@ -15,7 +15,7 @@ class GridRnn(nn.Module):
             n_inputs: int = 1, n_outputs: int = 1,
             n_attn_heads, use_bias = True,
             self_feeding: bool = False,
-            dtype, device
+            dtype, device,
     ):
         super().__init__()
         assert n_columns > 1
@@ -60,9 +60,6 @@ class GridRnn(nn.Module):
             self.attn.append(comm)
             
             self.attn_gates.append(nn.Linear(2 * self.hidden_size, 1))
-
-        param_count = sum(p.numel() for p in self.parameters() if p.requires_grad)
-        print(f'Param count: {format_readable_num(param_count)}')
 
     def forward(self, x: torch.Tensor, state: dict, *, capture=False, **_):
         # x shape: (n_inputs, batch, hidden_size)

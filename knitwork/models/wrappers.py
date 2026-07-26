@@ -3,7 +3,7 @@ from __future__ import annotations
 import torch
 from torch import nn
 
-from knitwork.common.utils import format_readable_num
+from knitwork.common.utils import count_learnable_params, format_readable_num
 
 
 class TokenModel(nn.Module):
@@ -21,7 +21,6 @@ class TokenModel(nn.Module):
 
         # make first to get the real hidden size (could be mod n_attn_heads)
         self.rnn = rnn_fn(
-            n_inputs=1, n_outputs=1,
             dtype=dtype, device=device,
             **rnn
         )
@@ -30,8 +29,7 @@ class TokenModel(nn.Module):
         self.embedding = nn.Embedding(input_size, self.embedding_size)
         self.head = nn.Linear(self.hidden_size, self.output_size)
 
-        param_count = sum(p.numel() for p in self.parameters() if p.requires_grad)
-        print(f'Total model param count: {format_readable_num(param_count)}')
+        print(f'Param count: {count_learnable_params(self, as_str=True)}')
 
     def forward(self, tokens: torch.Tensor, state: dict, *, capture=False, **kwargs):
         # (B, 1) -> (B, 1, E) -> (1, B, E)
