@@ -114,7 +114,6 @@ grnn_L3C4:
   n_layers: 3
   n_columns: 4
   n_attn_heads: 4
-  ln_msg: true
   pre_msg: false
   attn_gate: false
   ln_msg: true
