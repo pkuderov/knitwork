@@ -12,8 +12,8 @@ class GridRnn(nn.Module):
             self, *,
             hidden_size, n_layers: int, n_columns: int,
             n_inputs: int = 1, n_outputs: int = 1,
-            n_attn_heads, ln_msg=True, use_bias=True,
-            self_feeding: bool = False,
+            n_attn_heads, use_bias=True,
+            ln_msg=True, self_feeding: bool = False, pre_msg=False,
             dtype, device,
     ):
         super().__init__()
@@ -45,12 +45,16 @@ class GridRnn(nn.Module):
         self.cells = GruBank3(self.n_layers, self.n_columns, self.hidden_size, bias=use_bias)
 
         self.attn = nn.ModuleList()
-        self.attn_gates = nn.ModuleList()
         for layer in range(self.n_layers):
             self.attn.append(MessagePassingLayer(
                 self.hidden_size, num_heads=self.n_attn_heads, ln_msg=ln_msg, n_participants=self.n_columns
             ))
-            self.attn_gates.append(nn.Linear(2 * self.hidden_size, 1))
+        
+        self.pre_msg = pre_msg
+        if not self.pre_msg:
+            self.attn_gates = nn.ModuleList()
+            for layer in range(self.n_layers):
+                self.attn_gates.append(nn.Linear(2 * self.hidden_size, 1))
 
     def forward(self, x: torch.Tensor, state: dict, *, capture=False, **_):
         # x shape: (In, B, H)
@@ -65,17 +69,24 @@ class GridRnn(nn.Module):
         x = self._prepare_grid_input(x, h)
 
         for layer in range(self.n_layers):
-            hl_n = self.cells(layer, x, h[layer])
+            hl = h[layer]
+            if self.pre_msg:
+                msg, attn_w = self.attn[layer](x, hl, x, return_weights=capture)
+                x = msg
 
-            msg, attn_w = self.attn[layer](hl_n, hl_n, hl_n, return_weights=capture)
-            g = torch.sigmoid(self.attn_gates[layer](
-                torch.cat([hl_n, msg], dim=-1)
-            ))
-            hl_n = torch.lerp(hl_n, msg, g)
+            hl_n = self.cells(layer, x, hl)
+
+            if not self.pre_msg:
+                msg, attn_w = self.attn[layer](hl_n, hl_n, hl_n, return_weights=capture)
+                g = torch.sigmoid(self.attn_gates[layer](
+                    torch.cat([hl_n, msg], dim=-1)
+                ))
+                hl_n = torch.lerp(hl_n, msg, g)
 
             if capture:
                 attn_ws.append(attn_w)
-                gate_vs.append(g.detach())
+                if not self.pre_msg:
+                    gate_vs.append(g.detach())
             h_new.append(hl_n)
             x = hl_n
 
@@ -86,7 +97,9 @@ class GridRnn(nn.Module):
         state = {'h': h_new}
         info = {}
         if capture:
-            info |= {"attn_weights": attn_ws, "gates": gate_vs}
+            info |= {"attn_weights": attn_ws,}
+            if not self.pre_msg:
+                info |= {"gates": gate_vs}
 
         return y, state, info
 
@@ -108,7 +121,8 @@ class GridRnn(nn.Module):
 
     def _prepare_grid_input(self, x: torch.Tensor, h: torch.Tensor):
         if self.self_feeding:
-            internal_input = h[-1, :, self.n_inputs:]
+            # h shape: (L, C, B, H)
+            internal_input = h[-1, self.n_inputs:]
         else:
             n_internal_cols = self.n_columns - self.n_inputs
             internal_input = x.new_zeros(n_internal_cols, *x.shape[1:])
