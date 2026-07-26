@@ -5,6 +5,7 @@ log:
   project: knitwork-text
   dump_status: false
   schedule: 5.0e+6
+  # schedule: 1.0e+6
 
 device: null
 dtype: float32
@@ -17,8 +18,8 @@ model: rnn.L1
 n_envs: 512
 rollout_len: 64
 n_steps: 1.0e+9
+# n_steps: 0.4e+7
 
-adapt_to_bsz: auto
 compile: true
 
 inspect_schedule: 5.0e+5
@@ -26,10 +27,9 @@ vis_inspect_schedule: 5.0e+5
 inspect_n_in_word_acc: 5
 
 eval:
-  enabled: true
+  enabled: false
   on_start: true
   split: 0.1
-  # context_window: 100
   schedule: 2.0e+7
   max_rollout: 2.0e+4
 
@@ -53,31 +53,44 @@ token_wrapper: {}
 
 # ======> Models
 rnn_L1:
-  embedding_size: 64
-  base_hidden_size: 1800
+  hidden_size: 1296
   n_layers: 1
   use_bias: true
   dropout: 0.0
 
 rnn_L2:
-  embedding_size: 64
-  base_hidden_size: 1800
+  hidden_size: 912
   n_layers: 2
   use_bias: true
   dropout: 0.0
 
 rnn_L3:
-  embedding_size: 64
-  base_hidden_size: 1800
+  hidden_size: 752
   n_layers: 3
   use_bias: true
   dropout: 0.0
 
 grnn_L2C4:
-  hidden_size: 128
+  hidden_size: 424
   n_layers: 2
   n_columns: 4
   n_attn_heads: 4
+  ln_msg: true
+  # ln_msg: false
+
+grnn_L2C8:
+  hidden_size: 320
+  n_layers: 2
+  n_columns: 8
+  n_attn_heads: 4
+  ln_msg: true
+
+grnn_L2C16:
+  hidden_size: 224
+  n_layers: 2
+  n_columns: 16
+  n_attn_heads: 4
+  ln_msg: true
 
 grnn_fix:
   embedding_size: 64

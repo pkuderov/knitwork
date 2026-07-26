@@ -375,7 +375,7 @@ def log_col_similarity(rnn, state, logger):
 @torch.no_grad()
 @dont_throw('LRU spectrum')
 def log_lru_spectrum(rnn, logger):
-    if not hasattr(rnn, 'cells'):
+    if not hasattr(rnn, 'cells') or not isinstance(rnn.cells, nn.ModuleList):
         return {}
 
     metrics = {}
