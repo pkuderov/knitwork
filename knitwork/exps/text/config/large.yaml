@@ -76,9 +76,9 @@ grnn_L2C4:
   n_columns: 4
   n_attn_heads: 4
   pre_msg: false
-  attn_gate: true
+  attn_gate: false
   ln_msg: true
-  self_feeding: false
+  self_feeding: true
   msg_alter_state: false
   bank: 2
   mha: 1
@@ -88,14 +88,40 @@ grnn_L2C8:
   n_layers: 2
   n_columns: 8
   n_attn_heads: 4
+  pre_msg: false
+  attn_gate: false
   ln_msg: true
+  self_feeding: true
+  msg_alter_state: false
+  bank: 2
+  mha: 1
 
 grnn_L2C16:
   hidden_size: 224
   n_layers: 2
   n_columns: 16
   n_attn_heads: 4
+  pre_msg: false
+  attn_gate: false
   ln_msg: true
+  self_feeding: true
+  msg_alter_state: false
+  bank: 2
+  mha: 1
+
+grnn_L3C4:
+  hidden_size: 320
+  n_layers: 3
+  n_columns: 4
+  n_attn_heads: 4
+  ln_msg: true
+  pre_msg: false
+  attn_gate: false
+  ln_msg: true
+  self_feeding: true
+  msg_alter_state: false
+  bank: 2
+  mha: 1
 
 grnn_fix:
   embedding_size: 64
