@@ -13,7 +13,8 @@ class GridRnn(nn.Module):
             hidden_size, n_layers: int, n_columns: int,
             n_inputs: int = 1, n_outputs: int = 1,
             n_attn_heads, use_bias=True,
-            ln_msg=True, self_feeding: bool = False, pre_msg=False,
+            ln_msg=True, attn_gate=True, self_feeding=False, pre_msg=False, msg_alter_state=False,
+            bank=2, mha=0,
             dtype, device,
     ):
         super().__init__()
@@ -29,6 +30,9 @@ class GridRnn(nn.Module):
         self.n_attn_heads = n_attn_heads
         self.self_feeding = self_feeding
 
+        self.use_attn_gate = attn_gate
+        self.msg_alter_state = msg_alter_state
+
         self.dtype = dtype
         self.device = device
 
@@ -40,18 +44,20 @@ class GridRnn(nn.Module):
         )
 
         # Build a grid of cells: layers x columns
-        # self.cells = GruBank(self.n_layers, self.n_columns, self.hidden_size, bias=use_bias)
-        # self.cells = GruBank2(self.n_layers, self.n_columns, self.hidden_size, bias=use_bias)
-        self.cells = GruBank3(self.n_layers, self.n_columns, self.hidden_size, bias=use_bias)
+        banks = [GruBank, GruBank1, GruBank2]
+        self.cells = banks[bank](self.n_layers, self.n_columns, self.hidden_size, bias=use_bias)
+
+        mhas = [MessagePassingLayer, MessagePassingLayer1]
+        mha = mhas[mha]
 
         self.attn = nn.ModuleList()
         for layer in range(self.n_layers):
-            self.attn.append(MessagePassingLayer(
+            self.attn.append(mha(
                 self.hidden_size, num_heads=self.n_attn_heads, ln_msg=ln_msg, n_participants=self.n_columns
             ))
-        
+
         self.pre_msg = pre_msg
-        if not self.pre_msg:
+        if not self.pre_msg and self.use_attn_gate:
             self.attn_gates = nn.ModuleList()
             for layer in range(self.n_layers):
                 self.attn_gates.append(nn.Linear(2 * self.hidden_size, 1))
@@ -60,45 +66,53 @@ class GridRnn(nn.Module):
         # x shape: (In, B, H)
         assert x.shape[0] == self.n_inputs
         # h shape: (L, C, B, H)
-        h = state['h']
+        h, x_int = state['h'], state['out']
         h_new = []
 
         if capture:
             attn_ws, gate_vs = [], []
+        use_gates = not self.pre_msg and self.use_attn_gate
+
         # (C, B, H)
-        x = self._prepare_grid_input(x, h)
+        x = self._prepare_grid_input(x, x_int)
 
         for layer in range(self.n_layers):
             hl = h[layer]
             if self.pre_msg:
-                msg, attn_w = self.attn[layer](x, hl, x, return_weights=capture)
+                msg, attn_w = self.attn[layer](hl, x, x, return_weights=capture)
                 x = msg
 
             hl_n = self.cells(layer, x, hl)
-
+            msg = hl_n
             if not self.pre_msg:
                 msg, attn_w = self.attn[layer](hl_n, hl_n, hl_n, return_weights=capture)
-                g = torch.sigmoid(self.attn_gates[layer](
-                    torch.cat([hl_n, msg], dim=-1)
-                ))
-                hl_n = torch.lerp(hl_n, msg, g)
+                if use_gates:
+                    g = torch.sigmoid(self.attn_gates[layer](
+                        torch.cat([hl_n, msg], dim=-1)
+                    ))
+                    msg = torch.lerp(hl_n, msg, g)
+
+            # either communication msg alters state or not
+            hl_n = msg if self.msg_alter_state else hl_n
 
             if capture:
                 attn_ws.append(attn_w)
-                if not self.pre_msg:
+                if use_gates:
                     gate_vs.append(g.detach())
             h_new.append(hl_n)
-            x = hl_n
+            x = msg
 
         h_new = torch.stack(h_new, dim=0)
 
         # top (=last) layer, first col as grid output
-        y = h_new[-1][0]
-        state = {'h': h_new}
+        # y = hl_n[0]
+        y = x[0]
+
+        state = {'h': h_new, 'out': x}
         info = {}
         if capture:
             info |= {"attn_weights": attn_ws,}
-            if not self.pre_msg:
+            if use_gates:
                 info |= {"gates": gate_vs}
 
         return y, state, info
@@ -119,41 +133,44 @@ class GridRnn(nn.Module):
             hsz += self.hidden_size
         return hsz
 
-    def _prepare_grid_input(self, x: torch.Tensor, h: torch.Tensor):
+    def _prepare_grid_input(self, x_ext: torch.Tensor, x_int: torch.Tensor):
         if self.self_feeding:
             # h shape: (L, C, B, H)
-            internal_input = h[-1, self.n_inputs:]
+            x_int = x_int[self.n_inputs:]
         else:
             n_internal_cols = self.n_columns - self.n_inputs
-            internal_input = x.new_zeros(n_internal_cols, *x.shape[1:])
+            x_int = x_ext.new_zeros(n_internal_cols, *x_ext.shape[1:])
 
         # (col, batch, features), cat over cols
-        x = torch.cat([x, internal_input], dim=0)
-        return x
+        x_ext = torch.cat([x_ext, x_int], dim=0)
+        return x_ext
 
     def reset_state(self, state=None, reset_mask=None, *, bsz=None):
         if state is None:
             bsz = reset_mask.shape[0] if reset_mask is not None else bsz
             return self.init_state(bsz)
 
-        keep = (~reset_mask.flatten())[None, None, :, None]
-        h = state['h'] * keep
-        return {'h': h}
+        # (L, C, B, H)
+        keep = (~reset_mask.flatten())
+        h = state['h'] * keep[None, None, :, None]
+        out = state['out'] * keep[None, :, None]
+        return {'h': h, 'out': out}
 
     def detach_state(self, state):
         if state is None:
             return state
-        return {'h': state['h'].detach()}
+        return {'h': state['h'].detach(), 'out': state['out'].detach()}
 
     def init_state(self, bsz):
         h = torch.zeros(
             self.n_layers, self.n_columns, bsz, self.hidden_size,
             device=self.device, dtype=self.dtype
         )
-        return {'h': h}
+        return {'h': h, 'out': h[-1]}
 
 
 class MessagePassingLayer(nn.Module):
+    """Default MHA + layer norm."""
     def __init__(self, dim, num_heads, ln_msg=True, n_participants=None):
         super().__init__()
         self.mha = nn.MultiheadAttention(dim, num_heads=num_heads, batch_first=False)
@@ -164,9 +181,11 @@ class MessagePassingLayer(nn.Module):
         self.ids = None
         if n_participants is not None:
             # (col, batch, dim)
-            self.ids = nn.Parameter(torch.empty(n_participants, 1, dim))
+            self.q_ids = nn.Parameter(torch.empty(n_participants, 1, dim))
+            self.k_ids = nn.Parameter(torch.empty(n_participants, 1, dim))
             # init them with different near-zero vectors
-            nn.init.normal_(self.ids, 0.0, 0.01 * xavier_alpha)
+            nn.init.normal_(self.q_ids, 0.0, 0.01 * xavier_alpha)
+            nn.init.normal_(self.k_ids, 0.0, 0.01 * xavier_alpha)
 
         # Set very small out_proj to make the initial "message" negligible
         nn.init.normal_(self.mha.out_proj.weight, 0.0, 0.01 * xavier_alpha)
@@ -175,8 +194,70 @@ class MessagePassingLayer(nn.Module):
     def forward(self, q, k, v, return_weights: bool = False):
         # qkv: (C, B, D)
         if self.ids is not None:
-            q = q + self.ids
-            k = k + self.ids
+            q = q + self.q_ids
+            k = k + self.k_ids
+
+        msg, attn_w = self.mha(q, k, v, need_weights=return_weights, average_attn_weights=True)
+
+        # Layer norm ensures we are in a good range
+        if return_weights:
+            attn_w = attn_w.detach().mean(dim=0)
+        if self.ln_msg is not None:
+            msg = self.ln_msg(msg)
+        return msg, attn_w
+
+
+class MessagePassingLayer1(nn.Module):
+    """Compared to naive version, has an "self-to-self" bias for communication init."""
+    def __init__(self, dim, num_heads, ln_msg=True, n_participants=None):
+        super().__init__()
+        self.dim = dim
+        self.mha = nn.MultiheadAttention(dim, num_heads=num_heads, batch_first=False)
+        self.ln_msg = nn.LayerNorm(dim) if ln_msg else None
+
+        # learnable identities "bias" to distinguish self-attention participants
+        self.ids = None
+        if n_participants is not None:
+            # (C, B, D)
+            self.q_ids = nn.Parameter(torch.empty(n_participants, 1, dim))
+            self.k_ids = nn.Parameter(torch.empty(n_participants, 1, dim))
+
+        self.reset_parameters()
+
+    @torch.no_grad()
+    def reset_parameters(self):
+        H = self.dim
+        xavier_alpha = (1 / H) ** 0.5
+
+        W_q, W_k, W_v = self.mha.in_proj_weight.split(H, dim=0)
+
+        # Same projection for Q and K -> initial content-based self preference.
+        nn.init.orthogonal_(W_q, gain=xavier_alpha)
+        W_k.copy_(W_q)
+        # Preserve the selected token's representation.
+        nn.init.eye_(W_v)
+
+        # Near-identity final feature projection.
+        nn.init.eye_(self.mha.out_proj.weight)
+        self.mha.out_proj.weight.add_(
+            torch.randn_like(self.mha.out_proj.weight)
+            * (0.01 * xavier_alpha)
+        )
+        if self.mha.in_proj_bias is not None:
+            nn.init.zeros_(self.mha.in_proj_bias)
+        if self.mha.out_proj.bias is not None:
+            nn.init.zeros_(self.mha.out_proj.bias)
+
+        if self.q_ids is not None:
+            # init them with different near-zero vectors
+            nn.init.normal_(self.q_ids, 0.0, 0.01 * xavier_alpha)
+            nn.init.normal_(self.k_ids, 0.0, 0.01 * xavier_alpha)
+
+    def forward(self, q, k, v, return_weights: bool = False):
+        # qkv: (C, B, D)
+        if self.ids is not None:
+            q = q + self.q_ids
+            k = k + self.k_ids
 
         msg, attn_w = self.mha(q, k, v, need_weights=return_weights, average_attn_weights=True)
 
@@ -189,7 +270,69 @@ class MessagePassingLayer(nn.Module):
 
 
 class GruBank2(nn.Module):
-    """LxC independent GRU cells evaluated together layer by layer."""
+    """
+    LxC independent GRU cells evaluated together layer by layer.
+    Replace a porion of bmms (rz) with less batched larger mms (xh concat over feature dim).
+    It has lesser intermediate memory usage, but more copying (two concats).
+    """
+
+    def __init__(self, n_layers: int, n_columns: int, hidden_size: int, *, bias: bool = True):
+        super().__init__()
+
+        self.n_layers = n_layers
+        self.n_columns = n_columns
+        self.hidden_size = hidden_size
+        self.use_bias = bias
+
+        # Stored in the orientation directly consumed by bmm:
+        # [C, B, H] @ [C, H, 3H] -> [C, B, 3H]
+        self.weight_rz = nn.Parameter(torch.empty(n_layers, n_columns, 2 * hidden_size, 2 * hidden_size))
+        self.weight_n = nn.Parameter(torch.empty(n_layers, n_columns, 2 * hidden_size, hidden_size))
+        if self.use_bias:
+            # Singleton batch dimension allows direct broadcasting.
+            self.bias_rz = nn.Parameter(torch.empty(n_layers, n_columns, 1, 2 * hidden_size))
+            self.bias_n = nn.Parameter(torch.empty(n_layers, n_columns, 1, hidden_size))
+        else:
+            self.register_parameter("bias_ih", None)
+            self.register_parameter("bias_hh", None)
+
+        self.reset_parameters()
+
+    def reset_parameters(self) -> None:
+        # Same initialization as nn.GRUCell.
+        bound = 1.0 / math.sqrt(self.hidden_size)
+        for parameter in self.parameters():
+            nn.init.uniform_(parameter, -bound, bound)
+
+    def forward(self, layer, x: torch.Tensor, h: torch.Tensor):
+        # x: [C, B, H]
+        # h: [C, B, H]
+        xh = torch.cat((x, h), dim=-1)
+        if self.use_bias:
+            rz = torch.bmm(xh, self.weight_rz[layer]) + self.bias_rz[layer]
+        else:
+            rz = torch.bmm(xh, self.weight_rz[layer])
+
+        rg, ug = torch.sigmoid(rz).chunk(2, dim=-1)
+
+        xr = torch.cat((x, rg * h), dim=-1)
+        if self.use_bias:
+            pre_ng = torch.bmm(xr, self.weight_n[layer]) + self.bias_n[layer]
+        else:
+            pre_ng = torch.bmm(xr, self.weight_n[layer])
+
+        ng = torch.tanh(pre_ng)
+
+        # [C, B, H]
+        return (h - ng) * ug + ng
+
+
+class GruBank1(nn.Module):
+    """
+    LxC independent GRU cells evaluated together layer by layer.
+    Compared to the naive impl, in/h weights are merged along bmm batch dim. 
+    Exchanges two separate bmm calls with [x, h] concat + single batched bmm.
+    """
 
     def __init__(self, n_layers: int, n_columns: int, hidden_size: int, *, bias: bool = True):
         super().__init__()
@@ -239,7 +382,10 @@ class GruBank2(nn.Module):
 
 
 class GruBank(nn.Module):
-    """LxC independent GRU cells evaluated together layer by layer."""
+    """
+    LxC independent GRU cells evaluated together layer by layer.
+    The most naively implemented bmm generalization of gru cell.
+    """
 
     def __init__(self, n_layers: int, n_columns: int, hidden_size: int, *, bias: bool = True):
         super().__init__()
@@ -289,57 +435,3 @@ class GruBank(nn.Module):
 
         # [C, B, hidden_size]
         return (h - new_gate) * update_gate + new_gate
-
-
-class GruBank3(nn.Module):
-    """LxC independent GRU cells evaluated together layer by layer."""
-
-    def __init__(self, n_layers: int, n_columns: int, hidden_size: int, *, bias: bool = True):
-        super().__init__()
-
-        self.n_layers = n_layers
-        self.n_columns = n_columns
-        self.hidden_size = hidden_size
-        self.use_bias = bias
-
-        # Stored in the orientation directly consumed by bmm:
-        # [C, B, H] @ [C, H, 3H] -> [C, B, 3H]
-        self.weight_rz = nn.Parameter(torch.empty(n_layers, n_columns, 2 * hidden_size, 2 * hidden_size))
-        self.weight_n = nn.Parameter(torch.empty(n_layers, n_columns, 2 * hidden_size, hidden_size))
-        if self.use_bias:
-            # Singleton batch dimension allows direct broadcasting.
-            self.bias_rz = nn.Parameter(torch.empty(n_layers, n_columns, 1, 2 * hidden_size))
-            self.bias_n = nn.Parameter(torch.empty(n_layers, n_columns, 1, hidden_size))
-        else:
-            self.register_parameter("bias_ih", None)
-            self.register_parameter("bias_hh", None)
-
-        self.reset_parameters()
-
-    def reset_parameters(self) -> None:
-        # Same initialization as nn.GRUCell.
-        bound = 1.0 / math.sqrt(self.hidden_size)
-        for parameter in self.parameters():
-            nn.init.uniform_(parameter, -bound, bound)
-
-    def forward(self, layer, x: torch.Tensor, h: torch.Tensor):
-        # x: [C, B, H]
-        # h: [C, B, H]
-        xh = torch.cat((x, h), dim=-1)
-        if self.use_bias:
-            rz = torch.bmm(xh, self.weight_rz[layer]) + self.bias_rz[layer]
-        else:
-            rz = torch.bmm(xh, self.weight_rz[layer])
-
-        rg, ug = torch.sigmoid(rz).chunk(2, dim=-1)
-
-        xr = torch.cat((x, rg * h), dim=-1)
-        if self.use_bias:
-            pre_ng = torch.bmm(xr, self.weight_n[layer]) + self.bias_n[layer]
-        else:
-            pre_ng = torch.bmm(xr, self.weight_n[layer])
-
-        ng = torch.tanh(pre_ng)
-
-        # [C, B, hidden_size]
-        return (h - ng) * ug + ng

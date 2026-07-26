@@ -76,11 +76,12 @@ grnn_L2C4:
   n_columns: 4
   n_attn_heads: 4
   pre_msg: false
-  # pre_msg: true
+  attn_gate: true
   ln_msg: true
-  # ln_msg: false
   self_feeding: false
-  # self_feeding: true
+  msg_alter_state: false
+  bank: 2
+  mha: 1
 
 grnn_L2C8:
   hidden_size: 320
