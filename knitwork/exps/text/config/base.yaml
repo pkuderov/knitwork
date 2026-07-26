@@ -4,7 +4,7 @@ log:
   logger: comet
   project: knitwork-text
   dump_status: false
-  schedule: 2.0e+6
+  schedule: 5.0e+5
 
 device: null
 dtype: float32
@@ -16,7 +16,7 @@ model: rnn.L1
 
 n_envs: 64
 rollout_len: 8
-n_steps: 2.0e+7
+n_steps: 4.0e+6
 
 inspect_schedule: 1.0e+5
 vis_inspect_schedule: 1.0e+5
@@ -86,7 +86,8 @@ grnn_L2C4:
   self_feeding: true
   msg_alter_state: false
   bank: 2
-  mha: 1
+  mha: 2
+  noise_std: 0.1
 
 grnn_err:
   embedding_size: 64

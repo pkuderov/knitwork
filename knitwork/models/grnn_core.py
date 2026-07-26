@@ -1,8 +1,10 @@
 from __future__ import annotations
+from collections import defaultdict
 import math
 
 import torch
 from torch import nn
+from torch.nn import functional as F
 
 
 class GridRnn(nn.Module):
@@ -15,6 +17,7 @@ class GridRnn(nn.Module):
             n_attn_heads, use_bias=True,
             ln_msg=True, attn_gate=True, self_feeding=False, pre_msg=False, msg_alter_state=False,
             bank=2, mha=0,
+            noise_std=0.0,
             dtype, device,
     ):
         super().__init__()
@@ -47,13 +50,17 @@ class GridRnn(nn.Module):
         banks = [GruBank, GruBank1, GruBank2]
         self.cells = banks[bank](self.n_layers, self.n_columns, self.hidden_size, bias=use_bias)
 
-        mhas = [MessagePassingLayer, MessagePassingLayer1]
+        mhas = [MessagePassingLayer, MessagePassingLayer1, StochasticMessagePassingLayer]
         mha = mhas[mha]
+        mha_kwargs = {}
+        if mha == StochasticMessagePassingLayer:
+            mha_kwargs |= {'noise_std': noise_std}
 
         self.attn = nn.ModuleList()
         for layer in range(self.n_layers):
             self.attn.append(mha(
-                self.hidden_size, num_heads=self.n_attn_heads, ln_msg=ln_msg, n_participants=self.n_columns
+                self.hidden_size, num_heads=self.n_attn_heads, ln_msg=ln_msg, n_participants=self.n_columns,
+                **mha_kwargs,
             ))
 
         self.pre_msg = pre_msg
@@ -69,8 +76,7 @@ class GridRnn(nn.Module):
         h, x_int = state['h'], state['out']
         h_new = []
 
-        if capture:
-            attn_ws, gate_vs = [], []
+        info = defaultdict(list)
         use_gates = not self.pre_msg and self.use_attn_gate
 
         # (C, B, H)
@@ -79,13 +85,13 @@ class GridRnn(nn.Module):
         for layer in range(self.n_layers):
             hl = h[layer]
             if self.pre_msg:
-                msg, attn_w = self.attn[layer](hl, x, x, return_weights=capture)
+                msg, comm_info = self.attn[layer](hl, x, x, return_weights=capture)
                 x = msg
 
             hl_n = self.cells(layer, x, hl)
             msg = hl_n
             if not self.pre_msg:
-                msg, attn_w = self.attn[layer](hl_n, hl_n, hl_n, return_weights=capture)
+                msg, comm_info = self.attn[layer](hl_n, hl_n, hl_n, return_weights=capture)
                 if use_gates:
                     g = torch.sigmoid(self.attn_gates[layer](
                         torch.cat([hl_n, msg], dim=-1)
@@ -95,10 +101,11 @@ class GridRnn(nn.Module):
             # either communication msg alters state or not
             hl_n = msg if self.msg_alter_state else hl_n
 
-            if capture:
-                attn_ws.append(attn_w)
-                if use_gates:
-                    gate_vs.append(g.detach())
+            for k, v in comm_info.items():
+                info[k].append(v)
+            if capture and use_gates:
+                info['gates'].append(g.detach())
+
             h_new.append(hl_n)
             x = msg
 
@@ -109,12 +116,6 @@ class GridRnn(nn.Module):
         y = x[0]
 
         state = {'h': h_new, 'out': x}
-        info = {}
-        if capture:
-            info |= {"attn_weights": attn_ws,}
-            if use_gates:
-                info |= {"gates": gate_vs}
-
         return y, state, info
 
     def cell_forward(self, cells, x, h, *, ix_col):
@@ -196,13 +197,13 @@ class MessagePassingLayer(nn.Module):
             k = k + self.ids[1]
 
         msg, attn_w = self.mha(q, k, v, need_weights=return_weights, average_attn_weights=True)
-
-        # Layer norm ensures we are in a good range
-        if return_weights:
-            attn_w = attn_w.detach().mean(dim=0)
         if self.ln_msg is not None:
             msg = self.ln_msg(msg)
-        return msg, attn_w
+
+        info = {}
+        if return_weights:
+            info['attn_weights'] = attn_w.detach().mean(dim=0)
+        return msg, info
 
 
 class MessagePassingLayer1(nn.Module):
@@ -213,11 +214,9 @@ class MessagePassingLayer1(nn.Module):
         self.mha = nn.MultiheadAttention(dim, num_heads=num_heads, batch_first=False)
         self.ln_msg = nn.LayerNorm(dim) if ln_msg else None
 
-        # learnable identities "bias" to distinguish self-attention participants
-        self.ids = None
-        if n_participants is not None:
-            # (q/k, C, B, D)
-            self.ids = nn.Parameter(torch.empty(2, n_participants, 1, dim))
+        # Learnable identities distinguish communication participants.
+        # (q/k, C, B, D)
+        self.ids = nn.Parameter(torch.empty(2, n_participants, 1, dim)) if n_participants is not None else None
 
         self.reset_parameters()
 
@@ -225,6 +224,7 @@ class MessagePassingLayer1(nn.Module):
     def reset_parameters(self):
         H = self.dim
         xavier_alpha = (1 / H) ** 0.5
+        near_zero_xavier_alpha = 0.01 * xavier_alpha
 
         W_q, W_k, W_v = self.mha.in_proj_weight.split(H, dim=0)
 
@@ -237,8 +237,7 @@ class MessagePassingLayer1(nn.Module):
         # Near-identity final feature projection.
         nn.init.eye_(self.mha.out_proj.weight)
         self.mha.out_proj.weight.add_(
-            torch.randn_like(self.mha.out_proj.weight)
-            * (0.01 * xavier_alpha)
+            torch.randn_like(self.mha.out_proj.weight) * near_zero_xavier_alpha
         )
         if self.mha.in_proj_bias is not None:
             nn.init.zeros_(self.mha.in_proj_bias)
@@ -247,7 +246,7 @@ class MessagePassingLayer1(nn.Module):
 
         if self.ids is not None:
             # init them with different near-zero vectors
-            nn.init.normal_(self.ids, 0.0, 0.01 * xavier_alpha)
+            nn.init.normal_(self.ids, 0.0, near_zero_xavier_alpha)
 
     def forward(self, q, k, v, return_weights: bool = False):
         # qkv: (C, B, D)
@@ -256,13 +255,108 @@ class MessagePassingLayer1(nn.Module):
             k = k + self.ids[1]
 
         msg, attn_w = self.mha(q, k, v, need_weights=return_weights, average_attn_weights=True)
-
-        # Layer norm ensures we are in a good range
-        if return_weights:
-            attn_w = attn_w.detach().mean(dim=0)
         if self.ln_msg is not None:
             msg = self.ln_msg(msg)
-        return msg, attn_w
+
+        info = {}
+        if return_weights:
+            info['attn_weights'] = attn_w.detach().mean(dim=0)
+        return msg, info
+
+
+class StochasticMessagePassingLayer(nn.Module):
+    """MHA-1 with stochastic routing and a free-cost diagonal route."""
+    def __init__(
+            self, dim, num_heads, ln_msg=True, n_participants=None,
+            noise_std=0.0,
+    ):
+        super().__init__()
+        assert dim % num_heads == 0
+
+        self.dim = dim
+        self.num_heads = num_heads
+        self.head_dim = dim // num_heads
+        self.noise_std = noise_std
+        self.mha = nn.MultiheadAttention(dim, num_heads=num_heads, batch_first=False)
+        self.ln_msg = nn.LayerNorm(dim) if ln_msg else None
+
+        # Learnable identities distinguish communication participants.
+        # (q/k, C, B, D)
+        self.ids = nn.Parameter(torch.empty(2, n_participants, 1, dim)) if n_participants is not None else None
+
+        self.reset_parameters()
+
+    @torch.no_grad()
+    def reset_parameters(self):
+        H = self.dim
+        xavier_alpha = (1 / H) ** 0.5
+        near_zero_xavier_alpha = 0.01 * xavier_alpha
+
+        W_q, W_k, W_v = self.mha.in_proj_weight.split(H, dim=0)
+
+        # Match MHA-1's initial content-based self preference.
+        nn.init.orthogonal_(W_q, gain=xavier_alpha)
+        W_k.copy_(W_q)
+        nn.init.eye_(W_v)
+
+        nn.init.eye_(self.mha.out_proj.weight)
+        self.mha.out_proj.weight.add_(
+            torch.randn_like(self.mha.out_proj.weight) * near_zero_xavier_alpha
+        )
+        if self.mha.in_proj_bias is not None:
+            nn.init.zeros_(self.mha.in_proj_bias)
+        if self.mha.out_proj.bias is not None:
+            nn.init.zeros_(self.mha.out_proj.bias)
+
+        if self.ids is not None:
+            nn.init.normal_(self.ids, 0.0, near_zero_xavier_alpha)
+
+    def forward(self, q, k, v, return_weights: bool = False):
+        # qkv: (C, B, D)
+        C, B, H = q.shape
+        if self.ids is not None:
+            q = q + self.ids[0]
+            k = k + self.ids[1]
+
+        W_q, W_k, W_v = self.mha.in_proj_weight.split(H, dim=0)
+        b_q, b_k, b_v = self.mha.in_proj_bias.split(H, dim=0)
+
+        q = F.linear(q, W_q, b_q)
+        k = F.linear(k, W_k, b_k)
+        v = F.linear(v, W_v, b_v)
+
+        # (C, B, H) -> (B, heads, C, head_dim)
+        q, k, v = map(self.split_heads, (q, k, v))
+
+        logits = torch.matmul(q, k.transpose(-2, -1)) / math.sqrt(self.head_dim)
+        if self.training and self.noise_std > 0.0:
+            logits = logits + self.noise_std * torch.randn_like(logits)
+        pi_route = torch.softmax(logits, dim=-1)
+
+        msg = torch.matmul(pi_route, v)
+        # back to (C, B, H)
+        msg = msg.permute(2, 0, 1, 3).reshape(C, B, H)
+        msg = F.linear(msg, self.mha.out_proj.weight, self.mha.out_proj.bias)
+        if self.ln_msg is not None:
+            msg = self.ln_msg(msg)
+
+        info = {}
+        if self.training:
+            prob_comm = 1.0 - pi_route.diagonal(dim1=-2, dim2=-1)
+            entropy = -(pi_route * torch.log(pi_route.clamp_min(torch.finfo(pi_route.dtype).tiny))).sum(dim=-1)
+            info |= {
+                'comm_loss': prob_comm.mean(),
+                'comm_entropy': entropy.mean(),
+            }
+        if return_weights:
+            info['attn_weights'] = pi_route.detach().mean(dim=(0, 1))
+
+        return msg, info
+
+    def split_heads(self, x):
+        # (C, B, H) -> (B, heads, C, head_dim)
+        C, B, _ = x.shape
+        return x.view(C, B, self.num_heads, self.head_dim).permute(1, 2, 0, 3)
 
 
 class GruBank2(nn.Module):
