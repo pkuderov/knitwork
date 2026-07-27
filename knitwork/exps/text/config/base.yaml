@@ -74,6 +74,16 @@ grnn_L1C2:
   mha: 2
   noise_std: 0.1
 
+grnn_L1C8:
+  hidden_size: 44
+  n_layers: 1
+  n_columns: 8
+  n_attn_heads: 4
+  ln_msg: true
+  bank: 2
+  mha: 2
+  noise_std: 0.1
+
 grnn_L2C4:
   hidden_size: 44
   n_layers: 2

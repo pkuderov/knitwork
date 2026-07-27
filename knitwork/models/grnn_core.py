@@ -165,8 +165,56 @@ class StochasticMessagePassingLayer(nn.Module):
         # Learnable identities distinguish communication participants.
         # (q/k, C, B, D)
         self.ids = nn.Parameter(torch.empty(2, n_participants, 1, dim)) if n_participants is not None else None
+        self.pi_logtemp = nn.Parameter(torch.empty(1, 1, n_participants, 1))
 
         self.reset_parameters()
+
+    def forward(self, q, k, v, return_weights: bool = False):
+        # qkv: (C, B, D)
+        C, B, H = q.shape
+        if self.ids is not None:
+            q = q + self.ids[0][:C]
+            k = k + self.ids[1][:C]
+
+        W_q, W_k, W_v = self.mha.in_proj_weight.split(H, dim=0)
+        b_q, b_k, b_v = self.mha.in_proj_bias.split(H, dim=0)
+
+        q = F.linear(q, W_q, b_q)
+        k = F.linear(k, W_k, b_k)
+        v = F.linear(v, W_v, b_v)
+        # q = F.silu(F.linear(q, W_q, b_q))
+        # k = F.silu(F.linear(k, W_k, b_k))
+        # v = F.silu(F.linear(v, W_v, b_v))
+
+        # (C, B, H) -> (B, heads, C, head_dim)
+        q, k, v = map(self.split_heads, (q, k, v))
+
+        logits = torch.matmul(q, k.transpose(-2, -1)) / math.sqrt(self.head_dim)
+        if self.training and self.noise_std > 0.0:
+            logits = logits + self.noise_std * torch.randn_like(logits)
+        # beta = F.softplus(self.pi_logtemp[..., :C, :])
+        # pi_route = torch.softmax(beta * logits, dim=-1)
+        pi_route = torch.softmax(logits, dim=-1)
+
+        msg = torch.matmul(pi_route, v)
+        # back to (C, B, H)
+        msg = msg.permute(2, 0, 1, 3).reshape(C, B, H)
+        msg = F.linear(msg, self.mha.out_proj.weight, self.mha.out_proj.bias)
+        if self.ln_msg is not None:
+            msg = self.ln_msg(msg)
+
+        info = {}
+        if self.training:
+            prob_comm = 1.0 - pi_route.diagonal(dim1=-2, dim2=-1)
+            entropy = -(pi_route * torch.log(pi_route.clamp_min(torch.finfo(pi_route.dtype).tiny))).sum(dim=-1)
+            info |= {
+                'comm_loss': prob_comm.mean(),
+                'comm_entropy': normalize_entropy(entropy.mean(), C),
+            }
+        if return_weights:
+            info['attn_weights'] = pi_route.detach().mean(dim=(0, 1))
+
+        return msg, info
 
     @torch.no_grad()
     def reset_parameters(self):
@@ -192,48 +240,7 @@ class StochasticMessagePassingLayer(nn.Module):
 
         if self.ids is not None:
             nn.init.normal_(self.ids, 0.0, near_zero_xavier_alpha)
-
-    def forward(self, q, k, v, return_weights: bool = False):
-        # qkv: (C, B, D)
-        C, B, H = q.shape
-        if self.ids is not None:
-            q = q + self.ids[0][:C]
-            k = k + self.ids[1][:C]
-
-        W_q, W_k, W_v = self.mha.in_proj_weight.split(H, dim=0)
-        b_q, b_k, b_v = self.mha.in_proj_bias.split(H, dim=0)
-
-        q = F.linear(q, W_q, b_q)
-        k = F.linear(k, W_k, b_k)
-        v = F.linear(v, W_v, b_v)
-
-        # (C, B, H) -> (B, heads, C, head_dim)
-        q, k, v = map(self.split_heads, (q, k, v))
-
-        logits = torch.matmul(q, k.transpose(-2, -1)) / math.sqrt(self.head_dim)
-        if self.training and self.noise_std > 0.0:
-            logits = logits + self.noise_std * torch.randn_like(logits)
-        pi_route = torch.softmax(logits, dim=-1)
-
-        msg = torch.matmul(pi_route, v)
-        # back to (C, B, H)
-        msg = msg.permute(2, 0, 1, 3).reshape(C, B, H)
-        msg = F.linear(msg, self.mha.out_proj.weight, self.mha.out_proj.bias)
-        if self.ln_msg is not None:
-            msg = self.ln_msg(msg)
-
-        info = {}
-        if self.training:
-            prob_comm = 1.0 - pi_route.diagonal(dim1=-2, dim2=-1)
-            entropy = -(pi_route * torch.log(pi_route.clamp_min(torch.finfo(pi_route.dtype).tiny))).sum(dim=-1)
-            info |= {
-                'comm_loss': prob_comm.mean(),
-                'comm_entropy': normalize_entropy(entropy.mean(), C),
-            }
-        if return_weights:
-            info['attn_weights'] = pi_route.detach().mean(dim=(0, 1))
-
-        return msg, info
+        nn.init.zeros_(self.pi_logtemp)
 
     def split_heads(self, x):
         # (C, B, H) -> (B, heads, C, head_dim)
