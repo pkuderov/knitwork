@@ -69,11 +69,7 @@ grnn_L1C2:
   n_layers: 1
   n_columns: 2
   n_attn_heads: 4
-  pre_msg: false
-  attn_gate: false
   ln_msg: true
-  self_feeding: true
-  msg_alter_state: false
   bank: 2
   mha: 2
   noise_std: 0.1
@@ -83,11 +79,7 @@ grnn_L2C4:
   n_layers: 2
   n_columns: 4
   n_attn_heads: 4
-  pre_msg: false
-  attn_gate: false
   ln_msg: true
-  self_feeding: true
-  msg_alter_state: false
   bank: 2
   mha: 2
   noise_std: 0.1

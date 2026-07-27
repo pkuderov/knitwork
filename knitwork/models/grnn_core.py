@@ -17,7 +17,7 @@ class GridRnn(nn.Module):
             hidden_size, n_layers: int, n_columns: int,
             n_inputs: int = 1, n_outputs: int = 1,
             n_attn_heads, use_bias=True,
-            ln_msg=True, attn_gate=True, self_feeding=False, pre_msg=False, msg_alter_state=False,
+            ln_msg=True,
             bank=2, mha=0,
             noise_std=0.0,
             dtype, device,
@@ -33,10 +33,6 @@ class GridRnn(nn.Module):
         self.n_layers = n_layers
         self.n_columns = n_columns
         self.n_attn_heads = n_attn_heads
-        self.self_feeding = self_feeding
-
-        self.use_attn_gate = attn_gate
-        self.msg_alter_state = msg_alter_state
 
         self.dtype = dtype
         self.device = device
@@ -61,62 +57,41 @@ class GridRnn(nn.Module):
         self.attn = nn.ModuleList()
         for layer in range(self.n_layers):
             self.attn.append(mha(
-                self.hidden_size, num_heads=self.n_attn_heads, ln_msg=ln_msg, n_participants=self.n_columns,
+                self.hidden_size, num_heads=self.n_attn_heads, ln_msg=ln_msg, 
+                n_participants=self.n_columns+self.n_inputs,
                 **mha_kwargs,
             ))
-
-        self.pre_msg = pre_msg
-        if not self.pre_msg and self.use_attn_gate:
-            self.attn_gates = nn.ModuleList()
-            for layer in range(self.n_layers):
-                self.attn_gates.append(nn.Linear(2 * self.hidden_size, 1))
 
     def forward(self, x: torch.Tensor, state: dict, *, capture=False, **_):
         # x shape: (In, B, H)
         assert x.shape[0] == self.n_inputs
         # h shape: (L, C, B, H)
-        h, x_int = state['h'], state['out']
+        h, x_int, x_ext = state['h'], state['out'], x
         hn = []
-
         info = defaultdict(list)
-        use_gates = not self.pre_msg and self.use_attn_gate
 
         # (C, B, H)
-        x = self._prepare_grid_input(x, x_int)
+        # extend prev state and internal input w/ ext input
+        x = torch.cat([x_int, x_ext], dim=0)
+        hlp = x
 
         for layer in range(self.n_layers):
-            hl = h[layer]
-            if self.pre_msg:
-                msg, comm_info = self.attn[layer](hl, x, x, return_weights=capture)
-                x = msg
-
-            hln = self.cells(layer, x, hl)
-            msg = hln
-            if not self.pre_msg:
-                msg, comm_info = self.attn[layer](hln, hln, hln, return_weights=capture)
-                if use_gates:
-                    g = torch.sigmoid(self.attn_gates[layer](
-                        torch.cat([hln, msg], dim=-1)
-                    ))
-                    msg = torch.lerp(hln, msg, g)
-
-            # either communication msg alters state or not
-            hln = msg if self.msg_alter_state else hln
-            x = msg
+            x, comm_info = self.attn[layer](hlp, hlp, x, return_weights=capture)
+            # cut-out ext input related msg for L0
+            x = x if layer > 0 else x[:self.n_columns]
+            hln = self.cells(layer, x, h[layer])
+            hlp = hln
 
             for k, v in comm_info.items():
                 info[k].append(v)
-            if capture and use_gates:
-                info['gates'].append(g.detach())
             hn.append(hln)
 
         hn = torch.stack(hn, dim=0)
 
         # top (=last) layer, first col as grid output
         y = hln[0]
-        # y = x[0]
 
-        state = {'h': hn, 'out': x}
+        state = {'h': hn, 'out': hln}
         return y, state, info
 
     def cell_forward(self, cells, x, h, *, ix_col):
@@ -222,8 +197,8 @@ class StochasticMessagePassingLayer(nn.Module):
         # qkv: (C, B, D)
         C, B, H = q.shape
         if self.ids is not None:
-            q = q + self.ids[0]
-            k = k + self.ids[1]
+            q = q + self.ids[0][:C]
+            k = k + self.ids[1][:C]
 
         W_q, W_k, W_v = self.mha.in_proj_weight.split(H, dim=0)
         b_q, b_k, b_v = self.mha.in_proj_bias.split(H, dim=0)
