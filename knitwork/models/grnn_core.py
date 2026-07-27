@@ -161,8 +161,6 @@ class StochasticMessagePassingLayer(nn.Module):
         # (q/k, C, B, D)
         self.ids = nn.Parameter(torch.empty(2, n_kv, 1, dim)) if n_kv is not None else None
         self.pi_logtemp = nn.Parameter(torch.empty(1, 1, n_q, 1))
-        
-        self.input_comm_weights = torch.arange(n_q).view(1, -1)
 
         self.reset_parameters()
 
@@ -204,9 +202,11 @@ class StochasticMessagePassingLayer(nn.Module):
         info = {}
         if self.training:
             prob_comm = 1.0 - pi_route.diagonal(dim1=-2, dim2=-1)
-            # add weighted (column-specific) extra to comm w/ external input
-            x_ext_prob_weighted = pi_route[..., -1] * self.input_comm_weights
-            comm_loss = prob_comm + x_ext_prob_weighted
+            comm_loss = prob_comm
+            if Ckv > Cq:
+                # add weighted (column-specific) extra to comm w/ external input
+                x_ext_prob_weighted = pi_route[..., -1] * torch.arange(Cq).view(1, -1)
+                comm_loss = prob_comm + x_ext_prob_weighted
             entropy = -(pi_route * torch.log(pi_route.clamp_min(torch.finfo(pi_route.dtype).tiny))).sum(dim=-1)
             info |= {
                 'comm_loss': comm_loss.mean(),
