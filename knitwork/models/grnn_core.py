@@ -206,7 +206,7 @@ class StochasticMessagePassingLayer(nn.Module):
             if Ckv > Cq:
                 # add weighted (column-specific) extra to comm w/ external input
                 extra_w = torch.arange(Cq, dtype=pi_route.dtype, device=pi_route.device).view(1, -1)
-                x_ext_prob_weighted = pi_route[..., -1] * extra_w
+                x_ext_prob_weighted = pi_route[..., -1] * (extra_w * 2 - 1)
                 comm_loss = prob_comm + x_ext_prob_weighted
             entropy = -(pi_route * torch.log(pi_route.clamp_min(torch.finfo(pi_route.dtype).tiny))).sum(dim=-1)
             info |= {
