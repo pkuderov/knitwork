@@ -51,7 +51,7 @@ gens:
 
 token_wrapper: {}
 communication:
-  loss_weight: 1.0e-2
+  loss_weight: 3.0e-2
   entropy_weight: 1.0e-3
 
 # ======> Models
@@ -84,7 +84,8 @@ grnn_L2C4:
   self_feeding: true
   msg_alter_state: false
   bank: 2
-  mha: 1
+  mha: 2
+  noise_std: 0.1
 
 grnn_L2C8:
   hidden_size: 320
