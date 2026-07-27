@@ -73,6 +73,16 @@ rnn_L3:
   use_bias: true
   dropout: 0.0
 
+grnn_L1C8:
+  hidden_size: 424
+  n_layers: 1
+  n_columns: 8
+  n_attn_heads: 4
+  ln_msg: true
+  bank: 2
+  mha: 2
+  noise_std: 0.1
+
 grnn_L2C4:
   hidden_size: 424
   n_layers: 2
@@ -90,7 +100,8 @@ grnn_L2C8:
   n_attn_heads: 4
   ln_msg: true
   bank: 2
-  mha: 1
+  mha: 2
+  noise_std: 0.1
 
 grnn_L2C16:
   hidden_size: 224
@@ -99,7 +110,8 @@ grnn_L2C16:
   n_attn_heads: 4
   ln_msg: true
   bank: 2
-  mha: 1
+  mha: 2
+  noise_std: 0.1
 
 grnn_L3C4:
   hidden_size: 320
@@ -108,7 +120,8 @@ grnn_L3C4:
   n_attn_heads: 4
   ln_msg: true
   bank: 2
-  mha: 1
+  mha: 2
+  noise_std: 0.1
 
 grnn_fix:
   embedding_size: 64
