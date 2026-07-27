@@ -215,12 +215,12 @@ def main(config):
 
             total_loss = ce_loss = loss_fn(y_cat, y_gt_cat)
             if use_vae:
-                kl = batch_kl / batch_size
+                kl = batch_kl / rollout_len
                 kl_scale = kl_anneal(step)
                 total_loss = total_loss + kl_scale * kl
             if comm_loss_enabled:
-                comm_loss = batch_comm_loss / batch_size
-                comm_entropy = batch_comm_entropy / batch_size
+                comm_loss = batch_comm_loss / rollout_len
+                comm_entropy = batch_comm_entropy / rollout_len
                 total_loss = total_loss + comm_loss_weight * comm_loss - comm_entropy_weight * comm_entropy
 
             with torch.no_grad():
