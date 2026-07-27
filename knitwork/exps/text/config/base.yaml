@@ -24,10 +24,10 @@ inspect_n_in_word_acc: 5
 
 eval:
   enabled: true
-  on_start: true
+  on_start: false
   split: 0.1
   # context_window: 100
-  schedule: 5.0e+6
+  schedule: 2.0e+6
   max_rollout: 1.0e+4
 
 gens:

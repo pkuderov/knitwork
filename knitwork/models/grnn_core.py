@@ -84,9 +84,9 @@ class GridRnn(nn.Module):
                 info[k].append(v)
             hn.append(hln)
 
-        y = hn[-1][0]
         hn = torch.stack(hn, dim=0)
-        state = {'h': h, 'out': hn[-1]}
+        y = hn[-1][0]
+        state = {'h': hn, 'out': hn[-1]}
         return y, state, info
 
     def cell_forward(self, cells, x, h, *, ix_col):
@@ -215,19 +215,18 @@ class StochasticMessagePassingLayer(nn.Module):
     @torch.no_grad()
     def reset_parameters(self):
         H = self.dim
-        xavier_alpha = (1 / H) ** 0.5
-        near_zero_xavier_alpha = 0.01 * xavier_alpha
+        small = 0.01 / math.sqrt(H)
 
         W_q, W_k, W_v = self.mha.in_proj_weight.split(H, dim=0)
 
-        # Match MHA-1's initial content-based self preference.
-        nn.init.orthogonal_(W_q, gain=xavier_alpha)
-        W_k.copy_(W_q)
+        nn.init.xavier_uniform_(W_q)
+        nn.init.xavier_uniform_(W_k)
+
         nn.init.eye_(W_v)
 
         nn.init.eye_(self.mha.out_proj.weight)
         self.mha.out_proj.weight.add_(
-            torch.randn_like(self.mha.out_proj.weight) * near_zero_xavier_alpha
+            torch.randn_like(self.mha.out_proj.weight) * small
         )
         if self.mha.in_proj_bias is not None:
             nn.init.zeros_(self.mha.in_proj_bias)
@@ -235,7 +234,7 @@ class StochasticMessagePassingLayer(nn.Module):
             nn.init.zeros_(self.mha.out_proj.bias)
 
         if self.ids is not None:
-            nn.init.normal_(self.ids, 0.0, near_zero_xavier_alpha)
+            nn.init.normal_(self.ids, 0.0, small)
         nn.init.constant_(self.pi_logtemp, math.log(math.expm1(1.0)))
 
     def split_heads(self, x):
