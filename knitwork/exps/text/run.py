@@ -424,7 +424,7 @@ def log_attn_beta(rnn, logger):
 
     metrics = {}
     for li, attn in enumerate(rnn.attn):
-        lb = getattr(attn, 'log_beta', None)
+        lb = getattr(attn, 'pi_logtemp', None)
         if lb is None:
             continue
         beta = lb.exp().detach().float()
