@@ -47,6 +47,9 @@ gens:
       schedule: 500
 
 token_wrapper: {}
+communication:
+  loss_weight: 1.0e-2
+  entropy_weight: 1.0e-3
 
 # ======> Models
 rnn_L1:
@@ -67,13 +70,13 @@ grnn_L1C2:
   n_columns: 2
   n_attn_heads: 4
   pre_msg: false
-  # pre_msg: true
+  attn_gate: false
   ln_msg: true
-  # ln_msg: false
-  self_feeding: false
-  # self_feeding: true
+  self_feeding: true
+  msg_alter_state: false
   bank: 2
-  mha: 0
+  mha: 2
+  noise_std: 0.1
 
 grnn_L2C4:
   hidden_size: 44

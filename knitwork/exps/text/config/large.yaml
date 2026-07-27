@@ -50,6 +50,9 @@ gens:
       schedule: 100
 
 token_wrapper: {}
+communication:
+  loss_weight: 1.0e-2
+  entropy_weight: 1.0e-3
 
 # ======> Models
 rnn_L1:

@@ -93,6 +93,10 @@ def main(config):
     use_vae = getattr(rnn, 'use_vae', False)
     has_grid = hasattr(rnn, 'n_layers') and hasattr(rnn, 'n_columns')
     has_harmonic = hasattr(rnn, 'mem_layers') and hasattr(rnn, 'flatten_extras_stats')
+    communication_cfg = config.get('communication', {})
+    comm_loss_enabled = None
+    comm_loss_weight = float(communication_cfg.get('loss_weight', 0.0))
+    comm_entropy_weight = float(communication_cfg.get('entropy_weight', 0.0))
 
     inspect_scheduler = create_scheduler(config.get('inspect_schedule'))
     vis_inspect_scheduler = create_scheduler(config.get('vis_inspect_schedule'))
@@ -146,7 +150,8 @@ def main(config):
     ln_2 = np.log(2.0)
     step, i_update = 0, 0
     state = None
-    batch_y, batch_y_gt, batch_kl = [], [], []
+    batch_y, batch_y_gt = [], []
+    batch_kl, batch_comm_loss, batch_comm_entropy = 0.0, 0.0, 0.0
     batch_in_word_pos = []
 
     def _run_eval(step):
@@ -193,9 +198,12 @@ def main(config):
         batch_y.append(y)
         batch_y_gt.append(obs['targets'])
         batch_in_word_pos.append(in_word_acc.ixs)
-        if use_vae:
-            kl = info['kl']
-            batch_kl.append(kl if kl is not None else torch.tensor(0.0, device=device, dtype=dtype))
+        if use_vae and info.get('kl') is not None:
+            batch_kl += info['kl'].mean()
+        if comm_loss_enabled or (comm_loss_enabled is None and 'comm_loss' in info):
+            comm_loss_enabled = True
+            batch_comm_loss += torch.stack(info['comm_loss']).mean()
+            batch_comm_entropy += torch.stack(info['comm_entropy']).mean()
 
         step += step_size
         in_word_acc.ixs = torch.where(x.view(-1) == space_token, 0, in_word_acc.ixs + 1)
@@ -207,9 +215,13 @@ def main(config):
 
             total_loss = ce_loss = loss_fn(y_cat, y_gt_cat)
             if use_vae:
-                kl_mean = torch.stack(batch_kl).mean()
+                kl = batch_kl / batch_size
                 kl_scale = kl_anneal(step)
-                total_loss = total_loss + kl_scale * kl_mean
+                total_loss = total_loss + kl_scale * kl
+            if comm_loss_enabled:
+                comm_loss = batch_comm_loss / batch_size
+                comm_entropy = batch_comm_entropy / batch_size
+                total_loss = total_loss + comm_loss_weight * comm_loss - comm_entropy_weight * comm_entropy
 
             with torch.no_grad():
                 logits_a = y_cat[m_active]
@@ -242,14 +254,18 @@ def main(config):
                 'Upd': i_update,
             }
             if use_vae:
-                metrics['KL'] = kl_mean
+                metrics['KL'] = kl
                 metrics['KL_scale'] = kl_scale
+            if comm_loss_enabled:
+                metrics['L_comm'] = comm_loss
+                metrics['H_comm'] = comm_entropy
             metrics = to_loggable_metrics(metrics)
             logger.accumulate(metrics, key='slow')
             logger.accumulate(in_word_acc.get(split=True), key='fast')
 
             state = rnn.detach_state(state)
-            batch_y.clear(); batch_y_gt.clear(); batch_kl.clear()
+            batch_y.clear(); batch_y_gt.clear();
+            batch_kl, batch_comm_loss, batch_comm_entropy = 0.0, 0.0, 0.0
 
         if has_grid and inspect_scheduler.tick(step_size):
             log_col_similarity(rnn, state, logger)

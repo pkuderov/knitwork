@@ -6,6 +6,8 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
+from knitwork.common.torch import normalize_entropy
+
 
 class GridRnn(nn.Module):
     has_attn = True
@@ -346,7 +348,7 @@ class StochasticMessagePassingLayer(nn.Module):
             entropy = -(pi_route * torch.log(pi_route.clamp_min(torch.finfo(pi_route.dtype).tiny))).sum(dim=-1)
             info |= {
                 'comm_loss': prob_comm.mean(),
-                'comm_entropy': entropy.mean(),
+                'comm_entropy': normalize_entropy(entropy.mean(), C),
             }
         if return_weights:
             info['attn_weights'] = pi_route.detach().mean(dim=(0, 1))
