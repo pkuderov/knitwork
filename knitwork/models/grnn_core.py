@@ -76,7 +76,7 @@ class GridRnn(nn.Module):
         assert x.shape[0] == self.n_inputs
         # h shape: (L, C, B, H)
         h, x_int = state['h'], state['out']
-        h_new = []
+        hn = []
 
         info = defaultdict(list)
         use_gates = not self.pre_msg and self.use_attn_gate
@@ -90,34 +90,33 @@ class GridRnn(nn.Module):
                 msg, comm_info = self.attn[layer](hl, x, x, return_weights=capture)
                 x = msg
 
-            hl_n = self.cells(layer, x, hl)
-            msg = hl_n
+            hln = self.cells(layer, x, hl)
+            msg = hln
             if not self.pre_msg:
-                msg, comm_info = self.attn[layer](hl_n, hl_n, hl_n, return_weights=capture)
+                msg, comm_info = self.attn[layer](hln, hln, hln, return_weights=capture)
                 if use_gates:
                     g = torch.sigmoid(self.attn_gates[layer](
-                        torch.cat([hl_n, msg], dim=-1)
+                        torch.cat([hln, msg], dim=-1)
                     ))
-                    msg = torch.lerp(hl_n, msg, g)
+                    msg = torch.lerp(hln, msg, g)
 
             # either communication msg alters state or not
-            hl_n = msg if self.msg_alter_state else hl_n
+            hln = msg if self.msg_alter_state else hln
+            x = msg
 
             for k, v in comm_info.items():
                 info[k].append(v)
             if capture and use_gates:
                 info['gates'].append(g.detach())
+            hn.append(hln)
 
-            h_new.append(hl_n)
-            x = msg
-
-        h_new = torch.stack(h_new, dim=0)
+        hn = torch.stack(hn, dim=0)
 
         # top (=last) layer, first col as grid output
-        # y = hl_n[0]
-        y = x[0]
+        y = hln[0]
+        # y = x[0]
 
-        state = {'h': h_new, 'out': x}
+        state = {'h': hn, 'out': x}
         return y, state, info
 
     def cell_forward(self, cells, x, h, *, ix_col):
