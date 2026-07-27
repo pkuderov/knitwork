@@ -17,7 +17,7 @@ model: rnn.L1
 
 n_envs: 512
 rollout_len: 64
-n_steps: 1.0e+9
+n_steps: 1.5e+9
 # n_steps: 0.4e+7
 
 compile: true
