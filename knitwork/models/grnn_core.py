@@ -171,100 +171,6 @@ class GridRnn(nn.Module):
         return {'h': h, 'out': h[-1]}
 
 
-class MessagePassingLayer(nn.Module):
-    """Default MHA + layer norm."""
-    def __init__(self, dim, num_heads, ln_msg=True, n_participants=None):
-        super().__init__()
-        self.mha = nn.MultiheadAttention(dim, num_heads=num_heads, batch_first=False)
-        self.ln_msg = nn.LayerNorm(dim) if ln_msg else None
-
-        xavier_alpha = (1 / dim) ** 0.5
-        # learnable identities "bias" to distinguish self-attention participants
-        self.ids = None
-        if n_participants is not None:
-            # (col, batch, dim)
-            self.ids = nn.Parameter(torch.empty(2, n_participants, 1, dim))
-            # init them with different near-zero vectors
-            nn.init.normal_(self.ids, 0.0, 0.01 * xavier_alpha)
-
-        # Set very small out_proj to make the initial "message" negligible
-        nn.init.normal_(self.mha.out_proj.weight, 0.0, 0.01 * xavier_alpha)
-        nn.init.zeros_(self.mha.out_proj.bias)
-
-    def forward(self, q, k, v, return_weights: bool = False):
-        # qkv: (C, B, D)
-        if self.ids is not None:
-            q = q + self.ids[0]
-            k = k + self.ids[1]
-
-        msg, attn_w = self.mha(q, k, v, need_weights=return_weights, average_attn_weights=True)
-        if self.ln_msg is not None:
-            msg = self.ln_msg(msg)
-
-        info = {}
-        if return_weights:
-            info['attn_weights'] = attn_w.detach().mean(dim=0)
-        return msg, info
-
-
-class MessagePassingLayer1(nn.Module):
-    """Compared to naive version, has an "self-to-self" bias for communication init."""
-    def __init__(self, dim, num_heads, ln_msg=True, n_participants=None):
-        super().__init__()
-        self.dim = dim
-        self.mha = nn.MultiheadAttention(dim, num_heads=num_heads, batch_first=False)
-        self.ln_msg = nn.LayerNorm(dim) if ln_msg else None
-
-        # Learnable identities distinguish communication participants.
-        # (q/k, C, B, D)
-        self.ids = nn.Parameter(torch.empty(2, n_participants, 1, dim)) if n_participants is not None else None
-
-        self.reset_parameters()
-
-    @torch.no_grad()
-    def reset_parameters(self):
-        H = self.dim
-        xavier_alpha = (1 / H) ** 0.5
-        near_zero_xavier_alpha = 0.01 * xavier_alpha
-
-        W_q, W_k, W_v = self.mha.in_proj_weight.split(H, dim=0)
-
-        # Same projection for Q and K -> initial content-based self preference.
-        nn.init.orthogonal_(W_q, gain=xavier_alpha)
-        W_k.copy_(W_q)
-        # Preserve the selected token's representation.
-        nn.init.eye_(W_v)
-
-        # Near-identity final feature projection.
-        nn.init.eye_(self.mha.out_proj.weight)
-        self.mha.out_proj.weight.add_(
-            torch.randn_like(self.mha.out_proj.weight) * near_zero_xavier_alpha
-        )
-        if self.mha.in_proj_bias is not None:
-            nn.init.zeros_(self.mha.in_proj_bias)
-        if self.mha.out_proj.bias is not None:
-            nn.init.zeros_(self.mha.out_proj.bias)
-
-        if self.ids is not None:
-            # init them with different near-zero vectors
-            nn.init.normal_(self.ids, 0.0, near_zero_xavier_alpha)
-
-    def forward(self, q, k, v, return_weights: bool = False):
-        # qkv: (C, B, D)
-        if self.ids is not None:
-            q = q + self.ids[0]
-            k = k + self.ids[1]
-
-        msg, attn_w = self.mha(q, k, v, need_weights=return_weights, average_attn_weights=True)
-        if self.ln_msg is not None:
-            msg = self.ln_msg(msg)
-
-        info = {}
-        if return_weights:
-            info['attn_weights'] = attn_w.detach().mean(dim=0)
-        return msg, info
-
-
 class StochasticMessagePassingLayer(nn.Module):
     """MHA-1 with stochastic routing and a free-cost diagonal route."""
     def __init__(
@@ -416,6 +322,100 @@ class GruBank2(nn.Module):
 
         # [C, B, H]
         return (h - ng) * ug + ng
+
+
+class MessagePassingLayer1(nn.Module):
+    """Compared to naive version, has an "self-to-self" bias for communication init."""
+    def __init__(self, dim, num_heads, ln_msg=True, n_participants=None):
+        super().__init__()
+        self.dim = dim
+        self.mha = nn.MultiheadAttention(dim, num_heads=num_heads, batch_first=False)
+        self.ln_msg = nn.LayerNorm(dim) if ln_msg else None
+
+        # Learnable identities distinguish communication participants.
+        # (q/k, C, B, D)
+        self.ids = nn.Parameter(torch.empty(2, n_participants, 1, dim)) if n_participants is not None else None
+
+        self.reset_parameters()
+
+    @torch.no_grad()
+    def reset_parameters(self):
+        H = self.dim
+        xavier_alpha = (1 / H) ** 0.5
+        near_zero_xavier_alpha = 0.01 * xavier_alpha
+
+        W_q, W_k, W_v = self.mha.in_proj_weight.split(H, dim=0)
+
+        # Same projection for Q and K -> initial content-based self preference.
+        nn.init.orthogonal_(W_q, gain=xavier_alpha)
+        W_k.copy_(W_q)
+        # Preserve the selected token's representation.
+        nn.init.eye_(W_v)
+
+        # Near-identity final feature projection.
+        nn.init.eye_(self.mha.out_proj.weight)
+        self.mha.out_proj.weight.add_(
+            torch.randn_like(self.mha.out_proj.weight) * near_zero_xavier_alpha
+        )
+        if self.mha.in_proj_bias is not None:
+            nn.init.zeros_(self.mha.in_proj_bias)
+        if self.mha.out_proj.bias is not None:
+            nn.init.zeros_(self.mha.out_proj.bias)
+
+        if self.ids is not None:
+            # init them with different near-zero vectors
+            nn.init.normal_(self.ids, 0.0, near_zero_xavier_alpha)
+
+    def forward(self, q, k, v, return_weights: bool = False):
+        # qkv: (C, B, D)
+        if self.ids is not None:
+            q = q + self.ids[0]
+            k = k + self.ids[1]
+
+        msg, attn_w = self.mha(q, k, v, need_weights=return_weights, average_attn_weights=True)
+        if self.ln_msg is not None:
+            msg = self.ln_msg(msg)
+
+        info = {}
+        if return_weights:
+            info['attn_weights'] = attn_w.detach().mean(dim=0)
+        return msg, info
+
+
+class MessagePassingLayer(nn.Module):
+    """Default MHA + layer norm."""
+    def __init__(self, dim, num_heads, ln_msg=True, n_participants=None):
+        super().__init__()
+        self.mha = nn.MultiheadAttention(dim, num_heads=num_heads, batch_first=False)
+        self.ln_msg = nn.LayerNorm(dim) if ln_msg else None
+
+        xavier_alpha = (1 / dim) ** 0.5
+        # learnable identities "bias" to distinguish self-attention participants
+        self.ids = None
+        if n_participants is not None:
+            # (col, batch, dim)
+            self.ids = nn.Parameter(torch.empty(2, n_participants, 1, dim))
+            # init them with different near-zero vectors
+            nn.init.normal_(self.ids, 0.0, 0.01 * xavier_alpha)
+
+        # Set very small out_proj to make the initial "message" negligible
+        nn.init.normal_(self.mha.out_proj.weight, 0.0, 0.01 * xavier_alpha)
+        nn.init.zeros_(self.mha.out_proj.bias)
+
+    def forward(self, q, k, v, return_weights: bool = False):
+        # qkv: (C, B, D)
+        if self.ids is not None:
+            q = q + self.ids[0]
+            k = k + self.ids[1]
+
+        msg, attn_w = self.mha(q, k, v, need_weights=return_weights, average_attn_weights=True)
+        if self.ln_msg is not None:
+            msg = self.ln_msg(msg)
+
+        info = {}
+        if return_weights:
+            info['attn_weights'] = attn_w.detach().mean(dim=0)
+        return msg, info
 
 
 class GruBank1(nn.Module):
