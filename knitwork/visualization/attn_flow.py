@@ -152,6 +152,8 @@ class AttnFlowVisualizerNew:
         
         for layer_idx, w in self.tracker.get().items():
             w = to_numpy(w, copy=False)
+            C = w.shape[0]
+
             fig_id = self._fig_id.format(layer_idx=layer_idx)
             fig = plt.figure(num=fig_id, clear=True)
             ax = fig.subplots()
@@ -161,18 +163,20 @@ class AttnFlowVisualizerNew:
             ax.set_title(f"Attn Flow Layer {layer_idx}")
             ax.set_xlabel("Key col (source)")
             ax.set_ylabel("Query col (receiver)")
-            ax.set_xticks(range(self.n_columns))
-            ax.set_yticks(range(self.n_columns))
+            ax.set_xticks(range(C))
+            ax.set_yticks(range(C))
             ax.set_xticklabels(col_labels)
             ax.set_yticklabels(col_labels)
 
-            for i in range(self.n_columns):
-                for j in range(self.n_columns):
-                    ax.text(
-                        j, i, f"{w[i,j]:.2f}",
-                        ha="center", va="center", fontsize=9,
-                        color="white" if w[i, j] < 0.5 else "black"
-                    )
+            if C <= 9:
+                fsz = 9 if C < 6 else 6
+                for i in range(C):
+                    for j in range(C):
+                        ax.text(
+                            j, i, f"{w[i,j]:.2f}",
+                            ha="center", va="center", fontsize=fsz,
+                            color="white" if w[i, j] < 0.5 else "black"
+                        )
 
             plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
             fig.tight_layout()
