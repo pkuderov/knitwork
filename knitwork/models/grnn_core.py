@@ -58,7 +58,7 @@ class GridRnn(nn.Module):
         for layer in range(self.n_layers):
             self.attn.append(mha(
                 self.hidden_size, num_heads=self.n_attn_heads, ln_msg=ln_msg, 
-                n_participants=self.n_columns+self.n_inputs,
+                n_q=self.n_columns, n_kv=self.n_columns+self.n_inputs,
                 **mha_kwargs,
             ))
 
@@ -72,26 +72,21 @@ class GridRnn(nn.Module):
 
         # (C, B, H)
         # extend prev state and internal input w/ ext input
-        x = torch.cat([x_int, x_ext], dim=0)
-        hlp = x
+        msg = torch.cat([x_int, x_ext], dim=0)
 
         for layer in range(self.n_layers):
-            x, comm_info = self.attn[layer](hlp, hlp, x, return_weights=capture)
-            # cut-out ext input related msg for L0
-            x = x if layer > 0 else x[:self.n_columns]
-            hln = self.cells(layer, x, h[layer])
-            hlp = hln
+            hl = h[layer]
+            x, comm_info = self.attn[layer](hl, msg, msg, return_weights=capture)
+            hln = self.cells(layer, x, hl)
+            msg = hln
 
             for k, v in comm_info.items():
                 info[k].append(v)
             hn.append(hln)
 
+        y = hn[-1][0]
         hn = torch.stack(hn, dim=0)
-
-        # top (=last) layer, first col as grid output
-        y = hln[0]
-
-        state = {'h': hn, 'out': hln}
+        state = {'h': h, 'out': hn[-1]}
         return y, state, info
 
     def cell_forward(self, cells, x, h, *, ix_col):
@@ -149,7 +144,7 @@ class GridRnn(nn.Module):
 class StochasticMessagePassingLayer(nn.Module):
     """MHA-1 with stochastic routing and a free-cost diagonal route."""
     def __init__(
-            self, dim, num_heads, ln_msg=True, n_participants=None,
+            self, dim, num_heads, ln_msg=True, n_q=None, n_kv=None,
             noise_std=0.0,
     ):
         super().__init__()
@@ -164,27 +159,28 @@ class StochasticMessagePassingLayer(nn.Module):
 
         # Learnable identities distinguish communication participants.
         # (q/k, C, B, D)
-        self.ids = nn.Parameter(torch.empty(2, n_participants, 1, dim)) if n_participants is not None else None
-        self.pi_logtemp = nn.Parameter(torch.empty(1, 1, n_participants, 1))
+        self.ids = nn.Parameter(torch.empty(2, n_kv, 1, dim)) if n_kv is not None else None
+        self.pi_logtemp = nn.Parameter(torch.empty(1, 1, n_q, 1))
 
         self.reset_parameters()
 
     def forward(self, q, k, v, return_weights: bool = False):
         # qkv: (C, B, D)
-        C, B, H = q.shape
+        Cq, B, H = q.shape
+        Ckv = k.shape[0]
         if self.ids is not None:
-            q = q + self.ids[0][:C]
-            k = k + self.ids[1][:C]
+            q = q + self.ids[0][:Cq]
+            k = k + self.ids[1][:Ckv]
 
         W_q, W_k, W_v = self.mha.in_proj_weight.split(H, dim=0)
         b_q, b_k, b_v = self.mha.in_proj_bias.split(H, dim=0)
 
-        q = F.linear(q, W_q, b_q)
-        k = F.linear(k, W_k, b_k)
-        v = F.linear(v, W_v, b_v)
-        # q = F.silu(F.linear(q, W_q, b_q))
-        # k = F.silu(F.linear(k, W_k, b_k))
-        # v = F.silu(F.linear(v, W_v, b_v))
+        # q = F.linear(q, W_q, b_q)
+        # k = F.linear(k, W_k, b_k)
+        # v = F.linear(v, W_v, b_v)
+        q = F.silu(F.linear(q, W_q, b_q))
+        k = F.silu(F.linear(k, W_k, b_k))
+        v = F.silu(F.linear(v, W_v, b_v))
 
         # (C, B, H) -> (B, heads, C, head_dim)
         q, k, v = map(self.split_heads, (q, k, v))
@@ -192,13 +188,13 @@ class StochasticMessagePassingLayer(nn.Module):
         logits = torch.matmul(q, k.transpose(-2, -1)) / math.sqrt(self.head_dim)
         if self.training and self.noise_std > 0.0:
             logits = logits + self.noise_std * torch.randn_like(logits)
-        # beta = F.softplus(self.pi_logtemp[..., :C, :])
-        # pi_route = torch.softmax(beta * logits, dim=-1)
-        pi_route = torch.softmax(logits, dim=-1)
+        beta = F.softplus(self.pi_logtemp)
+        pi_route = torch.softmax(beta * logits, dim=-1)
+        # pi_route = torch.softmax(logits, dim=-1)
 
         msg = torch.matmul(pi_route, v)
         # back to (C, B, H)
-        msg = msg.permute(2, 0, 1, 3).reshape(C, B, H)
+        msg = msg.permute(2, 0, 1, 3).reshape(Cq, B, H)
         msg = F.linear(msg, self.mha.out_proj.weight, self.mha.out_proj.bias)
         if self.ln_msg is not None:
             msg = self.ln_msg(msg)
@@ -209,7 +205,7 @@ class StochasticMessagePassingLayer(nn.Module):
             entropy = -(pi_route * torch.log(pi_route.clamp_min(torch.finfo(pi_route.dtype).tiny))).sum(dim=-1)
             info |= {
                 'comm_loss': prob_comm.mean(),
-                'comm_entropy': normalize_entropy(entropy.mean(), C),
+                'comm_entropy': normalize_entropy(entropy.mean(), Ckv),
             }
         if return_weights:
             info['attn_weights'] = pi_route.detach().mean(dim=(0, 1))
@@ -240,7 +236,7 @@ class StochasticMessagePassingLayer(nn.Module):
 
         if self.ids is not None:
             nn.init.normal_(self.ids, 0.0, near_zero_xavier_alpha)
-        nn.init.zeros_(self.pi_logtemp)
+        nn.init.constant_(self.pi_logtemp, math.log(math.expm1(1.0)))
 
     def split_heads(self, x):
         # (C, B, H) -> (B, heads, C, head_dim)
