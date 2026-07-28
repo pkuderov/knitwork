@@ -175,12 +175,12 @@ class StochasticMessagePassingLayer(nn.Module):
         W_q, W_k, W_v = self.mha.in_proj_weight.split(H, dim=0)
         b_q, b_k, b_v = self.mha.in_proj_bias.split(H, dim=0)
 
-        q = F.linear(q, W_q, b_q)
-        k = F.linear(k, W_k, b_k)
-        v = F.linear(v, W_v, b_v)
-        # q = F.silu(F.linear(q, W_q, b_q))
-        # k = F.silu(F.linear(k, W_k, b_k))
-        # v = F.silu(F.linear(v, W_v, b_v))
+        # q = F.linear(q, W_q, b_q)
+        # k = F.linear(k, W_k, b_k)
+        # v = F.linear(v, W_v, b_v)
+        q = F.silu(F.linear(q, W_q, b_q))
+        k = F.silu(F.linear(k, W_k, b_k))
+        v = F.silu(F.linear(v, W_v, b_v))
 
         # (C, B, H) -> (B, heads, C, head_dim)
         q, k, v = map(self.split_heads, (q, k, v))
