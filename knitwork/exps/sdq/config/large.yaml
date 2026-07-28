@@ -46,15 +46,27 @@ communication:
 
 # ======> Models (~10M parameters including embedding and head)
 rnn_L1:
-  hidden_size: 1824
+  hidden_size: 1296
   n_layers: 1
   use_bias: true
   dropout: 0.0
 
-grnn_L1C4:
-  hidden_size: 600
+rnn_L2:
+  hidden_size: 912
+  n_layers: 2
+  use_bias: true
+  dropout: 0.0
+
+rnn_L3:
+  hidden_size: 752
+  n_layers: 3
+  use_bias: true
+  dropout: 0.0
+
+grnn_L1C8:
+  hidden_size: 440
   n_layers: 1
-  n_columns: 4
+  n_columns: 8
   n_attn_heads: 4
   ln_msg: true
   bank: 2
@@ -71,27 +83,51 @@ grnn_L2C4:
   mha: 2
   noise_std: 0.05
 
+grnn_L2C8:
+  hidden_size: 312
+  n_layers: 2
+  n_columns: 8
+  n_attn_heads: 4
+  ln_msg: true
+  bank: 2
+  mha: 2
+  noise_std: 0.05
+
+grnn_L2C16:
+  hidden_size: 224
+  n_layers: 2
+  n_columns: 16
+  n_attn_heads: 4
+  ln_msg: true
+  bank: 2
+  mha: 2
+  noise_std: 0.05
+
+grnn_L3C4:
+  hidden_size: 344
+  n_layers: 3
+  n_columns: 4
+  n_attn_heads: 4
+  ln_msg: true
+  bank: 2
+  mha: 2
+  noise_std: 0.05
+
+# --- external baselines ---
 delta_net:
-  hidden_size: 688
+  hidden_size: 692
   n_layers: 3
 
 hgrn2:
-  hidden_size: 488
+  hidden_size: 490
   n_layers: 3
   expand: 4
 
 mlstm:
-  hidden_size: 688
+  hidden_size: 692
   n_layers: 3
 
-transformer:
-  hidden_size: 560
-  n_layers: 4
-  n_heads: 8
-  d_ff: 1120
-  mem_len: 256
-  dropout: 0.0
-
+# base LR config
 lr:
   val: 5.0e-4
   tar: 5.0e-5
@@ -104,9 +140,11 @@ lr:
 
 curriculum:
   schedule: 2.0e+5
+  max_T: 1000
   key: Loss
 
 trackers:
   slow: 5.0e-3
   fast: 2.0e-2
   list: null
+  eval: null

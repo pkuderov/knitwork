@@ -79,11 +79,7 @@ def main(config):
     if not vis_inspect_scheduler.is_infinite and has_grid:
         from knitwork.visualization.attn_flow import AttnFlowVisualizerNew
         from knitwork.visualization.cka import CKAVisualizerNew
-        attn_vis = AttnFlowVisualizerNew(
-            n_layers=rnn.n_layers,
-            n_columns=rnn.n_columns,
-            lr=0.01,
-        )
+        attn_vis = AttnFlowVisualizerNew(n_layers=rnn.n_layers, n_columns=rnn.n_columns, lr=0.01)
         cka_vis = CKAVisualizerNew(n_layers=rnn.n_layers, n_columns=rnn.n_columns, lr=0.01)
 
     def inject_visualizations(step, *, scalars, figures):
@@ -96,7 +92,9 @@ def main(config):
     optim = torch.optim.RMSprop(model.parameters(), lr=lr.val)
     lr.connect_to_optimiser(optim)
     loss_fn = nn.CrossEntropyLoss(reduction='mean', ignore_index=CE_ignore_index)
-    curriculum = CurriculumScheduler(**config['curriculum'])
+    # curriculum = CurriculumScheduler(**config['curriculum'])
+    curriculum = create_scheduler(config['curriculum']['schedule'])
+    max_ep_len = config['curriculum']['max_T']
 
     print_summary = partial(print_short_summary, max_steps=n_steps, lr=lr)
     logger = start_logger(
@@ -203,30 +201,13 @@ def main(config):
             log_lru_spectrum(rnn, logger)
             log_attn_beta(rnn, logger)
 
-        if curriculum_metrics is not None:
-            axes = curriculum.tick(metrics=curriculum_metrics, n_steps=step_size)
-            if any(axes.values()):
-                scale = 10
-                gen.set_metaparams(
-                    T=gen.T + 1.0 / scale if axes['T'] else gen.T,
-                    p_store=(
-                        max(gen.p_store - 0.0014 / scale, 0.10)
-                        if axes['p_store'] else gen.p_store
-                    ),
-                    p_query=(
-                        max(gen.p_query - 0.0005 / scale, 0.25)
-                        if axes['p_query'] else gen.p_query
-                    ),
-                )
-                logger.accumulate(
-                    {
-                        'step': curriculum.cnt_accepted,
-                        'schedule': curriculum.scheduler.schedule,
-                    },
-                    prefix='curriculum',
-                    key='fast',
-                )
-
+        if curriculum.tick(step_size):
+            scale = 10
+            gen.set_metaparams(
+                T=max(gen.T + 1.0 / scale, max_ep_len),
+                p_store=max(gen.p_store - 0.0014 / scale, 0.10),
+                p_query=max(gen.p_query - 0.0005 / scale, 0.25),
+            )
         logger.log(step, flush=True)
 
     logger.log(step, flush=True, force=True)
