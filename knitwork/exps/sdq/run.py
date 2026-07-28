@@ -7,7 +7,6 @@ import numpy as np
 import torch
 from torch import nn
 
-from knitwork.common.curriculum import CurriculumScheduler
 from knitwork.common.entrypoint import run_experiment
 from knitwork.common.logging_alt import start_logger
 from knitwork.common.numpy import get_seed
@@ -81,12 +80,14 @@ def main(config):
         from knitwork.visualization.cka import CKAVisualizerNew
         attn_vis = AttnFlowVisualizerNew(n_layers=rnn.n_layers, n_columns=rnn.n_columns, lr=0.01)
         cka_vis = CKAVisualizerNew(n_layers=rnn.n_layers, n_columns=rnn.n_columns, lr=0.01)
+        vis_draw_scheduler = create_scheduler(4)
 
     def inject_visualizations(step, *, scalars, figures):
         if vis_inspect_scheduler.is_infinite or not has_grid:
             return
-        figures |= attn_vis.get_figures()
-        figures |= cka_vis.get_figures()
+        if vis_draw_scheduler.tick():
+            figures |= attn_vis.get_figures()
+            figures |= cka_vis.get_figures()
 
     lr = DynamicLearningRate(name='LR', **config['lr'])
     optim = torch.optim.RMSprop(model.parameters(), lr=lr.val)
@@ -186,7 +187,6 @@ def main(config):
                 metrics['L_comm'] = comm_loss
                 metrics['H_comm'] = comm_entropy
             metrics = to_loggable_metrics(metrics)
-            curriculum_metrics = metrics
             logger.accumulate(metrics, key='slow')
             logger.accumulate(gen.get_stats(), prefix='gen', key='fast')
 
