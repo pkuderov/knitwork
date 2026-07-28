@@ -22,20 +22,20 @@ inspect_schedule: 5.0e+5
 vis_inspect_schedule: 5.0e+5
 
 gens:
-  easy:
-    n_keys: 5
-    n_vals: 10
-    T: 10
-    p_store: 0.35
-    p_query: 0.35
-    count_stored: false
-    count_queried: false
   hard:
     n_keys: 5
     n_vals: 10
     T: 10
     p_store: 0.35
     p_query: 0.35
+    count_stored: true
+    count_queried: true
+  fixed:
+    n_keys: 5
+    n_vals: 10
+    T: 500
+    p_store: 0.1
+    p_query: 0.25
     count_stored: true
     count_queried: true
 
@@ -140,7 +140,7 @@ lr:
 
 curriculum:
   schedule: 2.0e+5
-  max_T: 1000
+  max_T: 500
   key: Loss
 
 trackers:

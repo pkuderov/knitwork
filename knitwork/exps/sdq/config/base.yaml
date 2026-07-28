@@ -37,6 +37,14 @@ gens:
     p_query: 0.35
     count_stored: true
     count_queried: true
+  fixed:
+    n_keys: 5
+    n_vals: 10
+    T: 500
+    p_store: 0.1
+    p_query: 0.25
+    count_stored: true
+    count_queried: true
 
 token_wrapper: {}
 communication:
@@ -112,7 +120,8 @@ lr:
     schedule: 100
 
 curriculum:
-  schedule: 2.0e+5
+  schedule: 2.0e+4
+  max_T: 500
   key: Loss
 
 trackers:
