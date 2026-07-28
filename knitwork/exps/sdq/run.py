@@ -204,7 +204,7 @@ def main(config):
         if curriculum.tick(step_size):
             scale = 10
             gen.set_metaparams(
-                T=max(gen.T + 1.0 / scale, max_ep_len),
+                T=min(gen.T + 1.0 / scale, max_ep_len),
                 p_store=max(gen.p_store - 0.0014 / scale, 0.10),
                 p_query=max(gen.p_query - 0.0005 / scale, 0.25),
             )
