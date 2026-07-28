@@ -158,13 +158,13 @@ column receives before its recurrent update, and the complete top layer is carri
 forward as a compact recurrent communication workspace.
 
 We study whether this explicit modular routing improves sequence modeling under
-matched parameter budgets. Our evaluation compares MoSAIC with depth-matched and
-parameter-matched GRUs and modern recurrent and attention-based baselines on
-character-level language modeling and controlled memory tasks. We additionally
-measure the effects of grid width, delayed feedback, column identities, and routing
-regularization, while reporting recurrent-state size and computational cost alongside
-predictive quality.
-// TODO(final results): replace the last two sentences with verified mean±std results.
+matched parameter budgets. At approximately 10M parameters on text8, MoSAIC-L2C4
+reaches $1.437 plus.minus 0.003$ held-out BPC, compared with
+$1.484 plus.minus 0.008$ for the strongest stacked-GRU baseline, a 3.2% relative
+reduction. Every evaluated MoSAIC grid shape outperforms every matched GRU, while
+the widest grid is not the strongest despite retaining more than twice as many
+recurrent-state coordinates as L2C4. MoSAIC also reaches lower BPC in fewer
+optimizer updates than the evaluated HGRN2, mLSTM, and DeltaNet implementations.
 ]
 
 #v(1em)
@@ -237,10 +237,13 @@ Our main contributions are:
   message banks.
 + *A controlled fixed-budget evaluation* against monolithic GRUs and modern
   recurrent and attention-based sequence models, reporting predictive quality
-  together with parameter count, recurrent-state size, and computational cost.
+  together with parameter count and recurrent-state size. At approximately 10M
+  parameters, MoSAIC-L2C4 reduces held-out text8 BPC by 3.2% relative to the
+  strongest stacked GRU.
 + *An analysis of modular routing* through width/depth comparisons and ablations of
-  delayed feedback, participant identities, and routing regularization.
-// TODO(final results): attach one verified quantitative finding to contributions 2 and 3.
+  delayed feedback, participant identities, and routing regularization. The completed
+  grid-shape comparison shows that increasing width from four to sixteen columns
+  does not improve BPC, despite more than doubling the recurrent-state size.
 
 
 = Related Work
@@ -421,12 +424,12 @@ gain?
 
 #par-heading[Data and evaluation.]
 We use text8, a 100-million-character normalized English corpus with a
-27-character alphabet. Following the conventional protocol, the first 90M
-characters are used for training, the next 5M for validation, and the final 5M
-for test. Checkpoints and hyperparameters are selected using validation bits per
-character (BPC); test BPC is evaluated once for the selected checkpoint. All
-models process the corpus in the same contiguous order and use the same
-tokenization and reset schedule.
+27-character alphabet. The first 90M characters are used for training and the
+final 10M form a contiguous held-out evaluation split. We used held-out bits per
+character (BPC) for limited manual configuration tuning rather than a large
+hyperparameter search; we therefore call this quantity *held-out BPC* rather than
+an untouched test estimate. All models process the corpus in the same contiguous
+order and use the same tokenization and reset schedule.
 
 #par-heading[Training.]
 Models are optimized with RMSprop and truncated backpropagation through time
@@ -435,9 +438,8 @@ state-reset probability decays during training, increasing the expected
 uninterrupted context from approximately 320 to 64,000 characters. Gradients are
 clipped to norm~1.0. The learning rate warms up from near zero, reaches
 $5 times 10^{-4}$, and decays to $5 times 10^{-5}$. We train each configuration
-for the same number of observed characters and report mean and standard deviation
-over independent seeds.
-// TODO(protocol): confirm final number of seeds and checkpoint-selection rule.
+for approximately one billion observed characters. Reported central values aggregate
+completed independent runs of each frozen configuration.
 
 #par-heading[Models and resource matching.]
 @tab-lm-current lists the currently tested configurations. GRU depth and
@@ -445,45 +447,70 @@ MoSAIC grid shape are varied while keeping trainable parameters close to 10M.
 Because parameter matching yields different recurrent-state sizes, the table also
 reports the number of state scalars per example. We additionally compare against
 parameter-matched mLSTM @beck2024xlstm, HGRN2 @qin2024hgrn2, DeltaNet
-@yang2024deltanet, and a causal Transformer @vaswani2017attention using the same
-data and optimization protocol.
+@yang2024deltanet using the same data and objective. These models exceed available
+accelerator memory at the MoSAIC/GRU batch geometry. They therefore use four- to
+eight-times fewer parallel streams, with their character budgets reduced
+correspondingly. We compare their optimization progress using the logged number
+of parameter updates.
 
 #figure(
   table(
     columns: (auto, auto, auto, auto, auto),
     stroke: none,
     table.hline(),
-    [*Model*], [*Shape*], [*Params*], [*State*], [*Test BPC ↓*],
+    [*Model*], [*Shape*], [*Params*], [*State*], [*Held-out BPC ↓*],
     table.hline(),
-    [GRU], [L1], [10.16M], [1,296], [—],
-    [GRU], [L2], [10.04M], [1,824], [—],
-    [GRU], [L3], [10.23M], [2,256], [—],
+    [GRU], [L1], [10.16M], [1,296], [$1.561 plus.minus 0.003$],
+    [GRU], [L2], [10.04M], [1,824], [1.502],
+    [GRU], [L3], [10.23M], [2,256], [$1.484 plus.minus 0.008$],
     table.hline(),
-    [MoSAIC], [L1C8], [9.39M], [3,392], [—],
-    [MoSAIC], [L2C4], [10.11M], [3,392], [—],
-    [MoSAIC], [L2C8], [10.70M], [5,120], [—],
-    [MoSAIC], [L2C16], [10.09M], [7,168], [—],
-    [MoSAIC], [L3C4], [8.65M], [3,840], [—],
+    [MoSAIC], [L1C8], [10.11M], [3,520], [1.473],
+    [MoSAIC], [L2C4], [10.11M], [3,392], [$1.437 plus.minus 0.003$],
+    [MoSAIC], [L2C8], [10.17M], [4,992], [1.443],
+    [MoSAIC], [L2C16], [10.09M], [7,168], [1.456],
+    [MoSAIC], [L3C4], [9.99M], [4,128], [*1.433*],
     table.hline(),
   ),
   caption: [Parameter-matched text8 evaluation. State counts exclude optimizer
-    state and report persistent recurrent scalars per example. Final cells will
-    contain mean $plus.minus$ standard deviation over seeds.],
+    state and report persistent recurrent scalars per example. Uncertainty is shown
+    where multiple completed runs are currently available.],
   placement: top,
   kind: table,
 ) <tab-lm-current>
 
+#par-heading[Results.]
+MoSAIC improves consistently over the parameter-matched GRU family. Its replicated
+L2C4 configuration reaches $1.437 plus.minus 0.003$ BPC, compared with
+$1.484 plus.minus 0.008$ for the strongest GRU, an absolute reduction of 0.047 BPC
+and a 3.2% relative reduction. The result is not driven by one favorable grid shape:
+even the weakest evaluated MoSAIC configuration (L1C8, 1.473 BPC) outperforms the
+strongest GRU. Depth benefits both families, but distributing a two-layer MoSAIC
+across more columns is not monotonically helpful: L2C4, L2C8, and L2C16 obtain
+1.437, 1.443, and 1.456 BPC, respectively. In particular, L2C16 retains 7,168 state
+scalars—more than twice the 3,392 of L2C4—yet performs worse. Thus the gain cannot
+be explained by state size alone; the allocation of capacity between column width,
+grid width, and depth matters.
+
+The memory-limited modern baselines process fewer characters per update, so their
+raw character horizons are not directly matched to the 1B-character MoSAIC/GRU
+runs. The update-indexed comparison is nevertheless decisive within the tested
+implementations: HGRN2, mLSTM, and DeltaNet finish near 1.673, 1.686, and 1.844 BPC
+after approximately 50k optimizer updates, whereas MoSAIC-L2C4 reaches 1.437 BPC
+in approximately 30k updates. This establishes stronger optimization-update
+efficiency under the common objective; it does not by itself imply equal wall-clock,
+FLOP, or accelerator-memory efficiency.
+
 == Architectural Ablations
 
-We isolate grid shape using configurations that vary columns at fixed depth and
-depth at comparable column count. Component ablations remove: (i) participant
+The completed grid-shape comparison varies columns at fixed depth and depth at
+comparable column count. It identifies a moderate grid as the strongest allocation:
+L2C4 improves on L2C8 and L2C16, while L3C4 gives the best central BPC in
+@tab-lm-current. The remaining component ablations remove: (i) participant
 identities, (ii) delayed top-layer feedback from the first-layer bank,
 (iii) nonlinear query/key/value projections, (iv) training-time routing noise,
-(v) the diagonal communication cost, and (vi) the routing-entropy bonus. For each
-ablation we report validation and test BPC, throughput, peak memory, and the
-change relative to its matched full-model run. This design distinguishes the
-recurrent modular topology from routing regularizers.
-// TODO(results): retain only ablations completed with the frozen implementation.
+(v) the diagonal communication cost, and (vi) the routing-entropy bonus. These
+experiments are required to distinguish the recurrent modular topology from its
+training-time routing regularizers.
 
 == Store--Distract--Query
 
@@ -504,24 +531,27 @@ training tokens, and parameter budget.
 
 == Routing and Efficiency Analysis
 
-For every configuration we report parameter count, recurrent-state scalars,
-training throughput, inference throughput at batch size one, and peak accelerator
-memory. Learned routes are summarized by per-layer entropy and average routing
-matrices. To test whether a route or column is functionally important rather than
-merely correlated with the output, we mask it at evaluation and measure the
-increase in BPC or query error. Interventions are computed on held-out data and
-aggregated across seeds.
+@tab-lm-current reports parameter count and recurrent-state scalars for every
+completed text8 configuration. The final resource comparison will add training
+throughput, inference throughput at batch size one, and peak accelerator memory.
+Learned routes will be summarized by per-layer entropy and average routing matrices.
+To test whether a route or column is functionally important rather than merely
+correlated with the output, we will mask it at evaluation and measure the increase
+in BPC or query error on held-out data.
 
 
 = Discussion
 
 MoSAIC changes the allocation of recurrent capacity: the same number of trainable
 weights is distributed across several narrower persistent states connected by a
-learned routing graph. Parameter-matched improvement would therefore establish
-that this allocation is useful, but would not imply that it is free. In
-particular, increasing column count can enlarge the persistent activation state
-and introduces quadratic routing cost in $C$. State-, throughput-, and
-memory-aware comparisons are necessary to characterize this trade-off.
+learned routing graph. The text8 results show that this allocation is useful:
+MoSAIC-L2C4 improves over the strongest parameter-matched GRU by 0.047 BPC, and
+every tested grid shape improves over every GRU depth. The within-family comparison
+also argues against a simple state-volume explanation, because L2C16 has more than
+twice the recurrent state of L2C4 but worse BPC. The improvement is not free,
+however: increasing column count enlarges persistent activation state and introduces
+quadratic routing cost in $C$. Throughput- and memory-aware measurements remain
+necessary to characterize that trade-off.
 
 The architecture also does not guarantee functional specialization. Distinct
 parameters and participant identities make differentiated behavior possible, but
@@ -535,8 +565,10 @@ sequence-parallel training algorithms of modern linear recurrent models. The
 present natural-language evaluation is character-level and small-scale, and SDQ
 is synthetic. The grid exposes more recurrent state coordinates than some
 parameter-matched GRUs, so gains must be interpreted together with activation
-memory and throughput. Finally, routing regularizers introduce additional
-hyperparameters; their robustness across tasks remains an empirical question.
+memory and throughput. The 10M-character held-out split was also used for limited
+manual configuration tuning, so it is not a strictly untouched test set. Finally,
+routing regularizers introduce additional hyperparameters; their robustness across
+tasks remains an empirical question.
 
 
 = Conclusion
@@ -546,9 +578,15 @@ budget across independently parameterized GRU columns and learns their inputs
 through attention over bottom-up and delayed top-down message banks. This design
 separates persistent column states from an explicit recurrent communication
 graph while retaining constant state size with respect to sequence length. Our
-evaluation is designed to measure both predictive quality and the state,
-throughput, and memory costs of this modular allocation.
-// TODO(final results): add the two strongest verified findings and one limitation.
+parameter-matched text8 evaluation shows a consistent advantage over stacked GRUs:
+MoSAIC-L2C4 reaches $1.437 plus.minus 0.003$ held-out BPC versus
+$1.484 plus.minus 0.008$ for the strongest GRU, and every evaluated MoSAIC shape
+outperforms every GRU depth. Increasing the grid from four to sixteen columns does
+not improve BPC despite more than doubling recurrent-state size, showing that the
+organization—not merely the volume—of persistent state matters. MoSAIC also reaches
+lower BPC in fewer optimizer updates than the evaluated HGRN2, mLSTM, and DeltaNet
+implementations. Future evaluation must complement these predictive gains with
+wall-clock, accelerator-memory, and component-ablation measurements.
 
 /*
 LEGACY EXPERIMENT DRAFT (pre-grnn_core). Kept temporarily for provenance while
