@@ -3,7 +3,7 @@ name: null
 log:
   logger: comet
   project: knitwork-sdq
-  schedule: 5.0e+5
+  schedule: 5.0e+6
 
 device: null
 dtype: float32
@@ -13,12 +13,13 @@ gen: hard
 wrapper_model: token
 model: rnn.L1
 
-n_envs: 64
-rollout_len: 8
-n_steps: 4.0e+6
+n_envs: 512
+rollout_len: 32
+n_steps: 1.0e+9
+compile: true
 
-inspect_schedule: 1.0e+5
-vis_inspect_schedule: 1.0e+5
+inspect_schedule: 5.0e+5
+vis_inspect_schedule: 5.0e+5
 
 gens:
   easy:
@@ -43,79 +44,69 @@ communication:
   loss_weight: 5.0e-2
   entropy_weight: 5.0e-3
 
-# ======> Models (~110K parameters including embedding and head)
+# ======> Models (~10M parameters including embedding and head)
 rnn_L1:
-  hidden_size: 128
+  hidden_size: 1824
   n_layers: 1
   use_bias: true
   dropout: 0.0
 
-grnn_L1C2:
-  hidden_size: 80
+grnn_L1C4:
+  hidden_size: 600
   n_layers: 1
-  n_columns: 2
+  n_columns: 4
   n_attn_heads: 4
   ln_msg: true
   bank: 2
   mha: 2
-  noise_std: 0.1
-
-grnn_L2C2:
-  hidden_size: 56
-  n_layers: 2
-  n_columns: 2
-  n_attn_heads: 4
-  ln_msg: true
-  bank: 2
-  mha: 2
-  noise_std: 0.1
+  noise_std: 0.05
 
 grnn_L2C4:
-  hidden_size: 44
+  hidden_size: 424
   n_layers: 2
   n_columns: 4
   n_attn_heads: 4
   ln_msg: true
   bank: 2
   mha: 2
-  noise_std: 0.1
+  noise_std: 0.05
 
 delta_net:
-  hidden_size: 86
-  n_layers: 2
+  hidden_size: 688
+  n_layers: 3
 
 hgrn2:
-  hidden_size: 60
-  n_layers: 2
+  hidden_size: 488
+  n_layers: 3
   expand: 4
 
 mlstm:
-  hidden_size: 86
-  n_layers: 2
+  hidden_size: 688
+  n_layers: 3
 
 transformer:
-  hidden_size: 80
-  n_layers: 2
-  n_heads: 4
-  d_ff: 160
-  mem_len: 64
+  hidden_size: 560
+  n_layers: 4
+  n_heads: 8
+  d_ff: 1120
+  mem_len: 256
   dropout: 0.0
 
 lr:
-  val: 8.0e-4
-  tar: 8.0e-5
-  lr: 0.005
-  schedule: 2000
+  val: 5.0e-4
+  tar: 5.0e-5
+  lr: 0.01
+  schedule: 250
   warmup:
     val: 1.0e-9
     n_linear_steps: 50
-    schedule: 100
+    schedule: 24
 
 curriculum:
   schedule: 2.0e+5
   key: Loss
 
 trackers:
-  slow: 2.0e-4
+  slow: 5.0e-3
   fast: 2.0e-2
   list: null
