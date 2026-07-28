@@ -269,20 +269,17 @@ grnn_harmonic:
 
 # --- external baselines ---
 delta_net:
-  embedding_size: 64
-  hidden_size: 128
-  n_layers: 3
+  hidden_size: 86
+  n_layers: 2
 
 hgrn2:
-  embedding_size: 64
-  hidden_size: 128
-  n_layers: 3
+  hidden_size: 61
+  n_layers: 2
   expand: 4
 
 mlstm:
-  embedding_size: 64
-  hidden_size: 128
-  n_layers: 3
+  hidden_size: 86
+  n_layers: 2
 
 grnn_base:
   embedding_size: 64
@@ -294,16 +291,14 @@ grnn_base:
 
 # Transformer configs at different scales
 transformer:
-  embedding_size: 64
-  hidden_size: 128    # ~540K params: 4L, 4H, ff=256, mem=256
-  n_layers: 4
+  hidden_size: 72
+  n_layers: 2
   n_heads: 4
-  d_ff: 256
-  mem_len: 256
+  d_ff: 224
+  mem_len: 64
   dropout: 0.0
 
 transformer_1m:
-  embedding_size: 64
   hidden_size: 160    # ~840K params: 4L, 4H, ff=320, mem=256
   n_layers: 4
   n_heads: 4
@@ -312,7 +307,6 @@ transformer_1m:
   dropout: 0.0
 
 transformer_2m:
-  embedding_size: 64
   hidden_size: 256    # ~2.1M params: 4L, 4H, ff=512, mem=512
   n_layers: 4
   n_heads: 4

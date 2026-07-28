@@ -154,3 +154,114 @@ class Transformer(nn.Module):
         """Last-layer last cached key as a summary vector [B, H]."""
         k, _ = h[-1]
         return k[:, -1]
+
+
+class _TransformerCoreLayer(_TransformerLayer):
+    def __init__(self, d_model, n_heads, d_ff, dropout):
+        super().__init__(d_model, n_heads, d_ff, dropout)
+        self.dropout_p = dropout
+
+    def forward(self, x: torch.Tensor, k_cache: torch.Tensor, v_cache: torch.Tensor):
+        # x: [B, H]  k_cache/v_cache: [B, mem_len, H]
+        B, H = x.shape
+
+        y = self.norm1(x)
+        q = self.q_proj(y).view(B, self.n_heads, self.d_head)
+        k = self.k_proj(y).view(B, self.n_heads, self.d_head)
+        v = self.v_proj(y).view(B, self.n_heads, self.d_head)
+
+        k_cache = torch.cat([k_cache[:, 1:], k.reshape(B, 1, H)], dim=1)
+        v_cache = torch.cat([v_cache[:, 1:], v.reshape(B, 1, H)], dim=1)
+
+        K = k_cache.view(B, -1, self.n_heads, self.d_head).transpose(1, 2)
+        V = v_cache.view(B, -1, self.n_heads, self.d_head).transpose(1, 2)
+        dropout_p = self.dropout_p if self.training else 0.0
+        out = F.scaled_dot_product_attention(
+            q.unsqueeze(2), K, V,
+            dropout_p=dropout_p,
+        )
+        out = out.squeeze(2).reshape(B, H)
+        x = x + self.out_proj(out)
+
+        x = x + self.ff2(F.silu(self.ff1(self.norm2(x))))
+        return x, k_cache, v_cache
+
+
+class TransformerCore(nn.Module):
+    """Feature-level rolling-cache Transformer for use with model wrappers."""
+    has_attn = False
+
+    def __init__(
+            self, *,
+            hidden_size, n_layers,
+            n_heads=4, d_ff=None, mem_len=256, dropout=0.0,
+            dtype, device,
+    ):
+        super().__init__()
+        self.hidden_size = hidden_size
+        self.n_layers = n_layers
+        self.mem_len = mem_len
+        self.dtype = dtype
+        self.device = device
+
+        d_ff = d_ff or hidden_size * 4
+        self.layers = nn.ModuleList([
+            _TransformerCoreLayer(hidden_size, n_heads, d_ff, dropout)
+            for _ in range(n_layers)
+        ])
+        self.norm_out = nn.RMSNorm(hidden_size)
+
+        print(
+            f'Transformer core {n_layers}L w/ {hidden_size} hidden units,'
+            f' {n_heads} heads, FF={d_ff}, mem={mem_len}'
+        )
+
+    def forward(self, x: torch.Tensor, state: dict, **_):
+        assert x.shape[0] == 1
+        x = x.squeeze(0)
+        if state is None:
+            state = self.init_state(x.shape[0])
+
+        new_kv = []
+        for layer, (k_cache, v_cache) in zip(self.layers, state['kv']):
+            x, k_cache, v_cache = layer(x, k_cache, v_cache)
+            new_kv.append((k_cache, v_cache))
+
+        return self.norm_out(x), {'kv': new_kv}, {}
+
+    def reset_state(self, state=None, reset_mask=None, *, bsz=None):
+        if state is None:
+            bsz = reset_mask.shape[0] if reset_mask is not None else bsz
+            return self.init_state(bsz)
+
+        keep = (~reset_mask.flatten())[:, None, None]
+        kv = [
+            (k_cache * keep, v_cache * keep)
+            for k_cache, v_cache in state['kv']
+        ]
+        return {'kv': kv}
+
+    def detach_state(self, state):
+        if state is None:
+            return state
+        kv = [
+            (k_cache.detach(), v_cache.detach())
+            for k_cache, v_cache in state['kv']
+        ]
+        return {'kv': kv}
+
+    def init_state(self, bsz):
+        kv = [
+            (
+                torch.zeros(
+                    bsz, self.mem_len, self.hidden_size,
+                    device=self.device, dtype=self.dtype,
+                ),
+                torch.zeros(
+                    bsz, self.mem_len, self.hidden_size,
+                    device=self.device, dtype=self.dtype,
+                ),
+            )
+            for _ in self.layers
+        ]
+        return {'kv': kv}

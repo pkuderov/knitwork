@@ -7,6 +7,10 @@ MODELS_ROOT = 'knitwork.models'
 REGISTRY = {
     'rnn': 'gru.GruCore',
     'grnn': 'grnn_core.GridRnn',
+    'delta_net': 'baseline.delta_net.DeltaNetCore',
+    'hgrn2': 'baseline.hgrn2.HGRN2Core',
+    'mlstm': 'baseline.mlstm.mLSTMCore',
+    'transformer': 'baseline.transformer.TransformerCore',
     # 'grnn_err':       ('knitwork.models.grnn_err',       'GridRnn'),
     # 'grnn2':          ('knitwork.models.grnn2',          'GridRnn2'),
     # 'grnn_lru':       ('knitwork.models.grnn_lru',       'GridLRU'),
@@ -35,11 +39,7 @@ REGISTRY = {
     # 'grnn_delta_wide':('knitwork.models.grnn_delta',    'GridDelta'),
     # 'grnn_harmonic':  ('knitwork.models.grnn_harmonic', 'HarmonicGridRNN'),
     # 'grnn_base':      ('knitwork.models.grnn_base',           'GridRnnBase'),
-    # 'transformer':    ('knitwork.models.baseline.transformer', 'Transformer'),
     # # external baselines
-    # 'delta_net':      ('knitwork.models.baseline.delta_net', 'DeltaNet'),
-    # 'hgrn2':          ('knitwork.models.baseline.hgrn2',     'HGRN2'),
-    # 'mlstm':          ('knitwork.models.baseline.mlstm',     'mLSTM'),
     # 'mamba':          ('knitwork.models.baseline.mamba',     'Mamba'),
 }
 
