@@ -1,4 +1,4 @@
-// Grid Recurrent Networks — AAAI 2026 Submission
+// MoSAIC — AAAI 2027 Submission
 // Compile: typst compile paper.typ
 //
 // All layout definitions copied verbatim from aaai2026.typ (do not modify that file).
@@ -146,9 +146,25 @@
 )
 
 #aaai-abstract[
-Standard stacked recurrent neural networks increase capacity by widening shared hidden states, leaving functional decomposition and information routing largely implicit. We introduce MoSAIC (Modular Self-Attentive Interacting Columns), a recurrent architecture that replaces each layer with parallel recurrent cells organized into vertical columns. Columns maintain local recurrent states and communicate at every layer through self-attention, with incoming messages incorporated through learned scalar gates. External inputs and outputs are restricted to designated columns, creating explicit information bottlenecks, while other columns use same-column delayed top-down feedback. This organization also allows different pre-encoded modalities to enter through separate columns and interact within a shared recurrent core.
+Recurrent sequence models compress history into a fixed-size state. Increasing their
+width adds capacity, but leaves the organization and exchange of information within
+that state implicit. We introduce MoSAIC (Modular Self-Attentive Interacting
+Columns), a recurrent architecture that distributes a parameter budget across a grid
+of independently parameterized GRU columns. At every timestep, the columns use
+learned attention to read from a small message bank. The first layer reads both the
+current input and the previous top-layer column states, while each subsequent layer
+reads the newly updated states below it. Attention therefore determines what each
+column receives before its recurrent update, and the complete top layer is carried
+forward as a compact recurrent communication workspace.
 
-We evaluate MoSAIC under a matched 10-million-parameter budget on a token-level store–distract–query task combining associative retrieval, distractor integration, and key-specific counting. At a store–query gap of 30, MoSAIC achieves approximately 80% accuracy, compared with 60% for a stacked GRU and about 70% for the strongest tested recurrent and state-space baselines. On character-level text8 language modeling, it matches a parameter-matched stacked GRU. We additionally evaluate multimodal store–distract–query and memory-oriented reinforcement-learning tasks and analyze the effects of architectural configuration, connectivity, and inter-column communication.
+We study whether this explicit modular routing improves sequence modeling under
+matched parameter budgets. Our evaluation compares MoSAIC with depth-matched and
+parameter-matched GRUs and modern recurrent and attention-based baselines on
+character-level language modeling and controlled memory tasks. We additionally
+measure the effects of grid width, delayed feedback, column identities, and routing
+regularization, while reporting recurrent-state size and computational cost alongside
+predictive quality.
+// TODO(final results): replace the last two sentences with verified mean±std results.
 ]
 
 #v(1em)
@@ -161,314 +177,384 @@ We evaluate MoSAIC under a matched 10-million-parameter budget on a token-level 
 
 = Introduction
 
-The ability to selectively store and retrieve information across time is central
-to a broad class of sequential tasks: reinforcement learning (RL) agents navigating
-partially observable environments must remember which objects they have seen and
-associate stimuli with delayed consequences; language models must maintain coherent
-context over hundreds of characters; associative memory tasks require explicit
-key-value binding over many distractors. Solving these problems simultaneously
-demands memory with multiple specialized roles operating on different temporal
-scales.
+Many sequence problems require a model to retain information while continually
+incorporating new observations. Character-level language modeling tests this ability
+on natural streams, while controlled associative-recall tasks isolate storage,
+interference, and retrieval over known delays. Recurrent neural networks are a
+natural fit for these settings because their inference cost and state size do not
+grow with the processed sequence length.
 
-Standard stacked recurrent architectures — GRU @cho2014gru and LSTM @hochreiter1997lstm —
-scale capacity by widening a single hidden state vector that is updated at every
-timestep. While effective, this *single-stream* design offers no structural mechanism
-for specialization: all temporal scales and memory functions compete for the same
-state dimensions, so a sequence model must simultaneously be a short-term buffer, a
-long-range integrator, and a content-addressable store. Functional decomposition and
-the routing of information between these roles remain *implicit*, and newly written
-content tends to overwrite already-bound associations in the shared state.
+Standard GRUs @cho2014gru and LSTMs @hochreiter1997lstm represent the past with one
+hidden vector per layer. Widening or stacking these vectors increases capacity, but
+does not explicitly organize how distinct stateful computations exchange
+information. Modern linear recurrences instead improve parallel training and
+long-range propagation @qin2024hgrn2 @dao2024mamba2 @yang2024deltanet, yet usually
+retain a single recurrent stream per layer. This motivates a complementary question:
+*how should a fixed recurrent parameter budget be organized when several persistent
+stateful modules are allowed to communicate?*
 
-Prior work has attacked this in three directions. *Hierarchical* architectures
-(Clockwork RNN @koutnik2014clockwork, HM-RNN @chung2017hmrnn, Fast-Slow RNN
-@mujika2017fastslow, HGRN2 @qin2024hgrn2) stack multiple timescales *vertically*,
-assigning each layer a different temporal resolution; this helps long-range modeling
-but leaves each layer a single sequential stream without lateral peer communication.
-*Memory augmentation* approaches (Fast Weights @ba2016fastweights, Hopfield Networks
-@ramsauer2021hopfield, Engrams @szelogowski2025engram) add external associative
-structures to an existing recurrent backbone, but leave the backbone's single-stream
-topology unchanged. *Modular* approaches — Recurrent Independent Mechanisms
-@goyal2019rims, BRIMs @mittal2020brims, and shared global workspaces @goyal2021workspace
-— split computation into modules that communicate through attention, which improves
-systematic generalization; but they route information via *top-$k$ sparse* activation
-and typically dissolve per-module recurrence into a shared workspace, rather than
-protecting each module's memory from interference. The root technical issue persists:
-no existing recurrent design combines *column-local, interference-protected memory*
-with *explicit, learned inter-module routing* and a *built-in multi-timescale prior*
-so that specialization can emerge at a matched parameter budget.
+Modular recurrent architectures provide an important precedent. Recurrent
+Independent Mechanisms (RIMs) @goyal2019rims maintain separate recurrent modules,
+select a sparse subset for each input, and allow the active modules to communicate
+through attention. BRIMs @mittal2020brims introduce hierarchical top-down and
+bottom-up communication, while global-workspace models @goyal2021workspace impose a
+shared communication bottleneck. These methods establish that modular recurrence can
+be useful, but couple modularity to sparse activation or a particular workspace
+mechanism. We instead study a simpler dense setting in which every module updates at
+every timestep and learned routing determines its recurrent input.
 
 #figure(
   image("figure1_grid.svg", width: 100%),
-  caption: [*MoSAIC architecture.* Recurrent cells are arranged in an $L times C$
-    grid of vertical columns, each with its own local recurrent state. *Designated
-    I/O columns* receive the external token and produce the readout, forming explicit
-    information bottlenecks; the remaining columns receive *same-column delayed
-    top-down feedback* (their own previous top-layer output plus a learnable seed).
-    At every layer, columns exchange messages via self-attention with learnable
-    column identities, incorporated through *learned scalar gates* that add to — and
-    never overwrite — a column's protected memory. Columns converge to distinct
-    memory roles without explicit supervision.],
+  caption: [*MoSAIC at timestep $t$.* The first routing layer is queried by the
+    previous states $bold(H)_(t-1)^0$ and reads a bank containing the delayed
+    top-layer states $bold(H)_(t-1)^{L-1}$ and current embedding $bold(e)_t$.
+    Its $C$ messages are processed by independent GRU cells to produce
+    $bold(H)_t^0$. Each later layer repeats the operation using the newly updated
+    layer below as its message bank. The readout uses column~0 of the top layer,
+    while all top-layer columns are carried to timestep $t+1$.],
   placement: top,
 ) <fig-arch>
 
-We propose *MoSAIC (Modular Self-Attentive Interacting Columns)*, which reconsiders
-the topology of recurrent computation. Rather than a single hidden vector, MoSAIC
-maintains a 2D state $bold(H) in RR^{L times C times B times H}$ where $L$ layers
-provide temporal depth and $C$ columns operate *in parallel* (see @fig-arch), each
-column running its own recurrent cell over a *protected private state*. At every layer
-columns communicate through *self-attention* with learnable per-column query/key
-identities, and each incoming message is mixed in through a *learned scalar gate* that
-is *added* to the column output rather than blended into its recurrent state — so a
-column's bound associations are never overwritten by its neighbours. External input and
-output are restricted to *designated columns*, creating explicit bottlenecks, while the
-other columns are seeded by *same-column delayed top-down feedback* (their own previous
-top-layer output plus a learnable seed), breaking symmetry and letting roles specialize.
-Two priors make the division of labour emerge during training: a *multi-timescale prior*
-that staggers the columns' retention gates into fast and slow columns, and a
-*decorrelation objective* whose weight grows with depth @zbontar2021barlow, which
-prevents the columns from collapsing to a shared representation. The same design admits
-*pre-encoded modalities through separate columns*, which interact within the shared
-recurrent core.
+We propose *MoSAIC (Modular Self-Attentive Interacting Columns)*, illustrated in
+@fig-arch. MoSAIC replaces each recurrent layer with $C$ independently
+parameterized GRU cells. Before a cell updates, its previous state queries a shared
+message bank through multi-head attention. At the bottom layer this bank contains
+the current input together with the *delayed complete top layer* from the preceding
+timestep; at higher layers it contains the current states of the layer below.
+Consequently, the model retains column-local recurrent states while learning both
+bottom-up and temporally delayed communication routes.
+
+The architecture deliberately separates its defining computation from optional
+training regularizers. Learnable query/key identities make communication
+participants distinguishable. In the configuration used in our main experiments,
+training-time logit noise, a diagonal-route cost, and an attention-entropy bonus
+regularize routing, but they do not change the inference-time recurrent graph. We
+ablate these choices separately.
 
 Our main contributions are:
-+ *MoSAIC architecture*: a 2D $L times C$ grid of column-local recurrent cells with
-  per-layer scalar-gated self-attention, designated I/O bottleneck columns, and delayed
-  top-down feedback, so that interference-protected columns specialize without supervision.
-+ *Store–distract–query results*: under a matched budget MoSAIC reaches roughly 86%
-  overall accuracy and 77% on the hardest (repeated/overwritten-key) queries, versus
-  75%/56% for a single-stream GRU and at most 69%/47% for the strongest state-space and
-  linear-attention baselines (mLSTM, DeltaNet, HGRN2).
-+ *Language modeling and multimodality*: MoSAIC matches a parameter-matched stacked GRU
-  on character-level text8, and routes pre-encoded image and audio digits through
-  separate columns for a multimodal store–distract–query task.
-+ *Analysis*: a systematic study of architectural configuration, connectivity, and
-  inter-column communication, including causal column-ablation of the learned attention
-  routes, plus memory-oriented reinforcement-learning evaluation.
++ *A recurrent modular architecture* in which independently parameterized GRU
+  columns learn their inputs through attention over bottom-up and delayed top-down
+  message banks.
++ *A controlled fixed-budget evaluation* against monolithic GRUs and modern
+  recurrent and attention-based sequence models, reporting predictive quality
+  together with parameter count, recurrent-state size, and computational cost.
++ *An analysis of modular routing* through width/depth comparisons and ablations of
+  delayed feedback, participant identities, and routing regularization.
+// TODO(final results): attach one verified quantitative finding to contributions 2 and 3.
 
 
 = Related Work
 
 #par-heading[Multi-Dimensional and Grid RNNs.]
-The idea of organising recurrent cells in a 2D structure has been explored before.
-Graves et al. introduced Multi-Dimensional RNNs (MD-RNN) @graves2007mdrnn, which
-apply a separate recurrent connection along each spatial dimension and concatenate
-them, targeting image captioning and 2D sequences. Grid LSTM @kalchbrenner2015gridlstm
-extended this to deep stacks by routing memory and hidden state along both depth
-and time axes simultaneously. These works establish the grid topology but differ
-from our proposal in two critical ways: (a) they use *fixed* inter-cell connections
-determined by position, not *learned* content-based attention; (b) they target
-2D spatial sequences (images, text rendered as 2D grids), not generic sequence
-modeling with a free-standing memory structure. MoSAIC introduces *lateral
-attention with learnable column identity keys*, enabling content-based routing
-and spontaneous role specialization that fixed positional connections cannot provide.
-The column structure also differs: all C columns share the time axis and are
-updated synchronously at each timestep, unlike MD-RNN where separate dimensions
-correspond to separate axes of a spatial grid.
+Multi-Dimensional RNNs @graves2007mdrnn recurrently propagate information along
+multiple axes of structured data. Grid LSTM @kalchbrenner2015gridlstm extends the
+idea by arranging LSTM blocks in a multidimensional grid whose dimensions exchange
+hidden and memory vectors through fixed connections. MoSAIC uses a grid in a
+different sense: all columns share one temporal axis, retain separate recurrent
+states, and exchange information through content-dependent routing rather than
+through edges fixed by the geometry of an input.
 
 #par-heading[Modular Networks and Attention-Based Communication.]
-A parallel line replaces the monolithic hidden state with modules that communicate
-through attention. Recurrent Independent Mechanisms @goyal2019rims maintain independent
-recurrent modules that compete for input and exchange messages via sparse attention;
-BRIMs @mittal2020brims extend this with bidirectional top-down and bottom-up flow across
-a stack; and shared global workspaces @goyal2021workspace route module communication
-through a common bandwidth-limited channel. The Relational Memory Core @santoro2018relational
-lets a set of memory slots interact through multi-head attention, and Perceiver
-@jaegle2021perceiver distils large inputs into a small latent through a cross-attention
-bottleneck. MoSAIC shares the modular, attention-routed philosophy but differs in three
-ways: (a) it keeps *column-local recurrence* with a *protected private state* instead of
-dissolving modules into a shared workspace; (b) messages are incorporated through *dense
-per-layer learned scalar gates* that add to — and never overwrite — a column's memory,
-rather than *top-$k$ sparse* selection; and (c) it adds *designated I/O bottleneck
-columns*, *delayed top-down feedback*, and a *multi-timescale prior* that together shape
-where and how specialization emerges.
+RIMs @goyal2019rims are the closest conceptual predecessor: they preserve
+independent recurrent mechanisms, sparsely select mechanisms for each input, and
+allow active mechanisms to communicate through attention. BRIMs
+@mittal2020brims organize such mechanisms hierarchically, and shared global
+workspaces @goyal2021workspace restrict communication through a bandwidth-limited
+latent. Relational recurrent networks @santoro2018relational instead update a set
+of interacting memory slots through self-attention. MoSAIC shares the separation
+of persistent states and learned communication, but uses dense synchronous updates:
+every column queries a layer-specific message bank and then performs its own
+recurrent update. Its delayed top-layer bank also makes the communication graph
+recurrent across both layers and time.
 
-#par-heading[Hierarchical Multi-Scale RNNs.]
-Several methods introduce temporal hierarchy by stacking layers with different
-timescales. The Clockwork RNN @koutnik2014clockwork partitions the hidden state into
-modules that tick at fixed, distinct clock rates. HM-RNN @chung2017hmrnn learns discrete
-boundary events to separate fast and slow computation in a vertical hierarchy, improving
-long-range language modeling. Fast-Slow RNN @mujika2017fastslow maintains two decoupled
-networks with a fixed coupling period. HGRN @qin2023hgrn and HGRN2 @qin2024hgrn2 introduce
-a learnable $beta$ gate to control per-layer state retention in a linear RNN, achieving
-competitive performance with selective state-space models. All of these approaches extend
-*depth* to create timescale hierarchies, but each layer remains a single sequential stream
-without lateral peer communication. MoSAIC complements vertical depth with *horizontal*
-columns connected via attention, enabling specialization orthogonal to temporal
-abstraction; its multi-timescale prior stems from the same fast/slow intuition but is
-applied *across columns* rather than across depth.
+#par-heading[Modern Recurrent Sequence Models.]
+Recent work has substantially strengthened recurrent alternatives to Transformers.
+LRUs @orvieto2023lru stabilize long linear recurrences; HGRN2 @qin2024hgrn2 expands
+the state of a gated linear RNN; Mamba-2 @dao2024mamba2 connects selective
+state-space models and structured attention; and DeltaNet @yang2024deltanet uses a
+delta-rule matrix state to improve associative recall. xLSTM @beck2024xlstm extends
+LSTM gating and introduces scalar- and matrix-memory variants, including the mLSTM
+baseline used in our evaluation. These models primarily redesign the recurrent
+update or its state representation. MoSAIC instead keeps a conventional nonlinear
+GRU update and changes how a fixed parameter budget is distributed and routed.
 
-#par-heading[Associative and Fast Memory Augmentation.]
-A rich line of work augments RNNs with external memory structures. Fast Weights
-@ba2016fastweights write to a temporary weight matrix via Hebbian outer products,
-retrieved at each step by a content query. Schlag et al. @schlag2021fastweight
-show that linear Transformers implicitly implement fast-weight programmers.
-Danihelka et al. @danihelka2016assoclstm embed associative LSTM with holographic
-reduced representations for interference-free binding. Modern Hopfield Networks
-@ramsauer2021hopfield provide exponentially increasing storage capacity with
-sharp, energy-based retrieval equivalent to attention with large $beta$.
-Szelogowski @szelogowski2025engram revisits Hebbian engram neurons as sparse
-slot memory in deep networks. Lansner et al. @lansner2023hebbian systematically
-benchmark Hebbian update rules for associative capacity. The difficulty of exact
-recall under an efficient recurrent state has itself become a diagnostic: multi-query
-associative-recall benchmarks @arora2023zoology show that gated-convolution and
-linear-attention models lag attention precisely on in-context recall — the regime our
-store–distract–query task targets. These works add memory *on top of* an unchanged
-single-stream recurrent backbone. In MoSAIC, associative binding is instead protected
-*per column*: each column keeps a private recurrent state, and inter-column attention
-routes information between columns without overwriting it, allowing different columns to
-specialize in reading versus writing roles.
+#par-heading[Recall Evaluation.]
+Associative-recall studies show that aggregate language-modeling quality can obscure
+substantial differences in information retrieval. Zoology @arora2023zoology uses
+multi-query associative recall to connect synthetic retrieval behavior with
+language-modeling performance. POPGym @morad2023popgym provides controlled partially
+observable tasks spanning object, sequential, capacity, and spatial memory. We use
+character-level language modeling as the principal natural-sequence evaluation and
+store--distract--query tasks to measure behavior as the retention interval and
+interference increase.
 
-#par-heading[Memory for Partially Observable RL.]
-Training RL agents in POMDPs with recurrent networks has a long history: DRQN
-@hausknecht2015drqn extends DQN with LSTM to handle partial observability.
-Mnih et al. @mnih2016a3c use LSTM policies in A3C, showing robust performance
-across Atari games. POPGym @morad2023popgym systematically benchmarks memory in
-RL across four types — object, sequential, capacity, and spatial — providing a
-standardized suite of partially observable environments. MIKASA @cherepanov2025mikasa
-extends this taxonomy with richer task variants. These benchmarks consistently show
-that standard LSTM/GRU plateaus well below the theoretical maximum on object-memory
-tasks such as RepeatFirst, motivating architectural improvements. We evaluate MoSAIC on
-these object-memory tasks, where its interference-protected memory columns and
-surprise-gated selective writing target exactly the retain-and-recall failure mode that
-single-stream policies exhibit.
 
-#par-heading[Linear Recurrent Units.]
-Orvieto et al. @orvieto2023lru (LRU) show that a linear recurrence with diagonal
-complex-valued transition matrices achieves competitive performance with selective
-state-space models, provided spectral radii are initialized in $(r_"min", r_"max")$
-and $r_"max"$ is tuned for the target memory horizon. We use LRU cells as column
-units in HopfieldGridLRU and GridHarmonic, assigning each column $c$ and layer $l$
-a distinct $r_"max"^{l,c}$ interpolated over a 2D grid from $0.3$ (fast, $tau approx 1$
-step) to $0.999$ (slow, $tau approx 1000$ steps). This 2D *spectral grid* provides
-structural prior without any additional parameters.
+= Preliminaries and Problem Setting
+
+Let $bold(e)_t in RR^{B times H}$ be an input embedding at timestep $t$, where
+$B$ is batch size and $H$ is hidden width. A stacked GRU with $L$ layers maintains
+$bold(S)_t in RR^{L times B times H}$ and computes one recurrent stream per layer.
+We compare models under a matched trainable-parameter budget, using the same token
+embedding, readout, data order, optimizer, and number of training tokens.
+
+Parameter matching does not equate every resource. A stacked GRU stores $L B H$
+recurrent scalars, whereas an $L times C$ MoSAIC grid stores $L C B H$. We therefore
+report the number of recurrent scalars per example, measured throughput, and peak
+memory in addition to parameters. This separates predictive gains under a fixed
+weight budget from the activation-memory and compute costs of exposing multiple
+column states.
 
 
 = Method
 
-== Grid Structure
+== Recurrent Grid
 
-Grid RNN maintains a 3D state tensor $bold(H)^l_t in RR^{C times B times H}$
-per layer $l in {1, ..., L}$, where $C$ is the number of columns, $B$ the batch
-size, and $H$ the hidden dimension. At each timestep $t$, the forward pass
-proceeds *per-layer* in two stages.
+MoSAIC maintains
+$bold(H)_t in RR^{L times C times B times H}$, where
+$bold(h)_t^{l,c}$ is the state of column $c in {0,...,C-1}$ at layer
+$l in {0,...,L-1}$. Each layer--column pair has independent GRU parameters.
+The cells of a layer are evaluated in one batched operation, but do not share
+recurrent weights.
 
-#par-heading[Column Step.] Each column $c$ independently applies its recurrent
-cell $f_theta^c$:
+The first layer reads from a message bank containing the delayed top layer and
+the current external inputs:
 
-$ bold(h)^{l,c}_t = f_theta^c (bold(x)^{l,c}_t, bold(h)^{l,c}_{t-1}) $
+$ bold(M)_t^0 = [bold(H)_{t-1}^{L-1}; bold(e)_t^1; ...; bold(e)_t^I]
+  in RR^{(C+I) times B times H}. $
 
-For layer $l=0$: column~0 receives the embedded input $bold(e)_t in RR^D$;
-columns $c>0$ receive a zero dummy input of dimension~1. For layers $l>0$: all
-columns receive the corresponding state from the previous layer as input. Using
-a dummy input rather than a shared embedding ensures columns are forced to
-specialize via the message layer rather than receiving identical information.
+Here $I$ is the number of external input streams; $I=1$ for language modeling.
+For every subsequent layer, the message bank is the newly updated layer below:
 
-#par-heading[Inter-Column Message Passing.] After the column step, all columns
-exchange information via multi-head attention:
+$ bold(M)_t^l = bold(H)_t^{l-1}, quad l > 0. $
 
-$ bold(Q)_t = bold(H)^l_t + bold(I)_"col" quad bold(K)_t = bold(H)^l_t + bold(I)_"col" $
-$ bold(M)^l_t = "MHA"(bold(Q)_t, bold(K)_t, bold(H)^l_t) $
+Thus information moves bottom-up within a timestep, whereas the complete top
+layer supplies delayed feedback across timesteps. Unlike a conventional stacked
+GRU, a column does not receive the same-index lower-layer state by a fixed edge:
+it learns a distribution over the available messages.
 
-where $bold(I)_"col" in RR^{C times 1 times H}$ are learnable per-column identity
-embeddings broadcast over the batch, allowing the attention to distinguish
-source and target columns. The output projection of MHA is initialized near zero,
-so initial messages are negligible and training begins from an effective
-single-stream baseline.
+== Learned Routing
 
-#par-heading[Gated Mixing.] Each column decides how much of the aggregated message
-to incorporate:
+At layer $l$, the $C$ previous column states act as queries. Learnable participant
+identities $bold(a)^Q_c$ and $bold(a)^K_j$ distinguish query columns and message
+sources. For attention head $r$,
 
-$ bold(g)^{l,c}_t = sigma(bold(W)_g [bold(h)^{l,c}_t ; bold(m)^{l,c}_t]) $
-$ bold(h)'^{l,c}_t = (1 - bold(g)^{l,c}_t) ⊙ bold(h)^{l,c}_t + bold(g)^{l,c}_t ⊙ bold(m)^{l,c}_t $
+$ bold(q)_{t,c,r}^l =
+    "SiLU"(bold(W)^Q_r (bold(h)_{t-1}^{l,c}+bold(a)^Q_c)+bold(b)^Q_r), $
+$ bold(k)_{t,j,r}^l =
+    "SiLU"(bold(W)^K_r (bold(m)_{t,j}^{l}+bold(a)^K_j)+bold(b)^K_r), $
+$ bold(v)_{t,j,r}^l =
+    "SiLU"(bold(W)^V_r bold(m)_{t,j}^{l}+bold(b)^V_r). $
 
-This *post-messaging* design (GRU step first, then attention) lets each column
-compute its new state independently before considering peers, which we find more
-stable than pre-messaging during early training.
+Each query column has a learned positive inverse temperature
+$beta_c="softplus"(rho_c)$. The routing probabilities are
 
-#par-heading[Output.] For RL and associative tasks, the output is the top-layer
-($l=L$) state of column~0: $bold(o)_t = bold(h)'^{L,0}_t$. For language
-modeling, we average across all columns to exploit full column diversity.
+$ pi_{t,c,j,r}^l =
+  "softmax"_j (beta_c (
+    frac(bold(q)_{t,c,r}^l dot bold(k)_{t,j,r}^l, sqrt(H/R))
+    + epsilon_{t,c,j,r}^l)), $
 
-== Spectral Grid Memory (HopfieldGridLRU)
+where $R$ is the number of heads. The perturbation $epsilon$ is zero at
+inference; during training we optionally sample independent zero-mean Gaussian
+noise. Concatenated head outputs are projected and normalized:
 
-For tasks demanding long-range association (SDQ) and character-level modeling,
-we replace GRU cells with Linear Recurrent Units @orvieto2023lru and upgrade
-the message layer to Modern Hopfield retrieval @ramsauer2021hopfield.
+$ bold(x)_{t,c}^l =
+  "LN"(bold(W)^O [sum_j pi_{t,c,j,1}^l bold(v)_{t,j,1}^l;
+                   ...;
+                   sum_j pi_{t,c,j,R}^l bold(v)_{t,j,R}^l]). $
 
-#par-heading[LRU Cells.] Each column-layer pair $(l,c)$ maintains a
-complex-valued diagonal state $bold(h)_t in CC^H$:
+This attention operation produces the input to the recurrent cell; it does not
+replace or post-process the cell state.
 
-$ bold(h)_t = Lambda^{l,c} ⊙ bold(h)_{t-1} + bold(B) bold(x)_t $
+== Independent Recurrent Updates and Readout
 
-where $Lambda^{l,c} = "diag"(exp(-exp(bold(nu)) + i exp(bold(theta))))$ ensures
-$|Lambda^{l,c}| in (r_"min", r_"max"^{l,c})$ by construction, preventing
-gradient explosion regardless of sequence length. The state is stored as
-$[bold(h)_"re" ; bold(h)_"im"] in RR^{2H}$.
+After routing, every column performs an ordinary GRU update with its own
+parameters:
 
-#par-heading[2D Spectral Grid.] Each column~$c$ and layer~$l$ receives a distinct
-spectral radius:
+$ bold(h)_t^{l,c} =
+  "GRU"_{l,c}(bold(x)_{t,c}^l, bold(h)_{t-1}^{l,c}). $
 
-$ r_"max"^{l,c} = r_"min_col" + (r_"base"^l - r_"min_col") dot c / (C-1) $
-$ r_"base"^l = r_"min_layers" + (r_"max_layers" - r_"min_layers") dot l / (L-1) $
+The prediction head reads column~0 of the final layer,
+$bold(o)_t=bold(h)_t^{L-1,0}$. The recurrent state passed to the next timestep
+contains every column, and $bold(H)_t^{L-1}$ becomes part of the next first-layer
+message bank. Restricting the readout to one column prevents a pooled output from
+bypassing the learned routes, while leaving all columns available as recurrent
+memory.
 
-with $r_"min_col"=0.3$, $r_"min_layers"=0.7$, $r_"max_layers"=0.999$. This gives
-column~0, layer~0 a memory horizon of $tau approx 1$ step (fast, reactive),
-while column~$C{-}1$, layer~$L{-}1$ reaches $tau approx 1000$ steps (slow,
-integrative). No extra parameters are required.
+== Routing Regularization
 
-#par-heading[Hopfield Message Layer.] The cross-column message layer uses Modern
-Hopfield attention @ramsauer2021hopfield with learnable temperature $beta$ per head:
+The recurrent grid, message banks, and learned routing distribution define
+MoSAIC. Our main training configuration additionally uses three routing
+regularizers: Gaussian logit noise, a diagonal-route cost that biases columns
+toward retaining a low-cost self route, and an entropy bonus that discourages
+prematurely deterministic routing. At the first layer the cost also encourages
+the designated readout column to receive the external input while discouraging
+direct input access for later columns. For task loss $L_"task"$,
 
-$ bold(M)_t = "softmax"(beta dot.op bold(Q)_t^top bold(K)_t) bold(V)_t $
+$ L = L_"task" + lambda_"comm" L_"comm"
+                    - lambda_"ent" H(pi). $
 
-$beta$ is initialized as $log(1 / sqrt(d_k))$ and learned per attention head,
-allowing the network to tune retrieval sharpness. Higher $beta$ produces more
-selective, winner-takes-all column routing; lower $beta$ produces diffuse
-information mixing. A learnable contrastive associative loss optionally encourages
-consistent store/query alignment across columns.
+These terms are applied only during training and add no recurrent state or
+inference-time operation. We report them as ablations rather than treating them
+as architectural contributions.
 
-== Surprise-Gated Write Memory (GridRNN-EMA)
+== Complexity and Resource Accounting
 
-For partially observable RL, agents must write to memory selectively: storing
-every observation wastes capacity on irrelevant context, while missing key
-observations causes memory failure. We augment Grid RNN columns with a
-*surprise-gated* delta-rule fast-weight matrix.
-
-#par-heading[EMA Surprise Signal.] For each column $c$ at layer $l$, let
-$bold(y)_t = bold(h)'^{l,c}_t$ be the post-mixing state. We project to
-normalized key-value pairs and compute prediction error:
-
-$ bold(k)_t = frac(bold(W)_k bold(y)_t, ||bold(W)_k bold(y)_t||_2) $
-$ bold(v)_t = frac(bold(W)_v bold(y)_t, ||bold(W)_v bold(y)_t||_2) $
-$ bold("err")_t = bold(v)_t - bold(W)_t^top bold(k)_t $  (prediction error)
-
-An EMA of squared error magnitude tracks *surprise*:
-
-$ m_t = beta_"ema" m_{t-1} + (1 - beta_"ema") "mean"(||bold("err")_t||^2) $
-$ alpha_t = m_t / ("sg"(max_B (m_t)) + epsilon)  quad (max "over batch") $
-
-where $"sg"(dot)$ denotes stop-gradient (the normaliser is detached from the
-computation graph to avoid second-order terms). $alpha_t in [0,1]$: the batch
-element with the highest recent surprise always gets $alpha_t approx 1$ (active
-write), while elements experiencing familiar inputs approach zero (no write).
-This relative normalization ensures the gate reflects within-batch novelty rather
-than absolute loss scale.
-
-#par-heading[Delta-Rule Update.] We apply the Widrow-Hoff delta rule with adaptive
-forgetting:
-
-$ bold(W)_{t+1} = (1 - lambda_t) delta^l bold(W)_t + alpha_t (bold(k)_t ⊗ bold("err")_t) / C $
-
-where $delta^l in [0.95, 0.99]$ is a per-layer decay (fast layers forget quickly,
-slow layers integrate longer), $"fullness"_t = ||bold(W)_t||_F / sqrt(d_k d_v)$
-approximates the fraction of weight matrix capacity used, $lambda_t = lambda_0 dot "fullness"_t$
-provides adaptive forgetting that increases as memory fills (preventing overflow),
-and dividing by $C$ normalizes the write magnitude across columns. The delta rule *erases* the previous binding
-$bold(k)_t ⊗ bold(v)_"pred"$ before writing the new one, preventing
-Hebbian interference @ba2016fastweights.
+Ignoring embeddings and biases, independent GRUs contribute approximately
+$6 L C H^2$ parameters and the routing projections contribute approximately
+$4 L H^2$. The recurrent state contains $L C H$ scalars per example. Routing also
+requires $O(L C (C+I) H)$ score computation per timestep in addition to the dense
+projections and GRU updates. Because a parameter-matched MoSAIC can therefore
+retain more state coordinates than a monolithic GRU, our evaluation reports
+parameters, recurrent-state size, throughput, and peak memory together.
 
 
 = Experiments
+
+Our experiments ask four questions: (Q1) does distributing a fixed parameter
+budget across routed recurrent columns improve language modeling over a monolithic
+GRU; (Q2) how should that budget be divided between depth, column count, and
+within-column width; (Q3) which routing and feedback components are necessary;
+and (Q4) what activation-memory and computational costs accompany any quality
+gain?
+
+== Character-Level Language Modeling
+
+#par-heading[Data and evaluation.]
+We use text8, a 100-million-character normalized English corpus with a
+27-character alphabet. Following the conventional protocol, the first 90M
+characters are used for training, the next 5M for validation, and the final 5M
+for test. Checkpoints and hyperparameters are selected using validation bits per
+character (BPC); test BPC is evaluated once for the selected checkpoint. All
+models process the corpus in the same contiguous order and use the same
+tokenization and reset schedule.
+
+#par-heading[Training.]
+Models are optimized with RMSprop and truncated backpropagation through time
+using 512 parallel streams and a truncation length of 64. The per-token random
+state-reset probability decays during training, increasing the expected
+uninterrupted context from approximately 320 to 64,000 characters. Gradients are
+clipped to norm~1.0. The learning rate warms up from near zero, reaches
+$5 times 10^{-4}$, and decays to $5 times 10^{-5}$. We train each configuration
+for the same number of observed characters and report mean and standard deviation
+over independent seeds.
+// TODO(protocol): confirm final number of seeds and checkpoint-selection rule.
+
+#par-heading[Models and resource matching.]
+@tab-lm-current lists the currently tested configurations. GRU depth and
+MoSAIC grid shape are varied while keeping trainable parameters close to 10M.
+Because parameter matching yields different recurrent-state sizes, the table also
+reports the number of state scalars per example. We additionally compare against
+parameter-matched mLSTM @beck2024xlstm, HGRN2 @qin2024hgrn2, DeltaNet
+@yang2024deltanet, and a causal Transformer @vaswani2017attention using the same
+data and optimization protocol.
+
+#figure(
+  table(
+    columns: (auto, auto, auto, auto, auto),
+    stroke: none,
+    table.hline(),
+    [*Model*], [*Shape*], [*Params*], [*State*], [*Test BPC ↓*],
+    table.hline(),
+    [GRU], [L1], [10.16M], [1,296], [—],
+    [GRU], [L2], [10.04M], [1,824], [—],
+    [GRU], [L3], [10.23M], [2,256], [—],
+    table.hline(),
+    [MoSAIC], [L1C8], [9.39M], [3,392], [—],
+    [MoSAIC], [L2C4], [10.11M], [3,392], [—],
+    [MoSAIC], [L2C8], [10.70M], [5,120], [—],
+    [MoSAIC], [L2C16], [10.09M], [7,168], [—],
+    [MoSAIC], [L3C4], [8.65M], [3,840], [—],
+    table.hline(),
+  ),
+  caption: [Parameter-matched text8 evaluation. State counts exclude optimizer
+    state and report persistent recurrent scalars per example. Final cells will
+    contain mean $plus.minus$ standard deviation over seeds.],
+  placement: top,
+  kind: table,
+) <tab-lm-current>
+
+== Architectural Ablations
+
+We isolate grid shape using configurations that vary columns at fixed depth and
+depth at comparable column count. Component ablations remove: (i) participant
+identities, (ii) delayed top-layer feedback from the first-layer bank,
+(iii) nonlinear query/key/value projections, (iv) training-time routing noise,
+(v) the diagonal communication cost, and (vi) the routing-entropy bonus. For each
+ablation we report validation and test BPC, throughput, peak memory, and the
+change relative to its matched full-model run. This design distinguishes the
+recurrent modular topology from routing regularizers.
+// TODO(results): retain only ablations completed with the frozen implementation.
+
+== Store--Distract--Query
+
+We use a controlled online task to evaluate retention under interference. With
+five keys and ten values, the input vocabulary contains 50 key--value store
+tokens, ten distractor tokens, and five key-specific query tokens. Store events
+overwrite the selected key. Distractors update a running sum modulo ten. At a
+query, the target combines the most recently stored value, the distractor sum,
+and, in the Hard variant, per-key store and query counts. Loss and accuracy are
+computed only on query events.
+
+Episode lengths are geometrically distributed with a curriculum-controlled mean.
+We report query accuracy by store--query gap, including failures on keys that
+have been overwritten, rather than aggregate token accuracy. All architectures
+use the same online sequence distribution, curriculum decisions, number of
+training tokens, and parameter budget.
+// TODO(port): insert results only after SDQ uses grnn_core and the current baseline suite.
+
+== Routing and Efficiency Analysis
+
+For every configuration we report parameter count, recurrent-state scalars,
+training throughput, inference throughput at batch size one, and peak accelerator
+memory. Learned routes are summarized by per-layer entropy and average routing
+matrices. To test whether a route or column is functionally important rather than
+merely correlated with the output, we mask it at evaluation and measure the
+increase in BPC or query error. Interventions are computed on held-out data and
+aggregated across seeds.
+
+
+= Discussion
+
+MoSAIC changes the allocation of recurrent capacity: the same number of trainable
+weights is distributed across several narrower persistent states connected by a
+learned routing graph. Parameter-matched improvement would therefore establish
+that this allocation is useful, but would not imply that it is free. In
+particular, increasing column count can enlarge the persistent activation state
+and introduces quadratic routing cost in $C$. State-, throughput-, and
+memory-aware comparisons are necessary to characterize this trade-off.
+
+The architecture also does not guarantee functional specialization. Distinct
+parameters and participant identities make differentiated behavior possible, but
+attention visualizations alone cannot establish it. We use held-out route and
+column interventions to support only those specialization claims that produce
+repeatable causal effects.
+
+#par-heading[Limitations.]
+MoSAIC remains sequential over time and therefore does not inherit the
+sequence-parallel training algorithms of modern linear recurrent models. The
+present natural-language evaluation is character-level and small-scale, and SDQ
+is synthetic. The grid exposes more recurrent state coordinates than some
+parameter-matched GRUs, so gains must be interpreted together with activation
+memory and throughput. Finally, routing regularizers introduce additional
+hyperparameters; their robustness across tasks remains an empirical question.
+
+
+= Conclusion
+
+We introduced MoSAIC, a recurrent architecture that distributes a fixed parameter
+budget across independently parameterized GRU columns and learns their inputs
+through attention over bottom-up and delayed top-down message banks. This design
+separates persistent column states from an explicit recurrent communication
+graph while retaining constant state size with respect to sequence length. Our
+evaluation is designed to measure both predictive quality and the state,
+throughput, and memory costs of this modular allocation.
+// TODO(final results): add the two strongest verified findings and one limitation.
+
+/*
+LEGACY EXPERIMENT DRAFT (pre-grnn_core). Kept temporarily for provenance while
+current runs finish; none of the following content is rendered.
+
+=============== BEGIN LEGACY ===============
 
 We evaluate three Grid RNN variants against GRU baselines on three benchmarks.
 All models are trained on a single GPU (RTX~3050). Parameter budgets are matched
@@ -777,6 +863,9 @@ Future work will complete the MIKASA evaluation suite (including HigherLower,
 MultiarmedBandit, and harder difficulty levels), provide full comparison with
 published POPGym baselines, investigate entropy-regularized training to improve
 LRU-cell convergence under PPO, and run a systematic column-count ablation.
+
+=============== END LEGACY ===============
+*/
 
 // ─────────────────────────────────────────────────────────────────────────────
 // REFERENCES
