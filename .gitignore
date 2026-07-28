@@ -3,6 +3,10 @@ temp.py
 .aim
 server/
 agent.md
+# local-only CUDA build override (this client: RTX 5060 sm_120 needs cu129);
+# repo stays on cu126 for the RTX 3050 server. Kept local via skip-worktree.
+pyproject.toml
+uv.lock
 # ======================
 
 .DS_Store
@@ -223,3 +227,7 @@ knitwork/gens/data/*
 
 # Comet.ml offline-run archives (runtime artifact)
 .cometml-runs/
+# local agent config; contained a Comet API key in skills/status
+.claude/
+docs/skill_new_project_gpu_server.md
+server/

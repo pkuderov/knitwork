@@ -44,6 +44,19 @@ gens:
     count_stored: true
     count_queried: true
 
+  # eval-only: `hard` with longer episodes and sparser events, so store->query gaps
+  # actually reach the [32,128) range. On `hard` (T=10) a 178K-query collection put
+  # 264 examples in [32,64) and 1 in [64,128) - the long-memory end of every recall
+  # curve was unmeasurable. Use via `analyze_columns_sdq.py --eval_gen=long`.
+  long:
+    n_keys: 5
+    n_vals: 10
+    T: 40
+    p_store: 0.15
+    p_query: 0.15
+    count_stored: true
+    count_queried: true
+
 
 models:
   rnn:
@@ -411,6 +424,544 @@ models:
     aux_every: 8
     gate_std_target: 0.15
     sat_target: 0.8
+    use_bias: true
+    dropout: 0.0
+
+  # n_columns=12 rerun of the 388K "optim 12c nodiag" run with column regularization
+  # actually enabled. In that run optim silently zeroed aux_act_weight, and the column
+  # analysis at 60M found 7 of 12 columns collapsed into one subspace (pairwise CKA
+  # 0.51-0.83) with near-zero causal effect. Same shape/param count (388.41K), stronger
+  # decorrelation: aux_act restored at 2x nominal, div weights up, ramp twice as fast.
+  grnn_fix_v4_12c_reg:
+    embedding_size: 64
+    hidden_size: 44
+    n_layers: 2
+    n_columns: 12
+    n_attn_heads: 4
+    beta_scale: 3.0
+    beta_floor: 0.2
+    timescale_spread: 1.0
+    aux_div_weight: 0.08
+    aux_div_max_weight: 0.15
+    aux_div_ramp_steps: 1e+7
+    aux_gate_weight: 0.1
+    aux_act_weight: 0.04
+    aux_sat_weight: 0.02
+    aux_every: 8
+    gate_std_target: 0.15
+    sat_target: 0.8
+    optim: true
+    div_latent_dim: 32
+    aux_batch_frac: 0.25
+    use_bias: true
+    dropout: 0.0
+
+  # attribution arm: aux_act ALONE, Barlow terms fully off. _12c_reg moved four knobs
+  # at once, and the aux_tick_scale fix means div now runs at full weight for the first
+  # time -- so leaving div at "baseline" values would no longer isolate anything.
+  # Zeroing div is the only clean way to attribute the effect to activity decorrelation.
+  grnn_fix_v4_12c_act:
+    embedding_size: 64
+    hidden_size: 44
+    n_layers: 2
+    n_columns: 12
+    n_attn_heads: 4
+    beta_scale: 3.0
+    beta_floor: 0.2
+    timescale_spread: 1.0
+    aux_div_weight: 0.0
+    aux_div_max_weight: 0.0
+    aux_div_ramp_steps: 0
+    aux_gate_weight: 0.1
+    aux_act_weight: 0.04
+    aux_sat_weight: 0.02
+    aux_every: 8
+    gate_std_target: 0.15
+    sat_target: 0.8
+    optim: true
+    div_latent_dim: 32
+    aux_batch_frac: 0.25
+    use_bias: true
+    dropout: 0.0
+
+  # next iteration on _12c_reg. Fixes carried in: aux schedules now count env-steps,
+  # pressure decays after 35M instead of holding to the end (long-gap recall and
+  # curriculum progress both suffered), div_max raised to target the worst pair only,
+  # cleaner Barlow estimate (half batch, no projection), and a head-balance term
+  # against the pooled head funnelling 81% of the logit through one column.
+  grnn_fix_v4_12c_reg2:
+    embedding_size: 64
+    hidden_size: 44
+    n_layers: 2
+    n_columns: 12
+    n_attn_heads: 4
+    beta_scale: 3.0
+    beta_floor: 0.2
+    timescale_spread: 1.0
+    aux_div_weight: 0.05
+    aux_div_max_weight: 0.25
+    aux_div_ramp_steps: 1e+7
+    aux_hold_steps: 3.5e+7
+    aux_decay_steps: 2e+7
+    aux_final_frac: 0.3
+    aux_gate_weight: 0.1
+    aux_act_weight: 0.04
+    aux_sat_weight: 0.02
+    aux_head_weight: 0.05
+    aux_every: 8
+    gate_std_target: 0.15
+    sat_target: 0.8
+    optim: true
+    div_latent_dim: 44
+    aux_batch_frac: 0.5
+    use_bias: true
+    dropout: 0.0
+
+  # Two single-change arms off grnn_fix_v4_12c_reg2 (the best of the five 12C runs),
+  # factorizing its head penalty. REG2 measures logit magnitude and penalizes it with
+  # relu(max share - target); grnn_bal_causal changes WHAT is measured, grnn_bal_lb
+  # changes HOW it is penalized. Every other field is byte-identical to REG2, and
+  # neither term adds parameters, so all three sit at 388.41K.
+  grnn_bal_causal:
+    embedding_size: 64
+    hidden_size: 44
+    n_layers: 2
+    n_columns: 12
+    n_attn_heads: 4
+    beta_scale: 3.0
+    beta_floor: 0.2
+    timescale_spread: 1.0
+    aux_div_weight: 0.05
+    aux_div_max_weight: 0.25
+    aux_div_ramp_steps: 1e+7
+    aux_hold_steps: 35000000.0
+    aux_decay_steps: 2e+7
+    aux_final_frac: 0.3
+    aux_gate_weight: 0.1
+    aux_act_weight: 0.04
+    aux_sat_weight: 0.02
+    aux_head_weight: 0.05      # unchanged from REG2: causal term is ADDED, not swapped
+    aux_causal_weight: 0.25    # <-- the only change
+    aux_every: 8
+    gate_std_target: 0.15
+    sat_target: 0.8
+    optim: true
+    div_latent_dim: 44
+    aux_batch_frac: 0.5
+    use_bias: true
+    dropout: 0.0
+
+  grnn_bal_lb:
+    embedding_size: 64
+    hidden_size: 44
+    n_layers: 2
+    n_columns: 12
+    n_attn_heads: 4
+    beta_scale: 3.0
+    beta_floor: 0.2
+    timescale_spread: 1.0
+    aux_div_weight: 0.05
+    aux_div_max_weight: 0.25
+    aux_div_ramp_steps: 1e+7
+    aux_hold_steps: 35000000.0
+    aux_decay_steps: 2e+7
+    aux_final_frac: 0.3
+    aux_gate_weight: 0.1
+    aux_act_weight: 0.04
+    aux_sat_weight: 0.02
+    aux_head_weight: 0.0       # <-- swapped out: lb replaces relu(max), same quantity
+    aux_lb_weight: 0.05        # <-- for it
+    aux_every: 8
+    gate_std_target: 0.15
+    sat_target: 0.8
+    optim: true
+    div_latent_dim: 44
+    aux_batch_frac: 0.5
+    use_bias: true
+    dropout: 0.0
+
+  # E9. The div+act family switched OFF. Until the aux-clock fix these terms were
+  # multiplied by zero in every optim=true run ever made, so "does column decorrelation
+  # help at all" has never actually been tested. This is the control that answers it.
+  grnn_noaux:
+    embedding_size: 64
+    hidden_size: 44
+    n_layers: 2
+    n_columns: 12
+    n_attn_heads: 4
+    beta_scale: 3.0
+    beta_floor: 0.2
+    timescale_spread: 1.0
+    aux_div_weight: 0.0
+    aux_div_max_weight: 0.0
+    aux_div_ramp_steps: 1e+7
+    aux_hold_steps: 35000000.0
+    aux_decay_steps: 2e+7
+    aux_final_frac: 0.3
+    aux_gate_weight: 0.1
+    aux_act_weight: 0.0
+    aux_sat_weight: 0.02
+    aux_head_weight: 0.05
+    aux_every: 8
+    gate_std_target: 0.15
+    sat_target: 0.8
+    optim: true
+    div_latent_dim: 44
+    aux_batch_frac: 0.5
+    use_bias: true
+    dropout: 0.0
+
+  # E10. The causal leave-one-out term at a sane weight. Its first run used 0.25, which
+  # the frozen clock turned into an effective 2.0 and drove accuracy to 0.838.
+  grnn_bal_causal2:
+    embedding_size: 64
+    hidden_size: 44
+    n_layers: 2
+    n_columns: 12
+    n_attn_heads: 4
+    beta_scale: 3.0
+    beta_floor: 0.2
+    timescale_spread: 1.0
+    aux_div_weight: 0.05
+    aux_div_max_weight: 0.25
+    aux_div_ramp_steps: 1e+7
+    aux_hold_steps: 35000000.0
+    aux_decay_steps: 2e+7
+    aux_final_frac: 0.3
+    aux_gate_weight: 0.1
+    aux_act_weight: 0.04
+    aux_sat_weight: 0.02
+    aux_head_weight: 0.05
+    aux_causal_weight: 0.03
+    aux_every: 8
+    gate_std_target: 0.15
+    sat_target: 0.8
+    optim: true
+    div_latent_dim: 44
+    aux_batch_frac: 0.5
+    use_bias: true
+    dropout: 0.0
+
+  # E1. Same terms as REG2, whole schedule compressed into the first 2M steps.
+  # col_cka shows the column structure is settled by ~0.6M and flat for the next 60M,
+  # so REG2's 1e7 ramp reaches full weight roughly 20x too late to shape anything.
+  grnn_early:
+    embedding_size: 64
+    hidden_size: 44
+    n_layers: 2
+    n_columns: 12
+    n_attn_heads: 4
+    beta_scale: 3.0
+    beta_floor: 0.2
+    timescale_spread: 1.0
+    aux_div_weight: 0.05
+    aux_div_max_weight: 0.25
+    aux_div_ramp_steps: 3e+5
+    aux_hold_steps: 1e+6
+    aux_decay_steps: 1e+6
+    aux_final_frac: 0.3
+    aux_gate_weight: 0.1
+    aux_act_weight: 0.04
+    aux_sat_weight: 0.02
+    aux_head_weight: 0.05
+    aux_every: 8
+    gate_std_target: 0.15
+    sat_target: 0.8
+    optim: true
+    div_latent_dim: 44
+    aux_batch_frac: 0.5
+    use_bias: true
+    dropout: 0.0
+
+  # E2. Identical to REG2 except the multi-timescale prior is off. Causal delta
+  # correlates negatively with column index in all five arms (fast half holds 76% of
+  # the mass): the stagger may be what kills the slow half rather than diversifying it.
+  grnn_ts_flat:
+    embedding_size: 64
+    hidden_size: 44
+    n_layers: 2
+    n_columns: 12
+    n_attn_heads: 4
+    beta_scale: 3.0
+    beta_floor: 0.2
+    timescale_spread: 0.0
+    aux_div_weight: 0.05
+    aux_div_max_weight: 0.25
+    aux_div_ramp_steps: 1e+7
+    aux_hold_steps: 35000000.0
+    aux_decay_steps: 2e+7
+    aux_final_frac: 0.3
+    aux_gate_weight: 0.1
+    aux_act_weight: 0.04
+    aux_sat_weight: 0.02
+    aux_head_weight: 0.05
+    aux_every: 8
+    gate_std_target: 0.15
+    sat_target: 0.8
+    optim: true
+    div_latent_dim: 44
+    aux_batch_frac: 0.5
+    use_bias: true
+    dropout: 0.0
+
+  # E3. The opposite direction: twice the stagger. Separates "the prior is harmful"
+  # from "the prior is right but too weak to matter" -- E2 alone cannot.
+  grnn_ts_wide:
+    embedding_size: 64
+    hidden_size: 44
+    n_layers: 2
+    n_columns: 12
+    n_attn_heads: 4
+    beta_scale: 3.0
+    beta_floor: 0.2
+    timescale_spread: 2.0
+    aux_div_weight: 0.05
+    aux_div_max_weight: 0.25
+    aux_div_ramp_steps: 1e+7
+    aux_hold_steps: 35000000.0
+    aux_decay_steps: 2e+7
+    aux_final_frac: 0.3
+    aux_gate_weight: 0.1
+    aux_act_weight: 0.04
+    aux_sat_weight: 0.02
+    aux_head_weight: 0.05
+    aux_every: 8
+    gate_std_target: 0.15
+    sat_target: 0.8
+    optim: true
+    div_latent_dim: 44
+    aux_batch_frac: 0.5
+    use_bias: true
+    dropout: 0.0
+
+  # E4. REG2 with a per-column readout instead of the mean. Structural alternative to
+  # the head penalty: each column owns its slice, so no column can be substituted by
+  # the others' average. E=62 keeps the count at parity (386.93K, -0.4%).
+  grnn_concat:
+    embedding_size: 62
+    hidden_size: 44
+    n_layers: 2
+    n_columns: 12
+    n_attn_heads: 4
+    beta_scale: 3.0
+    beta_floor: 0.2
+    timescale_spread: 1.0
+    aux_div_weight: 0.05
+    aux_div_max_weight: 0.25
+    aux_div_ramp_steps: 1e+7
+    aux_hold_steps: 35000000.0
+    aux_decay_steps: 2e+7
+    aux_final_frac: 0.3
+    aux_gate_weight: 0.1
+    aux_act_weight: 0.04
+    aux_sat_weight: 0.02
+    aux_head_weight: 0.0
+    aux_every: 8
+    gate_std_target: 0.15
+    sat_target: 0.8
+    optim: true
+    div_latent_dim: 44
+    aux_batch_frac: 0.5
+    use_bias: true
+    dropout: 0.0
+    pooled_head: false
+
+  # E5. Periodic re-initialization of columns whose readout share collapses. The only
+  # mechanism here that can undo an early commitment rather than penalize it.
+  grnn_redo:
+    embedding_size: 64
+    hidden_size: 44
+    n_layers: 2
+    n_columns: 12
+    n_attn_heads: 4
+    beta_scale: 3.0
+    beta_floor: 0.2
+    timescale_spread: 1.0
+    aux_div_weight: 0.05
+    aux_div_max_weight: 0.25
+    aux_div_ramp_steps: 1e+7
+    aux_hold_steps: 35000000.0
+    aux_decay_steps: 2e+7
+    aux_final_frac: 0.3
+    aux_gate_weight: 0.1
+    aux_act_weight: 0.04
+    aux_sat_weight: 0.02
+    aux_head_weight: 0.05
+    aux_every: 8
+    gate_std_target: 0.15
+    sat_target: 0.8
+    optim: true
+    div_latent_dim: 44
+    aux_batch_frac: 0.5
+    use_bias: true
+    dropout: 0.0
+    redo_every: 5e+6
+    redo_threshold: 0.02
+    redo_max_cols: 1
+
+  # E6. Load balance on in-degree: no column may become the hub everyone reads.
+  # Self-attention is already masked to -inf, so a hub is the only routing collapse
+  # available -- and no arm has ever measured it.
+  grnn_route_lb:
+    embedding_size: 64
+    hidden_size: 44
+    n_layers: 2
+    n_columns: 12
+    n_attn_heads: 4
+    beta_scale: 3.0
+    beta_floor: 0.2
+    timescale_spread: 1.0
+    aux_div_weight: 0.05
+    aux_div_max_weight: 0.25
+    aux_div_ramp_steps: 1e+7
+    aux_hold_steps: 35000000.0
+    aux_decay_steps: 2e+7
+    aux_final_frac: 0.3
+    aux_gate_weight: 0.1
+    aux_act_weight: 0.04
+    aux_sat_weight: 0.02
+    aux_head_weight: 0.05
+    aux_every: 8
+    gate_std_target: 0.15
+    sat_target: 0.8
+    optim: true
+    div_latent_dim: 44
+    aux_batch_frac: 0.5
+    use_bias: true
+    dropout: 0.0
+    aux_route_weight: 0.05
+
+  # E7. Hard cap: a column may read at most 3 of the other 11. A capacity constraint
+  # cannot be traded against the task loss the way all five soft penalties were.
+  grnn_route_topk:
+    embedding_size: 64
+    hidden_size: 44
+    n_layers: 2
+    n_columns: 12
+    n_attn_heads: 4
+    beta_scale: 3.0
+    beta_floor: 0.2
+    timescale_spread: 1.0
+    aux_div_weight: 0.05
+    aux_div_max_weight: 0.25
+    aux_div_ramp_steps: 1e+7
+    aux_hold_steps: 35000000.0
+    aux_decay_steps: 2e+7
+    aux_final_frac: 0.3
+    aux_gate_weight: 0.1
+    aux_act_weight: 0.04
+    aux_sat_weight: 0.02
+    aux_head_weight: 0.05
+    aux_every: 8
+    gate_std_target: 0.15
+    sat_target: 0.8
+    optim: true
+    div_latent_dim: 44
+    aux_batch_frac: 0.5
+    use_bias: true
+    dropout: 0.0
+    top_k: 3
+
+  # E8. Relative noise on the routing logits, breaking the rich-get-richer loop that
+  # locks in an early accidental winner. Scaled by the logits' own std, so the
+  # learnable beta cannot make it negligible by growing.
+  grnn_route_noise:
+    embedding_size: 64
+    hidden_size: 44
+    n_layers: 2
+    n_columns: 12
+    n_attn_heads: 4
+    beta_scale: 3.0
+    beta_floor: 0.2
+    timescale_spread: 1.0
+    aux_div_weight: 0.05
+    aux_div_max_weight: 0.25
+    aux_div_ramp_steps: 1e+7
+    aux_hold_steps: 35000000.0
+    aux_decay_steps: 2e+7
+    aux_final_frac: 0.3
+    aux_gate_weight: 0.1
+    aux_act_weight: 0.04
+    aux_sat_weight: 0.02
+    aux_head_weight: 0.05
+    aux_every: 8
+    gate_std_target: 0.15
+    sat_target: 0.8
+    optim: true
+    div_latent_dim: 44
+    aux_batch_frac: 0.5
+    use_bias: true
+    dropout: 0.0
+    noise_std: 0.3
+
+  # GridRnnRobust: every finding of the 12C study rolled into one config.
+  # Barlow off (activity decorrelation decorrelates better on its own), pressure
+  # decays after 35M, head-balance term at 3x the REG2 weight, and column dropout
+  # regularizing the quantity we actually care about - the maximum causal
+  # contribution of any single column. 388.41K params, same as every 12C arm.
+  grnn_robust:
+    embedding_size: 64
+    hidden_size: 44
+    n_layers: 2
+    n_columns: 12
+    n_attn_heads: 4
+    beta_scale: 3.0
+    beta_floor: 0.2
+    timescale_spread: 1.0
+    aux_div_weight: 0.0
+    aux_div_max_weight: 0.1
+    aux_div_ramp_steps: 1e+7
+    aux_hold_steps: 3.5e+7
+    aux_decay_steps: 2e+7
+    aux_final_frac: 0.3
+    aux_gate_weight: 0.1
+    aux_act_weight: 0.04
+    aux_sat_weight: 0.02
+    aux_head_weight: 0.15
+    col_dropout: 0.1
+    col_dropout_ramp_steps: 1e+7
+    aux_every: 8
+    gate_std_target: 0.15
+    sat_target: 0.8
+    optim: true
+    div_latent_dim: 44
+    aux_batch_frac: 0.5
+    use_bias: true
+    dropout: 0.0
+
+  # structural alternative to aux_head_weight: concat head instead of the pooled one,
+  # so the readout cannot funnel through a single column by construction. The concat
+  # head costs 4840 params at C=12/H=44, so embedding_size drops 64 -> 62 to stay in
+  # budget: 386.93K vs 388.41K (-0.4%), the closest match since H is quantized to
+  # multiples of n_attn_heads.
+  grnn_robust_concat:
+    embedding_size: 62
+    hidden_size: 44
+    n_layers: 2
+    n_columns: 12
+    n_attn_heads: 4
+    beta_scale: 3.0
+    beta_floor: 0.2
+    timescale_spread: 1.0
+    aux_div_weight: 0.0
+    aux_div_max_weight: 0.1
+    aux_div_ramp_steps: 1e+7
+    aux_hold_steps: 3.5e+7
+    aux_decay_steps: 2e+7
+    aux_final_frac: 0.3
+    aux_gate_weight: 0.1
+    aux_act_weight: 0.04
+    aux_sat_weight: 0.02
+    aux_head_weight: 0.0
+    col_dropout: 0.1
+    col_dropout_ramp_steps: 1e+7
+    aux_every: 8
+    gate_std_target: 0.15
+    sat_target: 0.8
+    optim: true
+    pooled_head: false
+    div_latent_dim: 44
+    aux_batch_frac: 0.5
     use_bias: true
     dropout: 0.0
 

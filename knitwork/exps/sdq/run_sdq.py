@@ -23,6 +23,7 @@ from knitwork.common.utils import (
     to_numpy, to_torch,
 )
 from knitwork.gens.sdq import StoreDistractQueryGenerator
+from knitwork.visualization.cka import linear_cka
 from knitwork.exps.sdq._viz import VizManager
 
 
@@ -54,6 +55,23 @@ _REGISTRY: dict[str, tuple[str, str] | None] = {
     'hgrnn_fix_v4':   ('knitwork.models.hgrnn_fix_v4',   'HopfieldGridRnnFixV4'),
     'grnn_fix_v4_8c': ('knitwork.models.grnn_fix_v4',    'GridRnnFixV4'),
     'grnn_fix_v4_6c': ('knitwork.models.grnn_fix_v4',    'GridRnnFixV4'),
+    'grnn_fix_v4_12c_reg': ('knitwork.models.grnn_fix_v4', 'GridRnnFixV4'),
+    'grnn_fix_v4_12c_act': ('knitwork.models.grnn_fix_v4', 'GridRnnFixV4'),
+    'grnn_fix_v4_12c_reg2': ('knitwork.models.grnn_fix_v4', 'GridRnnFixV4'),
+    'grnn_robust':        ('knitwork.models.grnn_robust', 'GridRnnRobust'),
+    'grnn_robust_concat': ('knitwork.models.grnn_robust', 'GridRnnRobust'),
+    'grnn_bal_causal':    ('knitwork.models.grnn_balance', 'GridRnnBalance'),
+    'grnn_bal_lb':        ('knitwork.models.grnn_balance', 'GridRnnBalance'),
+    'grnn_early':         ('knitwork.models.grnn_fix_v4',  'GridRnnFixV4'),
+    'grnn_noaux':         ('knitwork.models.grnn_fix_v4',  'GridRnnFixV4'),
+    'grnn_bal_causal2':   ('knitwork.models.grnn_balance', 'GridRnnBalance'),
+    'grnn_ts_flat':       ('knitwork.models.grnn_fix_v4',  'GridRnnFixV4'),
+    'grnn_ts_wide':       ('knitwork.models.grnn_fix_v4',  'GridRnnFixV4'),
+    'grnn_concat':        ('knitwork.models.grnn_fix_v4',  'GridRnnFixV4'),
+    'grnn_redo':          ('knitwork.models.grnn_plastic', 'GridRnnPlastic'),
+    'grnn_route_lb':      ('knitwork.models.grnn_route',   'GridRnnRoute'),
+    'grnn_route_topk':    ('knitwork.models.grnn_route',   'GridRnnRoute'),
+    'grnn_route_noise':   ('knitwork.models.grnn_route',   'GridRnnRoute'),
     'grnn_fix_v4_2m': ('knitwork.models.grnn_fix_v4',    'GridRnnFixV4'),
     'grnn_fix_v4_10m':('knitwork.models.grnn_fix_v4',    'GridRnnFixV4'),
     'grnn_feedback':  ('knitwork.models.grnn_feedback',  'GridRnnFeedback'),
@@ -166,6 +184,82 @@ def log_col_similarity(rnn, state, logger, step: int) -> None:
         print(f'[col_sim] {e}')
 
 
+def log_col_cka(rnn, state, logger, step: int) -> None:
+    """Log pairwise linear CKA between column states (last layer).
+
+    col_sim above cosine-compares batch-*averaged* activations and stays flat while
+    columns collapse: it missed a 12C run where 7 columns sat at CKA 0.51-0.83.
+    CKA compares the full [B, H] representations, which is what the offline column
+    analysis reports, so training and analysis finally track the same quantity.
+    """
+    try:
+        h = state[0] if isinstance(state, tuple) else state
+        if not isinstance(h, torch.Tensor) or h.ndim != 4:
+            return
+        acts = h[-1, :, :, :rnn.hidden_size].detach().float().cpu().numpy()  # [C, B, H]
+        C = acts.shape[0]
+        pairs = [linear_cka(acts[i], acts[j])
+                 for i in range(C) for j in range(i + 1, C)]
+        if not pairs:
+            return
+        pairs = np.array(pairs)
+        logger.track(float(pairs.max()),  name='col_cka/max',  step=step)
+        logger.track(float(pairs.mean()), name='col_cka/mean', step=step)
+        # effective number of non-redundant columns
+        frac = float((pairs > 0.6).mean())
+        logger.track(frac, name='col_cka/frac_gt_06', step=step)
+        _collapse_gate(frac, step)
+    except Exception as e:
+        print(f'[col_cka] {e}')
+
+
+# collapse gate: warn once when redundant column pairs stay above threshold past the
+# midpoint of training. The 12C baseline sat at 18/66 = 0.27 and nobody noticed for 61M
+# steps because col_sim (the only detector at the time) stayed flat.
+_COLLAPSE_STATE = {'warned': False, 'total': None, 'hits': 0}
+
+
+def _collapse_gate(frac: float, step: int, thresh: float = 0.2, patience: int = 3) -> None:
+    st = _COLLAPSE_STATE
+    if st['warned'] or st['total'] is None or step < 0.5 * st['total']:
+        return
+    st['hits'] = st['hits'] + 1 if frac > thresh else 0
+    if st['hits'] >= patience:
+        st['warned'] = True
+        print(
+            f'[collapse] WARNING at step {step:,}: col_cka/frac_gt_06={frac:.3f} > {thresh}'
+            f' for {patience} consecutive checks -- columns are collapsing.'
+            f' Raise aux_act_weight / col_dropout, or check that the aux schedule is live.'
+        )
+
+
+def log_routing(rnn, logger, step: int) -> None:
+    """Log the column->column communication graph.
+
+    Five 12C arms were tuned without anyone looking at the routing matrix. Self-attention
+    is already masked out, so the degenerate mode is a hub: every column reading the same
+    source. in_max is the share of total attention the most-read column receives (1/C for
+    a uniform graph), in_eff is the effective number of distinct sources.
+    """
+    try:
+        mats = [a.last_attn for a in getattr(rnn, 'attn', []) if getattr(a, 'last_attn', None) is not None]
+        if not mats:
+            return
+        A = torch.stack(mats).mean(dim=0).float().cpu().numpy()      # [C_q, C_k]
+        C = A.shape[0]
+        in_mass = A.sum(axis=0)
+        share = in_mass / (in_mass.sum() + 1e-9)
+        ent = float(np.exp(-(share * np.log(share + 1e-12)).sum()))
+        logger.track(float(share.max()), name='route/in_max_share', step=step)
+        logger.track(ent,                name='route/in_eff_cols',  step=step)
+        # sanity check on the hard diagonal mask: must stay 0
+        logger.track(float(np.trace(A) / C), name='route/diag_frac', step=step)
+        if hasattr(rnn, 'redo_count'):
+            logger.track(float(rnn.redo_count), name='route/redo_count', step=step)
+    except Exception as e:
+        print(f'[route] {e}')
+
+
 def log_lru_spectrum(rnn, logger, step: int) -> None:
     if not hasattr(rnn, 'cells'):
         return
@@ -269,6 +363,11 @@ def main(config):
     rnn_cfg  = config['models'][rnn_type]
     rnn = build_model(rnn_type, rnn_cfg, gen)
     rnn = rnn.to(device=device, dtype=dtype)
+    # aux schedules count env-steps (like n_steps); the model's own counter cannot see
+    # them and is silently frozen under gradient checkpointing, so the loop drives it
+    drives_aux_clock = hasattr(rnn, 'set_env_step')
+    if not drives_aux_clock and hasattr(rnn, 'aux_tick_scale'):
+        rnn.aux_tick_scale = gen.n_envs
     print(f'Model on {next(rnn.parameters()).device} | dtype {next(rnn.parameters()).dtype}')
 
     # Feature detection
@@ -298,6 +397,7 @@ def main(config):
     batch_size  = gen.n_envs * rollout_len
     n_steps     = int(config['n_steps'])
     step        = 0
+    _COLLAPSE_STATE.update(total=n_steps, warned=False, hits=0)
 
     log_stats_schedule = create_scheduler(config['log']['schedule'])
     print_stats_schedule = create_scheduler(config['log']['print_schedule'])
@@ -328,7 +428,16 @@ def main(config):
     batch_div:     list = []
     batch_harmonic: list = []   # harmonic model diagnostics
 
+    aux_iter = 0
     while step < n_steps:
+        if drives_aux_clock:
+            # aux_on must be constant across a whole rollout: backward recomputes all
+            # rollout_len checkpointed steps at once, and if the flag flipped in between,
+            # the recompute saves a different number of tensors than the original pass
+            rnn.set_env_step(step, aux_on=(
+                (aux_iter // rollout_len) % max(rnn.aux_every, 1) == 0
+            ))
+            aux_iter += 1
         obs = gen.next()
         obs = {k: to_torch(v, device=device) for k, v in obs.items()}
         rnn_state = rnn.reset_state(rnn_state, obs['reset_mask'])
@@ -426,6 +535,10 @@ def main(config):
 
             lr.step()
 
+            # after the optimizer step, never mid-forward: revival rewrites weights
+            if hasattr(rnn, 'apply_redo'):
+                rnn.apply_redo(optim)
+
             stat_dict = {
                 'Loss':   to_numpy(ce_loss,    copy=False),
                 'Acc':    to_numpy(acc.mean(), copy=False),
@@ -473,6 +586,8 @@ def main(config):
             has_col_state = hasattr(rnn, 'n_columns') and hasattr(rnn, 'hidden_size')
             if has_col_state and logger is not None and step % (batch_size * 100) == 0:
                 log_col_similarity(rnn, rnn_state, logger, step)
+                log_col_cka(rnn, rnn_state, logger, step)
+                log_routing(rnn, logger, step)
 
             rnn_state = rnn.detach_state(rnn_state)
             batch_y.clear(); batch_y_gt.clear(); batch_sq_gaps.clear()

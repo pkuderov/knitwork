@@ -254,6 +254,10 @@ def main(config):
     rnn_cfg  = config['models'][rnn_type]
     rnn = build_model(rnn_type, rnn_cfg, n_chars)
     rnn = rnn.to(device=device, dtype=dtype)
+    # aux schedules count env-steps (like n_steps), the model's tick counts forward
+    # calls -> without this every ramp/decay is n_envs times shorter than configured
+    if hasattr(rnn, 'aux_tick_scale'):
+        rnn.aux_tick_scale = gen.n_envs
     print(f'Model on {next(rnn.parameters()).device} | dtype {next(rnn.parameters()).dtype}')
 
     use_vae      = getattr(rnn, 'use_vae', False)
