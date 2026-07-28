@@ -53,3 +53,69 @@ class TokenModel(nn.Module):
     @property
     def has_attn(self):
         return getattr(self.rnn, 'has_attn', False)
+
+
+class RLTokenModel(nn.Module):
+    """Token-input recurrent actor-critic built around a core model."""
+
+    def __init__(
+            self, *,
+            input_size, output_size,
+            rnn: dict, rnn_fn,
+            dtype, device,
+    ):
+        super().__init__()
+        self.dtype = dtype
+        self.device = device
+        self.rnn = rnn_fn(dtype=dtype, device=device, **rnn)
+        self.hidden_size = self.rnn.hidden_size
+
+        self.embedding = nn.Embedding(input_size, self.hidden_size)
+        self.policy_head = nn.Linear(self.hidden_size, output_size)
+        self.value_head = nn.Linear(self.hidden_size, 1)
+
+        print(f'Param count: {count_learnable_params(self, as_str=True)}')
+
+    def forward(self, tokens, state, *, capture=False, **kwargs):
+        x = self.embedding(tokens).transpose(0, 1)
+        z, state, info = self.rnn(x, state, capture=capture, **kwargs)
+        return self.policy_head(z), self.value_head(z).squeeze(-1), state, info
+
+    def reset_state(self, state, reset_mask):
+        return self.rnn.reset_state(state, reset_mask)
+
+    def detach_state(self, state):
+        return self.rnn.detach_state(state)
+
+
+class RLVectorModel(nn.Module):
+    """Vector-input recurrent actor-critic built around a core model."""
+
+    def __init__(
+            self, *,
+            input_size, output_size,
+            rnn: dict, rnn_fn,
+            dtype, device,
+    ):
+        super().__init__()
+        self.dtype = dtype
+        self.device = device
+        self.rnn = rnn_fn(dtype=dtype, device=device, **rnn)
+        self.hidden_size = self.rnn.hidden_size
+
+        self.encoder = nn.Linear(input_size, self.hidden_size)
+        self.policy_head = nn.Linear(self.hidden_size, output_size)
+        self.value_head = nn.Linear(self.hidden_size, 1)
+
+        print(f'Param count: {count_learnable_params(self, as_str=True)}')
+
+    def forward(self, obs, state, *, capture=False, **kwargs):
+        x = self.encoder(obs.to(self.dtype)).unsqueeze(0)
+        z, state, info = self.rnn(x, state, capture=capture, **kwargs)
+        return self.policy_head(z), self.value_head(z).squeeze(-1), state, info
+
+    def reset_state(self, state, reset_mask):
+        return self.rnn.reset_state(state, reset_mask)
+
+    def detach_state(self, state):
+        return self.rnn.detach_state(state)
