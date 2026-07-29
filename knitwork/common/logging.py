@@ -179,7 +179,13 @@ def _make_comet_logger(config: dict) -> Logger:
     _stderr = sys.stderr
     experiment = comet_ml.Experiment(
         api_key=api_key,
-        project_name='knitwork',
+        # `project` selects the tag set (_project_tags) and is not the Comet project.
+        # comet_project picks the Comet project itself; default keeps old behavior.
+        project_name=(
+            cfg_log.get('comet_project')
+            or os.environ.get('COMET_PROJECT_NAME')
+            or 'knitwork'
+        ),
         workspace=workspace,
         log_code=False,
         log_git_metadata=False,

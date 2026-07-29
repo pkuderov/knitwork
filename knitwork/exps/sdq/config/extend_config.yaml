@@ -642,6 +642,185 @@ models:
     use_bias: true
     dropout: 0.0
 
+  # ================= FLAGSHIP: grnn_x =======================================
+  # Every mechanism that produced a positive signal in round 2, and nothing else.
+  # Measured at 388K over 57-61M steps at matched curriculum (ep_len 19.3-20.0),
+  # against a three-seed reference band of Acc++ 0.791-0.873:
+  #
+  #   IN  aux clock fixed (div+act finally run) - col_cka/frac_gt_06 went from
+  #       0.167-0.197 in round 1 to 0.00 in all 11 round-2 arms. Largest single effect.
+  #   IN  aux_route_weight 0.05 (route_lb) - the only arm that improved structure for
+  #       free: in_max_share 0.093 vs 0.228-0.279, in_eff_cols 11.97/12, CKA 0.07,
+  #       Acc++ 0.844 at the top of the band.
+  #   IN  timescale_spread 0 (ts_flat) - monotone on both sides: spread 2 gave the worst
+  #       Acc++ of all comparable arms (0.716), spread 0 the best distributedness.
+  #   IN  early aux schedule - Acc++ 0.831, in_eff 10.18 vs ~9.0. Consistent with the
+  #       column structure settling inside the first 1% of training.
+  #
+  #   OUT top_k        - 0.766, below the band, bought no distribution
+  #   OUT redo         - 0.776, routing unchanged (in_max 0.266): revived columns went
+  #                      unread
+  #   OUT concat head  - 0.790, mid-band, no effect
+  #   OUT bal_lb       - 0.793, dominated by route_lb on every axis
+  #   OUT noise        - the run was broken by a NaN std over -inf-masked logits (fixed
+  #                      in grnn_route.py, but unvalidated, so it stays out of the
+  #                      flagship)
+  #
+  # Scale and budget follow the knitwork-sdq reference grnn.L2C16_10.09M: L2, C16,
+  # n_envs 512, rollout_len 32, n_steps 1e9. hidden 244 -> 9.93M active parameters.
+  # The 1e9 budget is not optional: the curriculum raises T by 1/K = 0.1 per accepted
+  # tick and ticks about every 200K env-steps, so T: 10 -> 500 needs ~4900 accepted
+  # ticks. 388K models stalled near T=20.
+  #
+  # Aux schedule holds early then decays to 0.3 by 3e8: structural pressure measurably
+  # costs long-gap recall, and this run has to keep climbing the curriculum for 1e9
+  # steps, so capacity is handed back to the task once the structure is set.
+  grnn_x:
+    embedding_size: 64
+    hidden_size: 244
+    n_layers: 2
+    n_columns: 16
+    n_attn_heads: 4
+    beta_scale: 3.0
+    beta_floor: 0.2
+    timescale_spread: 0.0      # ts_flat
+    aux_div_weight: 0.05
+    aux_div_max_weight: 0.25
+    aux_div_ramp_steps: 1e+6   # early: pressure on before the structure sets
+    aux_hold_steps: 5e+6
+    aux_decay_steps: 3e+8
+    aux_final_frac: 0.3
+    aux_gate_weight: 0.1
+    aux_act_weight: 0.04
+    aux_sat_weight: 0.02
+    aux_head_weight: 0.05
+    aux_route_weight: 0.05     # route_lb
+    top_k: 0
+    noise_std: 0.0
+    aux_every: 8
+    gate_std_target: 0.15
+    sat_target: 0.8
+    optim: true
+    div_latent_dim: 64
+    aux_batch_frac: 0.5
+    use_bias: true
+    dropout: 0.0
+
+  # ---- 10M scale, curriculum target T=500 ----------------------------------
+  # The reference runs in the Comet project knitwork-sdq (grnn.L2C16_10.09M etc) reach
+  # gen/ep_lens ~500 and Acc++ ~0.94. Reaching that is mostly a budget question: the
+  # curriculum raises T by 1/K = 0.1 per accepted tick and ticks every ~200K env-steps,
+  # so T: 10 -> 500 needs ~4900 accepted ticks, i.e. of order 1e9 env-steps. Capacity
+  # decides what FRACTION of ticks are accepted; 388K models stalled near T=20.
+  # Matching the reference: L2, C16, n_envs 512, rollout_len 32, n_steps 1e9.
+  # hidden 244 -> 9.935M, the closest parity to the reference 10.09M.
+  # Aux schedule is stretched for the longer run but still ramps fast, since the column
+  # structure settles within the first ~1% of training.
+  grnn_big:
+    embedding_size: 64
+    hidden_size: 244
+    n_layers: 2
+    n_columns: 16
+    n_attn_heads: 4
+    beta_scale: 3.0
+    beta_floor: 0.2
+    timescale_spread: 1.0
+    aux_div_weight: 0.05
+    aux_div_max_weight: 0.25
+    aux_div_ramp_steps: 5e+6
+    aux_hold_steps: 4e+8
+    aux_decay_steps: 3e+8
+    aux_final_frac: 0.3
+    aux_gate_weight: 0.1
+    aux_act_weight: 0.04
+    aux_sat_weight: 0.02
+    aux_head_weight: 0.05
+    aux_every: 8
+    gate_std_target: 0.15
+    sat_target: 0.8
+    optim: true
+    div_latent_dim: 64
+    aux_batch_frac: 0.5
+    use_bias: true
+    dropout: 0.0
+
+  # ---- 10M scale, curriculum target T=500 ----------------------------------
+  # The reference runs in the Comet project knitwork-sdq (grnn.L2C16_10.09M etc) reach
+  # gen/ep_lens ~500 and Acc++ ~0.94. Reaching that is mostly a budget question: the
+  # curriculum raises T by 1/K = 0.1 per accepted tick and ticks every ~200K env-steps,
+  # so T: 10 -> 500 needs ~4900 accepted ticks, i.e. of order 1e9 env-steps. Capacity
+  # decides what FRACTION of ticks are accepted; 388K models stalled near T=20.
+  # Matching the reference: L2, C16, n_envs 512, rollout_len 32, n_steps 1e9.
+  # hidden 244 -> 9.935M, the closest parity to the reference 10.09M.
+  # Aux schedule is stretched for the longer run but still ramps fast, since the column
+  # structure settles within the first ~1% of training.
+  grnn_big_lb:
+    embedding_size: 64
+    hidden_size: 244
+    n_layers: 2
+    n_columns: 16
+    n_attn_heads: 4
+    beta_scale: 3.0
+    beta_floor: 0.2
+    timescale_spread: 1.0
+    aux_div_weight: 0.05
+    aux_div_max_weight: 0.25
+    aux_div_ramp_steps: 5e+6
+    aux_hold_steps: 4e+8
+    aux_decay_steps: 3e+8
+    aux_final_frac: 0.3
+    aux_gate_weight: 0.1
+    aux_act_weight: 0.04
+    aux_sat_weight: 0.02
+    aux_head_weight: 0.0
+    aux_lb_weight: 0.05
+    aux_every: 8
+    gate_std_target: 0.15
+    sat_target: 0.8
+    optim: true
+    div_latent_dim: 64
+    aux_batch_frac: 0.5
+    use_bias: true
+    dropout: 0.0
+
+  # ---- 10M scale, curriculum target T=500 ----------------------------------
+  # The reference runs in the Comet project knitwork-sdq (grnn.L2C16_10.09M etc) reach
+  # gen/ep_lens ~500 and Acc++ ~0.94. Reaching that is mostly a budget question: the
+  # curriculum raises T by 1/K = 0.1 per accepted tick and ticks every ~200K env-steps,
+  # so T: 10 -> 500 needs ~4900 accepted ticks, i.e. of order 1e9 env-steps. Capacity
+  # decides what FRACTION of ticks are accepted; 388K models stalled near T=20.
+  # Matching the reference: L2, C16, n_envs 512, rollout_len 32, n_steps 1e9.
+  # hidden 244 -> 9.935M, the closest parity to the reference 10.09M.
+  # Aux schedule is stretched for the longer run but still ramps fast, since the column
+  # structure settles within the first ~1% of training.
+  grnn_big_noaux:
+    embedding_size: 64
+    hidden_size: 244
+    n_layers: 2
+    n_columns: 16
+    n_attn_heads: 4
+    beta_scale: 3.0
+    beta_floor: 0.2
+    timescale_spread: 1.0
+    aux_div_weight: 0.0
+    aux_div_max_weight: 0.0
+    aux_div_ramp_steps: 5e+6
+    aux_hold_steps: 4e+8
+    aux_decay_steps: 3e+8
+    aux_final_frac: 0.3
+    aux_gate_weight: 0.1
+    aux_act_weight: 0.0
+    aux_sat_weight: 0.02
+    aux_head_weight: 0.05
+    aux_every: 8
+    gate_std_target: 0.15
+    sat_target: 0.8
+    optim: true
+    div_latent_dim: 64
+    aux_batch_frac: 0.5
+    use_bias: true
+    dropout: 0.0
+
   # E1. Same terms as REG2, whole schedule compressed into the first 2M steps.
   # col_cka shows the column structure is settled by ~0.6M and flat for the next 60M,
   # so REG2's 1e7 ramp reaches full weight roughly 20x too late to shape anything.

@@ -22,8 +22,18 @@ class RoutedAttention(PerColumnAttention):
         # gradient actively pushes that way. A relative perturbation is scale-invariant,
         # so there is no escape by rescaling. std is detached: it is a measuring stick.
         if self.training and self.noise_std > 0:
-            scale = logits.detach().std().clamp_min(1e-6)
-            logits = logits + self.noise_std * scale * torch.randn_like(logits)
+            # std must come from the FINITE entries only. The diagonal is already masked
+            # to -inf by the caller, so a plain .std() over the whole tensor is NaN, which
+            # propagates through softmax and leaves an all-zero attention matrix after
+            # nan_to_num. That is exactly what killed the first grnn_route_noise run:
+            # route/in_max_share 0.000, route/in_eff_cols 1.00, accuracy at chance.
+            fin = logits.detach()
+            fin = fin[torch.isfinite(fin)]
+            scale = (fin.std() if fin.numel() > 1 else torch.ones((), device=logits.device))
+            scale = torch.nan_to_num(scale, nan=1.0).clamp_min(1e-6)
+            noise = self.noise_std * scale * torch.randn_like(logits)
+            # never perturb a masked entry back into range
+            logits = torch.where(torch.isfinite(logits), logits + noise, logits)
         # hard capacity: a query column may read at most top_k others. A cap cannot be
         # traded off against the task loss the way a penalty can -- five arms of soft
         # penalties were all partly gamed.
