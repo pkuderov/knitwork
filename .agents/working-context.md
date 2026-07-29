@@ -95,9 +95,14 @@ Use these conventions unless the user explicitly revises them:
   and without silently treating unfinished runs as completed seeds. The final
   paper presentation will be chosen later.
 - SDQ uses an online generator, so a separate held-out validation dataset or
-  validation metric is not required. Prefer learning curves and a
-  fixed-horizon or final-window statistic over an unlabeled peak training
-  accuracy.
+  validation metric is not required. Do **not** report peak `Acc++` as the
+  primary aggregate. For each completed replicate, average its final **five
+  logged `Acc++` values** at the applicable reporting horizon (normally the 1B
+  protocol, including the near-1B logging-loss convention); then compute the
+  mean and standard deviation of those per-replicate averages. Keep unfinished
+  runs out of the paper-result aggregate unless they are explicitly labeled as
+  interim. Show learning curves alongside this final-window statistic where
+  useful.
 
 Knitwork is a living research project on modular recurrent sequence models. Its main architectural direction is a grid of recurrent columns that keep local state and exchange information through learned attention-based routing. The current main framing is **MoSAIC** (Modular Self-Attentive Interacting Columns for Recurrent Memory).
 

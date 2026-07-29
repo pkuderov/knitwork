@@ -139,12 +139,46 @@ def fixed_horizon_result(group):
 
 
 def best_checkpoint_result(group):
-    values = [
-        metric(run["summary"], "val/BPC", "valueMin")
-        for run in group["runs"]
-    ]
+    values = []
+    for run in group["runs"]:
+        points = [
+            value for step, value in curve(run, "val/BPC")
+            if step <= TEXT_STEP_LIMIT
+        ]
+        values.append(min(points))
     mean, std = mean_std(values)
     return {"mean": mean, "std": std}
+
+
+def main_sdq_groups(groups):
+    result = []
+    for group in groups:
+        runs = [
+            run for run in group["runs"]
+            if run["state"] == "finished" and run["group_model"] in {"rnn", "grnn"}
+        ]
+        if runs:
+            result.append({"name": group["name"], "runs": runs})
+    return result
+
+
+def sdq_final_window_result(group):
+    per_run = []
+    endpoints = []
+    for run in group["runs"]:
+        points = [
+            (step, value) for step, value in curve(run, "Acc++")
+            if step <= TEXT_STEP_LIMIT
+        ]
+        final_window = points[-5:]
+        per_run.append(np.mean([value for _, value in final_window]))
+        endpoints.append(final_window[-1][0])
+    mean, std = mean_std(per_run)
+    return {
+        "mean": mean,
+        "std": std,
+        "min_endpoint": min(endpoints),
+    }
 
 
 def reduced_text_groups(groups):
@@ -294,10 +328,10 @@ def write_report(path, text_groups, sdq_groups):
         "",
         "RNN and GRNN/MoSAIC only. Each run is truncated at 1B tokens; runs with a final logged validation point slightly below 1B are retained under the logging-loss convention. Unfinished runs and reduced-budget baselines are excluded.",
         "",
-        "| Model config | Completed replicates | Common logged horizon | Val BPC ↓ | Comet IDs |",
-        "| --- | ---: | ---: | ---: | --- |",
+        "| Model config | Completed replicates | Protocol | Final logged point | Val BPC ↓ | Comet IDs |",
+        "| --- | ---: | --- | ---: | ---: | --- |",
         *(
-            "| {name} | {seeds} | {horizon} | {bpc} | {ids} |".format(
+            "| {name} | {seeds} | 1B tokens | {horizon} | {bpc} | {ids} |".format(
                 name=group["name"],
                 seeds=len(group["runs"]),
                 horizon=format_step(fixed_horizon_result(group)["x"][-1]),
@@ -312,7 +346,7 @@ def write_report(path, text_groups, sdq_groups):
         "",
         "## Text8: completed-seed best validation checkpoints",
         "",
-        "This is a separate checkpoint-selection view, not a fixed-horizon comparison. It includes only completed RNN and GRNN/MoSAIC runs; best checkpoints may occur before or after 1B tokens.",
+        "This is a separate checkpoint-selection view, not a fixed-horizon comparison. It includes only completed RNN and GRNN/MoSAIC runs, and searches each validation curve only through the 1B-token protocol horizon.",
         "",
         "| Model config | Completed replicates | Best val BPC ↓ | Comet IDs |",
         "| --- | ---: | ---: | --- |",
@@ -351,30 +385,30 @@ def write_report(path, text_groups, sdq_groups):
             for group in reduced_text_groups(text_groups)
         ),
         "",
-        "## Store--Distract--Query (`knitwork-sdq`)",
+        "## Store--Distract--Query: completed-replicate final-window results",
         "",
-        "`Acc++` is the logged online-generator evaluation metric. Curves aggregate runs with the same `model` and `model_cfg`; the table uses the peak of the group mean curve.",
+        "`Acc++` is the logged online-generator evaluation metric. For each completed standard-protocol replicate, the statistic is the mean of its final five logged `Acc++` values through the 1B-token protocol horizon; the table then reports mean ± standard deviation across replicates. Unfinished and reduced-budget runs are excluded.",
         "",
-        "| Model config | Seeds | Shared horizon | Peak mean Acc++ ↑ | Seed IDs |",
-        "| --- | ---: | ---: | ---: | --- |",
+        "| Model config | Completed replicates | Protocol | Final logged point | Final-five Acc++ ↑ | Comet IDs |",
+        "| --- | ---: | --- | ---: | ---: | --- |",
         *(
-            "| {name} | {seeds} | {horizon} | {acc} | {ids} |".format(
+            "| {name} | {seeds} | 1B tokens | {horizon} | {acc} | {ids} |".format(
                 name=group["name"],
                 seeds=len(group["runs"]),
-                horizon=format_step(group["curve"]["x"][-1]),
+                horizon=format_step(sdq_final_window_result(group)["min_endpoint"]),
                 acc=format_mean_std(
-                    group["curve"]["mean"].max(),
-                    group["curve"]["std"][group["curve"]["mean"].argmax()],
+                    sdq_final_window_result(group)["mean"],
+                    sdq_final_window_result(group)["std"],
                 ),
                 ids=", ".join(f"`{run['id'][:8]}`" for run in group["runs"]),
             )
-            for group in sdq_groups
+            for group in main_sdq_groups(sdq_groups)
         ),
         "",
         "## Exploratory reading",
         "",
         "- The three non-RNN baselines (DeltaNet, HGRN2, and mLSTM) use reduced `n_envs` and `n_steps` because of their memory requirements. The update-indexed text8 panel is the appropriate relative-efficiency view for those baselines.",
-        "- SDQ completion ranges from 140M to 1B steps. Its online generator supplies the reported evaluation metrics, so no separate validation split is expected.",
+        "- SDQ's online generator supplies the reported evaluation metrics, so no separate validation split is expected. Its aggregate uses completed standard-protocol runs only.",
         "",
         "The companion figure is `figures/aaai_comet_snapshot.png`.",
         "",
