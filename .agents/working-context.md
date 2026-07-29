@@ -107,6 +107,20 @@ replicates are planned for the long-running nonstandard baselines. Do not start
 additional seed-filling work merely to satisfy the snapshot's operational
 three-replicate ranking if it competes with RL or paper completion.
 
+The selected Mikasa core matrix is:
+
+- Environments: `RepeatFirstEasy`, `HigherLowerMedium`, and, if time permits,
+  `RepeatFirstMedium`.
+- Models: parameter-matched `rnn.L2` and `grnn.L2C4`.
+- Replication: at least two replicates per model/environment cell; three are
+  preferred if compute permits.
+- Expected runtime is about 30 minutes per run for `RepeatFirstEasy` and
+  `HigherLowerMedium`, and about 45--50 minutes for `RepeatFirstMedium`.
+
+HGRN2 is optional because it requires batch-size/protocol adjustment. Complete
+and preferably obtain third replicates for the matched RNN/GRNN core comparison
+before spending deadline-critical effort on a one-replicate HGRN2 extension.
+
 ### Default result-reporting conventions
 
 Use these conventions unless the user explicitly revises them:
