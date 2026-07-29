@@ -5,14 +5,15 @@ from functools import partial
 
 import numpy as np
 import torch
-import torch.nn.functional as F
-from torch.distributions import Categorical
+import gymnasium as gym
+from gymnasium import spaces
+from gymnasium.vector import AsyncVectorEnv, SyncVectorEnv
 
 from knitwork.common.entrypoint import run_experiment
 from knitwork.common.logging_alt import start_logger
 from knitwork.common.numpy import get_seed
 from knitwork.common.scheduler import create_scheduler
-from knitwork.common.torch import DynamicLearningRate, to_loggable_metrics, to_numpy, to_torch
+from knitwork.common.torch import DynamicLearningRate, to_loggable_metrics
 from knitwork.common.utils import (
     count_learnable_params,
     dont_throw,
@@ -20,8 +21,11 @@ from knitwork.common.utils import (
     get_device,
     get_dtype,
 )
-from knitwork.env.mikasa_wrapper import MikasakWrapper
 from knitwork.models.utils import build_model
+from knitwork.rl.on_policy import EpisodeStats, flatten_obs, sample_batch, train_batch
+
+# Side-effect import: registers all POPGym environment IDs.
+import popgym  # noqa: F401
 
 
 GAMMA = 0.99
@@ -30,18 +34,6 @@ CLIP_EPS = 0.2
 VALUE_COEF = 0.5
 MAX_GRAD_NORM = 0.5
 PPO_EPOCHS = 4
-
-
-def compute_gae(rewards, values, dones, terminated):
-    advs = torch.zeros_like(rewards)
-    gae = torch.zeros(rewards.shape[1], device=rewards.device)
-    for t in reversed(range(rewards.shape[0])):
-        continue_mask = 1.0 - dones[t]
-        bootstrap_mask = 1.0 - terminated[t]
-        delta = rewards[t] + GAMMA * values[t + 1] * bootstrap_mask - values[t]
-        gae = delta + GAMMA * GAE_LAMBDA * continue_mask * gae
-        advs[t] = gae
-    return advs, advs + values[:-1]
 
 
 def main(config):
@@ -56,27 +48,39 @@ def main(config):
     device = get_device(config.get('device'))
     dtype = get_dtype(config.get('dtype'))
     n_envs = config['n_envs']
-    env = MikasakWrapper(
-        env_id=env_id,
-        n_envs=n_envs,
-        seed=get_seed(rng),
-        async_envs=config.get('async_envs', False),
+    VecCls = AsyncVectorEnv if config.get('async_envs', False) else SyncVectorEnv
+    env = VecCls(
+        [lambda: gym.make(env_id) for _ in range(n_envs)],
     )
+
+    obs_space = env.single_observation_space
+    act_space = env.single_action_space
+    is_discrete = isinstance(obs_space, spaces.Discrete)
+    n_tokens = int(obs_space.n) if is_discrete else 0
+    if not isinstance(act_space, spaces.Discrete):
+        raise ValueError(f'Only Discrete action spaces supported; got {act_space}')
+    n_actions = int(act_space.n)
+
+    obs, _ = env.reset(seed=get_seed(rng))
+    obs = flatten_obs(obs, obs_space)
+    obs_dim = obs.shape[1]
+    previous_episode_end = np.zeros(n_envs, dtype=bool)
+    episode_end_before_previous = np.zeros(n_envs, dtype=bool)
+    episode_stats = EpisodeStats(n_envs)
     print(
-        f'Env: {env_id} | obs_type={env.obs_type} | obs_dim={env.obs_dim}'
-        f' | n_tokens={env.n_tokens} | n_actions={env.n_actions}'
+        f'Env: {env_id} | obs_type={"discrete" if is_discrete else "continuous"}'
+        f' | obs_dim={obs_dim} | n_tokens={n_tokens} | n_actions={n_actions}'
     )
 
     config['model_cfg'] = config['model'].replace('.', '_')
     config['model'] = config['model'].split('.', 1)[0]
-    is_discrete = env.obs_type == 'discrete'
     wrapper_type = 'rl_token' if is_discrete else 'rl_vector'
-    input_size = env.n_tokens if is_discrete else env.obs_dim
+    input_size = n_tokens if is_discrete else obs_dim
     model = build_model(
         wrapper_type=wrapper_type,
         wrapper_cfg=dict(
             input_size=input_size,
-            output_size=env.n_actions,
+            output_size=n_actions,
             dtype=dtype,
             device=device,
         ),
@@ -136,126 +140,71 @@ def main(config):
         ],
     )
 
-    obs_shape = (rollout_len, n_envs, 1) if is_discrete else (rollout_len, n_envs, env.obs_dim)
-    obs_dtype = torch.int64 if is_discrete else dtype
-    obs_buf = torch.zeros(obs_shape, dtype=obs_dtype, device=device)
-    act_buf = torch.zeros(rollout_len, n_envs, dtype=torch.int64, device=device)
-    lp_buf = torch.zeros(rollout_len, n_envs, dtype=dtype, device=device)
-    rew_buf = torch.zeros(rollout_len, n_envs, dtype=dtype, device=device)
-    done_buf = torch.zeros(rollout_len, n_envs, dtype=dtype, device=device)
-    term_buf = torch.zeros(rollout_len, n_envs, dtype=dtype, device=device)
-    reset_buf = torch.zeros(rollout_len, n_envs, dtype=torch.bool, device=device)
-    val_buf = torch.zeros(rollout_len, n_envs, dtype=dtype, device=device)
-
     step = 0
     state = None
     try:
         while step < n_steps:
-            state_init = state
             inspect_due = False
+            def capture_fn():
+                nonlocal inspect_due
+                inspect_due |= inspect_scheduler.tick(n_envs)
+                return vis_scheduler.tick(n_envs)
 
-            with torch.no_grad():
-                for t in range(rollout_len):
-                    raw = env.observe()
-                    reset_mask = to_torch(raw['reset_mask'], device=device)
-                    obs = to_torch(raw['obs'], device=device)
-                    obs = obs.view(-1, 1) if is_discrete else obs.to(dtype)
+            def on_sample_step(sampled_state, info, capture):
+                if not capture or not has_grid:
+                    return
+                cka_vis.update(sampled_state['h'])
+                if 'attn_weights' in info:
+                    attn_vis.update(info['attn_weights'])
 
-                    state = model.reset_state(state, reset_mask)
-                    capture_vis = vis_scheduler.tick(n_envs)
-                    inspect_due |= inspect_scheduler.tick(n_envs)
-                    logits, value, state, info = model(obs, state, capture=capture_vis)
-
-                    if capture_vis and has_grid:
-                        cka_vis.update(state['h'])
-                        if 'attn_weights' in info:
-                            attn_vis.update(info['attn_weights'])
-
-                    dist = Categorical(logits=logits)
-                    actions = dist.sample()
-                    rewards_np, dones_np, terminated_np = env.step(to_numpy(actions))
-
-                    obs_buf[t] = obs
-                    act_buf[t] = actions
-                    lp_buf[t] = dist.log_prob(actions)
-                    rew_buf[t] = to_torch(rewards_np, device=device).to(dtype)
-                    done_buf[t] = to_torch(dones_np, device=device).to(dtype)
-                    term_buf[t] = to_torch(terminated_np, device=device).to(dtype)
-                    reset_buf[t] = reset_mask
-                    val_buf[t] = value
-                    step += n_envs
-
-                raw = env.observe()
-                reset_mask = to_torch(raw['reset_mask'], device=device)
-                obs = to_torch(raw['obs'], device=device)
-                obs = obs.view(-1, 1) if is_discrete else obs.to(dtype)
-                bootstrap_state = model.reset_state(state, reset_mask)
-                _, value_last, _, _ = model(obs, bootstrap_state, capture=False)
-
-            values = torch.cat([val_buf, value_last.unsqueeze(0)], dim=0)
-            advs, returns = compute_gae(rew_buf, values, done_buf, term_buf)
-            advs = (advs - advs.mean()) / (advs.std() + 1e-8)
-
-            policy_loss = value_loss = entropy_mean = 0.0
-            comm_loss_mean = comm_entropy_mean = 0.0
-            n_updates = 0
-            for _ in range(PPO_EPOCHS):
-                replay_state = state_init
-                for t in range(rollout_len):
-                    replay_state = model.reset_state(replay_state, reset_buf[t])
-                    logits, value, replay_state, info = model(
-                        obs_buf[t],
-                        replay_state,
-                        capture=False,
-                    )
-                    dist = Categorical(logits=logits)
-                    entropy = dist.entropy().mean()
-                    ratio = (dist.log_prob(act_buf[t]) - lp_buf[t]).exp()
-                    policy = -torch.min(
-                        ratio * advs[t],
-                        ratio.clamp(1 - CLIP_EPS, 1 + CLIP_EPS) * advs[t],
-                    ).mean()
-                    value_error = F.mse_loss(value, returns[t])
-                    loss = policy + VALUE_COEF * value_error - entropy_coef * entropy
-
-                    if 'comm_loss' in info:
-                        comm_loss = torch.stack(info['comm_loss']).mean()
-                        comm_entropy = torch.stack(info['comm_entropy']).mean()
-                        loss = loss + comm_loss_weight * comm_loss - comm_entropy_weight * comm_entropy
-                        comm_loss_mean += comm_loss.detach().item()
-                        comm_entropy_mean += comm_entropy.detach().item()
-
-                    optim.zero_grad()
-                    loss.backward()
-                    grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), MAX_GRAD_NORM)
-                    if torch.isfinite(grad_norm):
-                        optim.step()
-                    else:
-                        print('Nan/Inf grad — step skipped')
-
-                    policy_loss += policy.detach().item()
-                    value_loss += value_error.detach().item()
-                    entropy_mean += entropy.detach().item()
-                    n_updates += 1
-                    replay_state = model.detach_state(replay_state)
+            batch, state, obs, previous_episode_end, episode_end_before_previous = sample_batch(
+                env,
+                model,
+                state,
+                obs,
+                previous_episode_end,
+                episode_end_before_previous,
+                obs_space=obs_space,
+                rollout_len=rollout_len,
+                dtype=dtype,
+                is_discrete=is_discrete,
+                capture_fn=capture_fn,
+                on_step=on_sample_step,
+            )
+            train_metrics = train_batch(
+                model,
+                batch,
+                optim,
+                ppo_epochs=PPO_EPOCHS,
+                clip_eps=CLIP_EPS,
+                value_coef=VALUE_COEF,
+                entropy_coef=entropy_coef,
+                max_grad_norm=MAX_GRAD_NORM,
+                gamma=GAMMA,
+                gae_lambda=GAE_LAMBDA,
+                comm_loss_weight=comm_loss_weight,
+                comm_entropy_weight=comm_entropy_weight,
+            )
+            step += n_envs * rollout_len
+            episode_stats.update(batch)
 
             state = model.detach_state(state)
             lr.step()
 
             metrics = {
-                'PolicyLoss': policy_loss / n_updates,
-                'ValueLoss': value_loss / n_updates,
-                'Entropy': entropy_mean / n_updates,
-                'MeanReward': rew_buf.mean(),
-                '|Grad|': grad_norm,
+                'PolicyLoss': train_metrics['policy_loss'],
+                'ValueLoss': train_metrics['value_loss'],
+                'Entropy': train_metrics['entropy'],
+                'MeanReward': train_metrics['mean_reward'],
+                '|Grad|': train_metrics['grad_norm'],
                 'LR': lr.val,
-                'Upd': n_updates,
+                'Upd': train_metrics['n_optimizer_steps'],
             }
-            if comm_loss_mean:
-                metrics['L_comm'] = comm_loss_mean / n_updates
-                metrics['H_comm'] = comm_entropy_mean / n_updates
+            if train_metrics['comm_loss']:
+                metrics['L_comm'] = train_metrics['comm_loss']
+                metrics['H_comm'] = train_metrics['comm_entropy']
             logger.accumulate(to_loggable_metrics(metrics), key='slow')
-            logger.accumulate(env.get_stats(), prefix='env', key='fast')
+            logger.accumulate(episode_stats.get(), prefix='env', key='fast')
 
             if has_grid and inspect_due:
                 log_col_similarity(rnn, state, logger)
