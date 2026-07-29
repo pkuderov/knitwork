@@ -21,6 +21,7 @@ PROJECT_LABELS = {
     "knitwork-sdq": "SDQ",
 }
 TEXT_STEP_LIMIT = 1e9
+NEAR_HORIZON_FRACTION = 0.95
 REDUCED_BUDGET_BASELINES = {
     "delta_net_10.10M",
     "hgrn2_10.13M",
@@ -123,11 +124,17 @@ def main_text_groups(groups):
     for group in groups:
         runs = [
             run for run in group["runs"]
-            if run["state"] == "finished" and run["group_model"] in {"rnn", "grnn"}
+            if is_completed_protocol_run(run)
+            and run["group_model"] in {"rnn", "grnn", "transformer"}
         ]
         if runs:
             result.append({"name": group["name"], "runs": runs})
     return result
+
+
+def is_completed_protocol_run(run):
+    final_step = metric(run["summary"], "global_step", "valueCurrent")
+    return run["state"] == "finished" and final_step >= NEAR_HORIZON_FRACTION * TEXT_STEP_LIMIT
 
 
 def fixed_horizon_result(group):
@@ -399,7 +406,7 @@ def write_report(path, text_groups, sdq_groups):
         "",
         "## Text8: completed-seed results at the comparable horizon",
         "",
-        "RNN and GRNN/MoSAIC only. Each run is truncated at 1B tokens; runs with a final logged validation point slightly below 1B are retained under the logging-loss convention. Unfinished runs and reduced-budget baselines are excluded.",
+        "RNN, GRNN/MoSAIC, and Transformer only. Each run is truncated at 1B tokens; runs with a final logged validation point slightly below 1B are retained under the logging-loss convention. Runs ending before 950M tokens, unfinished runs, and reduced-budget baselines are excluded.",
         "",
         "| Model config | Completed replicates | Protocol | Final logged point | Val BPC ↓ | Comet IDs |",
         "| --- | ---: | --- | ---: | ---: | --- |",
@@ -419,7 +426,7 @@ def write_report(path, text_groups, sdq_groups):
         "",
         "## Text8: completed-seed best validation checkpoints",
         "",
-        "This is a separate checkpoint-selection view, not a fixed-horizon comparison. It includes only completed RNN and GRNN/MoSAIC runs, and searches each validation curve only through the 1B-token protocol horizon.",
+        "This is a separate checkpoint-selection view, not a fixed-horizon comparison. It includes only completed RNN, GRNN/MoSAIC, and Transformer runs meeting the 1B-protocol completion rule, and searches each validation curve only through the 1B-token protocol horizon.",
         "",
         "| Model config | Completed replicates | Best val BPC ↓ | Comet IDs |",
         "| --- | ---: | ---: | --- |",
