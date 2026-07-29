@@ -16,10 +16,16 @@ Last refreshed: 2026-07-29, with about **3 hours remaining**.
 - Editable authority: `article/typst/paper_en.typ`.
 - Read `article/AGENTS.md` before paper work and preserve anonymity and
   submission formatting.
-- The manuscript has not yet been brought into submission shape. No main-text
-  revision or submission/compliance work is complete.
-- A new GRNN visualization scheme has been prepared; its final paper use and
-  caption still need to be decided.
+- A coherent first manuscript iteration now exists and compiles to
+  `article/typst/paper_en.pdf`: five rendered pages including references under
+  the temporary custom Typst layout. The central argument is conservative and
+  aligned with the positioning brief; Mikasa is correctly omitted for now.
+- The paper is not yet submission-ready. The source manually approximates AAAI
+  formatting rather than using the official AAAI-27 author kit, and pagination
+  may change during template migration.
+- `fig_architecture.pdf` is included as a mechanism diagram, but it is currently
+  placed at single-column width and its detailed router labels are too small.
+  Make it span both columns or simplify/crop it.
 - The dirty draft may contain reusable material, especially related work, but
   every claim and citation must be checked. Do not inherit obsolete
   Grid-RNN/Harmonic-GRNN framing or quantitative claims.
@@ -150,6 +156,22 @@ citations before writing them.
 
 Experiments continue asynchronously. Review them only at bounded checkpoints;
 do not wait for them before writing.
+
+### First-iteration review priorities
+
+1. Migrate/check against the official AAAI-27 author kit; font replacement
+   alone is not a complete compliance check.
+2. Make the architecture mechanism figure legible at final rendered size.
+3. Specify the implemented communication loss, normalized entropy term,
+   task-specific coefficients, and routing-noise values sufficiently for
+   reproduction. The current generic objective hides meaningful training
+   details.
+4. Add a clean paper-specific learning-curve figure if time permits. Do not
+   insert `aaai_comet_snapshot.png` unchanged because it contains interim runs
+   and operational legends inconsistent with the paper aggregation rules.
+5. Add the Text8 data citation and a compact Transformer architecture
+   description; change the SDQ wording from “inputs comprise” to “the
+   vocabulary comprises” when listing token types.
 
 ## Evidence source
 

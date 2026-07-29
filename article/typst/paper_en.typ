@@ -1,10 +1,12 @@
-// MoSAIC — AAAI 2027 Submission
-// Compile: typst compile paper.typ
+// MoSAIC — Anonymous AAAI-27 submission
+// Compile from this directory with:
+//   typst compile paper_en.typ paper_en.pdf
 //
-// All layout definitions copied verbatim from aaai2026.typ (do not modify that file).
+// The layout follows the repository's AAAI Typst approximation. Keep the
+// editable authority in this file and preserve anonymous-submission metadata.
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PAGE
+// PAGE AND TYPOGRAPHY
 // ─────────────────────────────────────────────────────────────────────────────
 
 #set page(
@@ -15,22 +17,10 @@
   footer: none,
 )
 
-// ─────────────────────────────────────────────────────────────────────────────
-// TYPOGRAPHY
-// ─────────────────────────────────────────────────────────────────────────────
-
-#set text(font: "Linux Libertine O", size: 10pt, lang: "en")
-// AAAI spec: 10pt font, 12pt leading (= 2pt gap between bounding boxes).
-// For draft readability we use 0.5em ≈ 5pt gap (≈ 15pt baseline-to-baseline).
-// Revert to leading: 2pt for final camera-ready submission.
-#set par(leading: 0.5em, spacing: 0.9em, justify: true, first-line-indent: 10pt)
-
-// ─────────────────────────────────────────────────────────────────────────────
-// HEADINGS
-// ─────────────────────────────────────────────────────────────────────────────
+#set text(font: "Times New Roman", size: 10pt, lang: "en")
+#set par(leading: 2pt, justify: true, first-line-indent: 10pt)
 
 #set heading(numbering: none)
-
 #show heading.where(level: 1): it => block(above: 1em, below: 0.5em)[
   #set text(size: 10pt, weight: "bold")
   #it.body
@@ -45,31 +35,16 @@
 ]
 
 #let par-heading(title) = strong[#title.#h(0.5em)]
-
-// ─────────────────────────────────────────────────────────────────────────────
-// LISTS
-// ─────────────────────────────────────────────────────────────────────────────
-
 #set list(indent: 1em, body-indent: 0.5em)
 #set enum(indent: 1em, body-indent: 0.5em)
 
-// ─────────────────────────────────────────────────────────────────────────────
-// FIGURES / CAPTIONS
-// ─────────────────────────────────────────────────────────────────────────────
-
 #show figure.caption: set text(size: 10pt)
-
 #let wide-figure(caption: [], body) = figure(
   body,
   caption: caption,
   placement: top,
   scope: "parent",
 )
-
-// ─────────────────────────────────────────────────────────────────────────────
-// TABLES
-// ─────────────────────────────────────────────────────────────────────────────
-
 #let wide-table(caption: [], body) = figure(
   body,
   caption: caption,
@@ -77,45 +52,6 @@
   scope: "parent",
   kind: table,
 )
-
-// ─────────────────────────────────────────────────────────────────────────────
-// ALGORITHMS
-// ─────────────────────────────────────────────────────────────────────────────
-
-#show figure.where(kind: "algorithm"): it => block(width: 100%, breakable: false)[
-  #set align(left)
-  #line(length: 100%, stroke: 0.5pt)
-  #pad(x: 0.5em, y: 0.3em)[
-    *#it.supplement #context it.counter.display(it.numbering):*
-    #if it.caption != none { it.caption.body }
-  ]
-  #line(length: 100%, stroke: 0.5pt)
-  #pad(x: 1.5em, y: 0.4em)[
-    #set par(first-line-indent: 0pt, spacing: 0.3em)
-    #set text(size: 10pt)
-    #it.body
-  ]
-  #line(length: 100%, stroke: 0.5pt)
-]
-
-#let algo-state(body)  = block(spacing: 0.2em)[#body]
-#let algo-require(body) = algo-state[*Input:* #body]
-#let algo-ensure(body)  = algo-state[*Output:* #body]
-#let algo-return(body)  = algo-state[*return* #body]
-#let algo-comment(body) = text(style: "italic")[\// #body]
-
-// ─────────────────────────────────────────────────────────────────────────────
-// QUOTE / EXTRACT
-// ─────────────────────────────────────────────────────────────────────────────
-
-#let extract(body) = pad(x: 10pt)[
-  #set par(first-line-indent: 0pt)
-  #body
-]
-
-// ─────────────────────────────────────────────────────────────────────────────
-// TITLE / ABSTRACT BLOCKS
-// ─────────────────────────────────────────────────────────────────────────────
 
 #let aaai-title(title: [], authors: [], affiliations: []) = {
   v(0.5in)
@@ -135,9 +71,9 @@
   #body
 ]
 
-// ═════════════════════════════════════════════════════════════════════════════
-// PAPER CONTENT
-// ═════════════════════════════════════════════════════════════════════════════
+// ─────────────────────────────────────────────────────────────────────────────
+// PAPER
+// ─────────────────────────────────────────────────────────────────────────────
 
 #aaai-title(
   title: [MoSAIC: Modular Self-Attentive Interacting Columns \ for Recurrent Memory],
@@ -146,382 +82,277 @@
 )
 
 #aaai-abstract[
-Recurrent sequence models compress history into a fixed-size state. Increasing their width adds capacity, but leaves the organization and exchange of information within that state implicit. We introduce MoSAIC (Modular Self-Attentive Interacting Columns), a recurrent architecture that distributes a parameter budget across a grid of independently parameterized GRU columns. At every timestep, the columns use learned attention to read from a small message bank. The first layer reads both the current input and the previous top-layer column states, while each subsequent layer reads the newly updated states below it. Attention therefore determines what each column receives before its recurrent update, and the complete top layer is carried forward as a compact recurrent communication workspace.
-
-We study whether this explicit modular routing improves sequence modeling under matched parameter budgets. At approximately 10M parameters on text8, MoSAIC-L2C4 reaches $1.437 plus.minus 0.003$ held-out BPC, compared with $1.484 plus.minus 0.008$ for the strongest stacked-GRU baseline, a 3.2% relative reduction. Every evaluated MoSAIC grid shape outperforms every matched GRU, while the widest grid is not the strongest despite retaining more than twice as many recurrent-state coordinates as L2C4. MoSAIC also reaches lower BPC in fewer optimizer updates than the evaluated HGRN2, mLSTM, and DeltaNet implementations.
+Recurrent models preserve a fixed-size state, but conventionally organize that state as one monolithic stream per layer. We introduce MoSAIC (Modular Self-Attentive Interacting Columns), which factorizes recurrent state into persistent GRU columns and uses attention-mediated routing to determine the input received by each column. Under approximately parameter-matched, one-billion-token training, this structural bias consistently improves both associative memory and character-level prediction. On Store--Distract--Query, MoSAIC-L2C4 obtains $0.843 plus.minus 0.006$ final-window accuracy on long-gap queries versus $0.532 plus.minus 0.103$ for a two-layer GRU; the best observed configuration, L3C4, obtains $0.920 plus.minus 0.013$. On text8, L2C4 obtains $1.437 plus.minus 0.003$ validation bits per character (BPC) and L3C4 obtains $1.435 plus.minus 0.002$, compared with $1.483 plus.minus 0.006$ for the strongest GRU and $1.449 plus.minus 0.012$ for a similarly sized finite-context Transformer. These results support modular state organization as a useful inductive bias for recurrent computation at this scale.
 ]
 
 #v(1em)
-
-// ─────────────────────────────────────────────────────────────────────────────
-// TWO-COLUMN BODY
-// ─────────────────────────────────────────────────────────────────────────────
 
 #columns(2, gutter: 0.375in)[
 
 = Introduction
 
-Many sequence problems require a model to retain information while continually incorporating new observations. Character-level language modeling tests this ability on natural streams, while controlled associative-recall tasks isolate storage, interference, and retrieval over known delays. Recurrent neural networks are a natural fit for these settings because their inference cost and state size do not grow with the processed sequence length.
+Recurrent neural networks compress a sequence history into a fixed-size state and update it incrementally. This property makes them natural models for streaming prediction and memory tasks. A conventional GRU @cho2014gru or LSTM @hochreiter1997lstm, however, represents each layer as a single hidden-state stream. Increasing its width or depth adds capacity, but leaves the internal organization of state and the exchange of information within that state implicit.
 
-Standard GRUs @cho2014gru and LSTMs @hochreiter1997lstm represent the past with one hidden vector per layer. Widening or stacking these vectors increases capacity, but does not explicitly organize how distinct stateful computations exchange information. Modern linear recurrences instead improve parallel training and long-range propagation @qin2024hgrn2 @dao2024mamba2 @yang2024deltanet, yet usually retain a single recurrent stream per layer. This motivates a complementary question: *how should a fixed recurrent parameter budget be organized when several persistent stateful modules are allowed to communicate?*
+We study a complementary architectural question: *can a fixed recurrent parameter budget be organized into persistent modules whose communication is learned?* The motivation is not primarily to extend nominal context length. It is to give recurrent computation an explicit topology. Separate state-bearing components can maintain local dynamics, while content-dependent routing determines how information moves among them.
 
-Modular recurrent architectures provide an important precedent. Recurrent Independent Mechanisms (RIMs) @goyal2019rims maintain separate recurrent modules, select a sparse subset for each input, and allow the active modules to communicate through attention. BRIMs @mittal2020brims introduce hierarchical top-down and bottom-up communication, while global-workspace models @goyal2021workspace impose a shared communication bottleneck. These methods establish that modular recurrence can be useful, but couple modularity to sparse activation or a particular workspace mechanism. We instead study a simpler dense setting in which every module updates at every timestep and learned routing determines its recurrent input.
+We introduce *MoSAIC (Modular Self-Attentive Interacting Columns)*. MoSAIC distributes each recurrent layer across independently parameterized GRU columns. Before every recurrent update, the previous state of each column queries a small message bank through multi-head attention. The bottom layer reads the current input together with the delayed top-layer states from the preceding timestep; higher layers read the newly updated states below them. All columns update at every timestep, and the complete top layer persists to the next timestep.
 
-#figure(
-  image("figure1_grid.svg", width: 100%),
-  caption: [*MoSAIC at timestep $t$.* The first routing layer is queried by the previous states $bold(H)_(t-1)^0$ and reads a bank containing the delayed top-layer states $bold(H)_(t-1)^{L-1}$ and current embedding $bold(e)_t$. Its $C$ messages are processed by independent GRU cells to produce $bold(H)_t^0$. Each later layer repeats the operation using the newly updated layer below as its message bank. The readout uses column~0 of the top layer, while all top-layer columns are carried to timestep $t+1$.],
-  placement: top,
-) <fig-arch>
+This design uses modular state organization as an inductive bias rather than sparse expert selection. The number of columns and layers provides explicit axes along which recurrent state and computation can be organized. Attention is applied only over a fixed collection of columns and current inputs, so the recurrent state remains fixed in size as the processed sequence grows.
 
-We propose *MoSAIC (Modular Self-Attentive Interacting Columns)*, illustrated in @fig-arch. MoSAIC replaces each recurrent layer with $C$ independently parameterized GRU cells. Before a cell updates, its previous state queries a shared message bank through multi-head attention. At the bottom layer this bank contains the current input together with the *delayed complete top layer* from the preceding timestep; at higher layers it contains the current states of the layer below. Consequently, the model retains column-local recurrent states while learning both bottom-up and temporally delayed communication routes.
+We evaluate this thesis under controlled training at approximately ten million parameters. Store--Distract--Query (SDQ) isolates binding and retrieval under interference; text8 tests transfer to natural character-level prediction. The principal comparisons use a common one-billion-token horizon and multiple completed runs. Text8 additionally includes similarly sized finite-context Transformers. L2C4 serves as a compact reference shape, while L3C4 is the best observed configuration; we do not treat this distinction as a resolved choice of a universal primary model.
 
-The architecture deliberately separates its defining computation from optional training regularizers. Learnable query/key identities make communication participants distinguishable. In the configuration used in our main experiments, training-time logit noise, a diagonal-route cost, and an attention-entropy bonus regularize routing, but they do not change the inference-time recurrent graph. We ablate these choices separately.
+Our contributions are:
 
-Our main contributions are:
-+ *A recurrent modular architecture* in which independently parameterized GRU columns learn their inputs through attention over bottom-up and delayed top-down message banks.
-+ *A controlled fixed-budget evaluation* against monolithic GRUs and modern recurrent and attention-based sequence models, reporting predictive quality together with parameter count and recurrent-state size. At approximately 10M parameters, MoSAIC-L2C4 reduces held-out text8 BPC by 3.2% relative to the strongest stacked GRU.
-+ *An analysis of modular routing* through width/depth comparisons and ablations of delayed feedback, participant identities, and routing regularization. The completed grid-shape comparison shows that increasing width from four to sixteen columns does not improve BPC, despite more than doubling the recurrent-state size.
-
++ *Architecture:* a layered grid of persistent recurrent columns with attention-mediated inter-column communication.
++ *Controlled topology:* column count and depth provide explicit axes for organizing recurrent state and computation at roughly fixed parameter scale.
++ *Empirical evidence:* matched GRU/MoSAIC comparisons show consistent improvements on SDQ and text8, and the text8 comparison includes a similarly sized finite-context Transformer.
 
 = Related Work
 
-#par-heading[Multi-Dimensional and Grid RNNs.]
-Multi-Dimensional RNNs @graves2007mdrnn recurrently propagate information along multiple axes of structured data. Grid LSTM @kalchbrenner2015gridlstm extends the idea by arranging LSTM blocks in a multidimensional grid whose dimensions exchange hidden and memory vectors through fixed connections. MoSAIC uses a grid in a different sense: all columns share one temporal axis, retain separate recurrent states, and exchange information through content-dependent routing rather than through edges fixed by the geometry of an input.
+#par-heading[Modular recurrence and communication]
+Recurrent Independent Mechanisms (RIMs) @goyal2019rims maintain separate recurrent modules, sparsely activate a subset for each input, and allow active modules to communicate through attention. BRIMs @mittal2020brims add hierarchical bottom-up and top-down communication, while shared-workspace models @goyal2021workspace impose a communication bottleneck. Relational Memory Core @santoro2018relational instead updates interacting memory slots through attention. These works establish modular recurrence and learned communication as important design principles. MoSAIC differs in using a regular layered topology with dense synchronous updates: every persistent column updates at every timestep after reading from a layer-specific message bank. We therefore describe the mechanism as learned routing, not sparse or conditional computation.
 
-#par-heading[Modular Networks and Attention-Based Communication.]
-RIMs @goyal2019rims are the closest conceptual predecessor: they preserve independent recurrent mechanisms, sparsely select mechanisms for each input, and allow active mechanisms to communicate through attention. BRIMs @mittal2020brims organize such mechanisms hierarchically, and shared global workspaces @goyal2021workspace restrict communication through a bandwidth-limited latent. Relational recurrent networks @santoro2018relational instead update a set of interacting memory slots through self-attention. MoSAIC shares the separation of persistent states and learned communication, but uses dense synchronous updates: every column queries a layer-specific message bank and then performs its own recurrent update. Its delayed top-layer bank also makes the communication graph recurrent across both layers and time.
+#par-heading[Grid and multidimensional recurrence]
+Multi-Dimensional RNNs @graves2007mdrnn propagate information recurrently along multiple axes of structured data. Grid LSTM @kalchbrenner2015gridlstm arranges LSTM blocks in a multidimensional grid whose dimensions exchange hidden and memory vectors through fixed connections. MoSAIC uses a grid as an organization of modules rather than as an additional axis of the input. All columns share one temporal axis, retain separate recurrent states, and communicate through content-dependent routing rather than edges fixed by input geometry.
 
-#par-heading[Modern Recurrent Sequence Models.]
-Recent work has substantially strengthened recurrent alternatives to Transformers. LRUs @orvieto2023lru stabilize long linear recurrences; HGRN2 @qin2024hgrn2 expands the state of a gated linear RNN; Mamba-2 @dao2024mamba2 connects selective state-space models and structured attention; and DeltaNet @yang2024deltanet uses a delta-rule matrix state to improve associative recall. xLSTM @beck2024xlstm extends LSTM gating and introduces scalar- and matrix-memory variants, including the mLSTM baseline used in our evaluation. These models primarily redesign the recurrent update or its state representation. MoSAIC instead keeps a conventional nonlinear GRU update and changes how a fixed parameter budget is distributed and routed.
-
-#par-heading[Recall Evaluation.]
-Associative-recall studies show that aggregate language-modeling quality can obscure substantial differences in information retrieval. Zoology @arora2023zoology uses multi-query associative recall to connect synthetic retrieval behavior with language-modeling performance. POPGym @morad2023popgym provides controlled partially observable tasks spanning object, sequential, capacity, and spatial memory. We use character-level language modeling as the principal natural-sequence evaluation and store--distract--query tasks to measure behavior as the retention interval and interference increase.
-
-
-= Preliminaries and Problem Setting
-
-Let $bold(e)_t in RR^{B times H}$ be an input embedding at timestep $t$, where $B$ is batch size and $H$ is hidden width. A stacked GRU with $L$ layers maintains $bold(S)_t in RR^{L times B times H}$ and computes one recurrent stream per layer. We compare models under a matched trainable-parameter budget, using the same token embedding, readout, data order, optimizer, and number of training tokens.
-
-Parameter matching does not equate every resource. A stacked GRU stores $L B H$ recurrent scalars, whereas an $L times C$ MoSAIC grid stores $L C B H$. We therefore report the number of recurrent scalars per example, measured throughput, and peak memory in addition to parameters. This separates predictive gains under a fixed weight budget from the activation-memory and compute costs of exposing multiple column states.
-
+#par-heading[Modern recurrent and attention models]
+Recent architectures strengthen recurrent alternatives to full self-attention by redesigning the recurrent update or its memory representation. LRUs @orvieto2023lru stabilize long linear recurrences; HGRN2 @qin2024hgrn2 expands the state of a gated linear RNN; Mamba-2 @dao2024mamba2 connects selective state-space models with structured attention; DeltaNet @yang2024deltanet uses delta-rule matrix state; and xLSTM @beck2024xlstm includes scalar- and matrix-memory variants. Transformers @vaswani2017attention and segment-recurrent variants such as Transformer-XL @dai2019transformerxl instead retain a finite or growing bank of token representations for attention. MoSAIC keeps a conventional nonlinear GRU update and changes how recurrent state is divided and routed. Our experiments compare against GRUs and finite-context Transformers under the same token budget; memory-limited implementations of HGRN2, DeltaNet, and mLSTM are reported only under their separate reduced-token protocols.
 
 = Method
 
-== Recurrent Grid
+#figure(
+  image("fig_architecture.pdf", width: 100%),
+  caption: [*MoSAIC mechanism.* At timestep $t$, each persistent column state queries a layer-specific message bank. The first layer reads the current input together with the previous top-layer column states; later layers read the newly updated states below them. The routed message is the input to an independent recurrent update. All top-layer column states are carried to timestep $t+1$.],
+  placement: top,
+) <fig-architecture>
 
-MoSAIC maintains $bold(H)_t in RR^{L times C times B times H}$, where $bold(h)_t^{l,c}$ is the state of column $c in {0,...,C-1}$ at layer $l in {0,...,L-1}$. Each layer--column pair has independent GRU parameters. The cells of a layer are evaluated in one batched operation, but do not share recurrent weights.
+== Persistent Columns and Layered Topology
 
-The first layer reads from a message bank containing the delayed top layer and the current external inputs:
+Let $bold(e)_t in RR^{B times H}$ be an embedded input for a batch of size $B$. A conventional $L$-layer GRU maintains $bold(S)_t in RR^{L times B times H}$. MoSAIC instead maintains
 
-$ bold(M)_t^0 = [bold(H)_{t-1}^{L-1}; bold(e)_t^1; ...; bold(e)_t^I]
+$ bold(H)_t in RR^{L times C times B times H}, $
+
+where $bold(h)_t^{l,c}$ denotes column $c$ at layer $l$. Each layer--column pair has independent GRU parameters. Columns in a layer are evaluated together for efficiency, but do not share recurrent weights.
+
+The message bank for the first layer contains the delayed top layer and the current external inputs:
+
+$ bold(M)_t^0 =
+  [bold(H)_{t-1}^{L-1}; bold(e)_t^1; ...; bold(e)_t^I]
   in RR^{(C+I) times B times H}. $
 
-Here $I$ is the number of external input streams; $I=1$ for language modeling. For every subsequent layer, the message bank is the newly updated layer below:
+Here $I$ is the number of input streams and $I=1$ in our experiments. At subsequent layers,
 
 $ bold(M)_t^l = bold(H)_t^{l-1}, quad l > 0. $
 
-Thus information moves bottom-up within a timestep, whereas the complete top layer supplies delayed feedback across timesteps. Unlike a conventional stacked GRU, a column does not receive the same-index lower-layer state by a fixed edge: it learns a distribution over the available messages.
+Information therefore moves bottom-up within a timestep, while the complete top layer provides a delayed feedback path across timesteps. @fig-architecture summarizes this computation.
 
-== Learned Routing
+== Attention-Mediated Routing
 
-At layer $l$, the $C$ previous column states act as queries. Learnable participant identities $bold(a)^Q_c$ and $bold(a)^K_j$ distinguish query columns and message sources. For attention head $r$,
+At layer $l$, the previous states of its $C$ columns form the queries. Learnable identities distinguish query columns and message sources. For head $r$,
 
 $ bold(q)_{t,c,r}^l =
     "SiLU"(bold(W)^Q_r (bold(h)_{t-1}^{l,c}+bold(a)^Q_c)+bold(b)^Q_r), $
 $ bold(k)_{t,j,r}^l =
-    "SiLU"(bold(W)^K_r (bold(m)_{t,j}^{l}+bold(a)^K_j)+bold(b)^K_r), $
+    "SiLU"(bold(W)^K_r (bold(m)_{t,j}^l+bold(a)^K_j)+bold(b)^K_r), $
 $ bold(v)_{t,j,r}^l =
-    "SiLU"(bold(W)^V_r bold(m)_{t,j}^{l}+bold(b)^V_r). $
+    "SiLU"(bold(W)^V_r bold(m)_{t,j}^l+bold(b)^V_r). $
 
-Each query column has a learned positive inverse temperature $beta_c="softplus"(rho_c)$. The routing probabilities are
+Each query column has a learned positive inverse temperature
+$beta_c = "softplus"(rho_c)$. The routing probabilities are
 
 $ pi_{t,c,j,r}^l =
   "softmax"_j (beta_c (
     frac(bold(q)_{t,c,r}^l dot bold(k)_{t,j,r}^l, sqrt(H/R))
     + epsilon_{t,c,j,r}^l)), $
 
-where $R$ is the number of heads. The perturbation $epsilon$ is zero at inference; during training we optionally sample independent zero-mean Gaussian noise. Concatenated head outputs are projected and normalized:
+where $R$ is the number of heads. The perturbation $epsilon$ is independent zero-mean Gaussian noise during training and zero at evaluation. Concatenated head outputs are linearly projected and layer-normalized:
 
 $ bold(x)_{t,c}^l =
-  "LN"(bold(W)^O [sum_j pi_{t,c,j,1}^l bold(v)_{t,j,1}^l;
-                   ...;
-                   sum_j pi_{t,c,j,R}^l bold(v)_{t,j,R}^l]). $
+  "LN"(bold(W)^O [
+    sum_j pi_{t,c,j,1}^l bold(v)_{t,j,1}^l;
+    ...;
+    sum_j pi_{t,c,j,R}^l bold(v)_{t,j,R}^l
+  ]). $
 
-This attention operation produces the input to the recurrent cell; it does not replace or post-process the cell state.
+Routing determines the input to each recurrent cell; it does not replace or post-process its persistent state.
 
-== Independent Recurrent Updates and Readout
+== Recurrent Update and Readout
 
-After routing, every column performs an ordinary GRU update with its own parameters:
+Every column performs an ordinary independent GRU update,
 
 $ bold(h)_t^{l,c} =
   "GRU"_{l,c}(bold(x)_{t,c}^l, bold(h)_{t-1}^{l,c}). $
 
-The prediction head reads column~0 of the final layer, $bold(o)_t=bold(h)_t^{L-1,0}$. The recurrent state passed to the next timestep contains every column, and $bold(H)_t^{L-1}$ becomes part of the next first-layer message bank. Restricting the readout to one column prevents a pooled output from bypassing the learned routes, while leaving all columns available as recurrent memory.
+The prediction head reads column 0 of the top layer. All top-layer columns remain in the recurrent state and form part of the next bottom-layer message bank. This makes routing necessary for information stored outside the readout column to affect predictions.
 
-== Routing Regularization
+The main configurations additionally use three training-only routing terms: Gaussian logit noise, a cost favoring inexpensive diagonal routes, and an entropy bonus that discourages early route collapse. For task loss $cal(L)_"task"$,
 
-The recurrent grid, message banks, and learned routing distribution define MoSAIC. Our main training configuration additionally uses three routing regularizers: Gaussian logit noise, a diagonal-route cost that biases columns toward retaining a low-cost self route, and an entropy bonus that discourages prematurely deterministic routing. At the first layer the cost also encourages the designated readout column to receive the external input while discouraging direct input access for later columns. For task loss $L_"task"$,
+$ cal(L) = cal(L)_"task"
+  + lambda_"comm" cal(L)_"comm"
+  - lambda_"ent" cal(H)(pi). $
 
-$ L = L_"task" + lambda_"comm" L_"comm"
-                    - lambda_"ent" H(pi). $
+These terms add no inference-time state and are not treated as separate empirical contributions in the absence of completed component ablations.
 
-These terms are applied only during training and add no recurrent state or inference-time operation. We report them as ablations rather than treating them as architectural contributions.
+== Fixed-State and Resource Accounting
 
-== Complexity and Resource Accounting
+Attention is applied over $C+I$ messages in the bottom layer and $C$ messages above it, rather than over token history. For fixed $L$, $C$, and $H$, MoSAIC therefore carries a fixed-size recurrent state and supports incremental processing as sequence length grows. This is an architectural property, not an empirical claim of superior long-context scaling.
 
-Ignoring embeddings and biases, independent GRUs contribute approximately $6 L C H^2$ parameters and the routing projections contribute approximately $4 L H^2$. The recurrent state contains $L C H$ scalars per example. Routing also requires $O(L C (C+I) H)$ score computation per timestep in addition to the dense projections and GRU updates. Because a parameter-matched MoSAIC can therefore retain more state coordinates than a monolithic GRU, our evaluation reports parameters, recurrent-state size, throughput, and peak memory together.
-
+Ignoring embeddings and biases, the independent GRUs contribute approximately $6 L C H^2$ parameters and routing projections approximately $4 L H^2$. Persistent state contains $L C H$ scalars per example, compared with $L H$ for a stacked GRU. Parameter matching consequently does not match activation state or computation. We report recurrent-state size to make this distinction explicit, but do not claim resource efficiency.
 
 = Experiments
 
-Our experiments ask four questions: (Q1) does distributing a fixed parameter budget across routed recurrent columns improve language modeling over a monolithic GRU; (Q2) how should that budget be divided between depth, column count, and within-column width; (Q3) which routing and feedback components are necessary; and (Q4) what activation-memory and computational costs accompany any quality gain?
+== Shared Protocol and Reporting
 
-== Character-Level Language Modeling
+All principal GRU and MoSAIC configurations are approximately parameter matched at ten million trainable parameters. The principal horizon is one billion processed tokens. Runs with a final logged evaluation point slightly below one billion are retained only under the documented logging-loss convention; longer runs are truncated at the one-billion-token horizon. Results report the mean and standard deviation across completed replicates. We make no statistical-significance claim.
 
-#par-heading[Data and evaluation.]
-We use text8, a 100-million-character normalized English corpus with a 27-character alphabet. The first 90M characters are used for training and the final 10M form a contiguous held-out evaluation split. We used held-out bits per character (BPC) for limited manual configuration tuning rather than a large hyperparameter search; we therefore call this quantity *held-out BPC* rather than an untouched test estimate. All models process the corpus in the same contiguous order and use the same tokenization and reset schedule.
-
-#par-heading[Training.]
-Models are optimized with RMSprop and truncated backpropagation through time using 512 parallel streams and a truncation length of 64. The per-token random state-reset probability decays during training, increasing the expected uninterrupted context from approximately 320 to 64,000 characters. Gradients are clipped to norm~1.0. The learning rate warms up from near zero, reaches $5 times 10^{-4}$, and decays to $5 times 10^{-5}$. We train each configuration for approximately one billion observed characters. Reported central values aggregate completed independent runs of each frozen configuration.
-
-#par-heading[Models and resource matching.]
-@tab-lm-current lists the currently tested configurations. GRU depth and MoSAIC grid shape are varied while keeping trainable parameters close to 10M. Because parameter matching yields different recurrent-state sizes, the table also reports the number of state scalars per example. We additionally compare against parameter-matched mLSTM @beck2024xlstm, HGRN2 @qin2024hgrn2, DeltaNet @yang2024deltanet using the same data and objective. These models exceed available accelerator memory at the MoSAIC/GRU batch geometry. They therefore use four- to eight-times fewer parallel streams, with their character budgets reduced correspondingly. We compare their optimization progress using the logged number of parameter updates.
-
-#figure(
-  table(
-    columns: (auto, auto, auto, auto, auto),
-    stroke: none,
-    table.hline(),
-    [*Model*], [*Shape*], [*Params*], [*State*], [*Held-out BPC ↓*],
-    table.hline(),
-    [GRU], [L1], [10.16M], [1,296], [$1.561 plus.minus 0.003$],
-    [GRU], [L2], [10.04M], [1,824], [1.502],
-    [GRU], [L3], [10.23M], [2,256], [$1.484 plus.minus 0.008$],
-    table.hline(),
-    [MoSAIC], [L1C8], [10.11M], [3,520], [1.473],
-    [MoSAIC], [L2C4], [10.11M], [3,392], [$1.437 plus.minus 0.003$],
-    [MoSAIC], [L2C8], [10.17M], [4,992], [1.443],
-    [MoSAIC], [L2C16], [10.09M], [7,168], [1.456],
-    [MoSAIC], [L3C4], [9.99M], [4,128], [*1.433*],
-    table.hline(),
-  ),
-  caption: [Parameter-matched text8 evaluation. State counts exclude optimizer state and report persistent recurrent scalars per example. Uncertainty is shown where multiple completed runs are currently available.],
-  placement: top,
-  kind: table,
-) <tab-lm-current>
-
-#par-heading[Results.]
-MoSAIC improves consistently over the parameter-matched GRU family. Its replicated L2C4 configuration reaches $1.437 plus.minus 0.003$ BPC, compared with $1.484 plus.minus 0.008$ for the strongest GRU, an absolute reduction of 0.047 BPC and a 3.2% relative reduction. The result is not driven by one favorable grid shape: even the weakest evaluated MoSAIC configuration (L1C8, 1.473 BPC) outperforms the strongest GRU. Depth benefits both families, but distributing a two-layer MoSAIC across more columns is not monotonically helpful: L2C4, L2C8, and L2C16 obtain 1.437, 1.443, and 1.456 BPC, respectively. In particular, L2C16 retains 7,168 state scalars—more than twice the 3,392 of L2C4—yet performs worse. Thus the gain cannot be explained by state size alone; the allocation of capacity between column width, grid width, and depth matters.
-
-The memory-limited modern baselines process fewer characters per update, so their raw character horizons are not directly matched to the 1B-character MoSAIC/GRU runs. The update-indexed comparison is nevertheless decisive within the tested implementations: HGRN2, mLSTM, and DeltaNet finish near 1.673, 1.686, and 1.844 BPC after approximately 50k optimizer updates, whereas MoSAIC-L2C4 reaches 1.437 BPC in approximately 30k updates. This establishes stronger optimization-update efficiency under the common objective; it does not by itself imply equal wall-clock, FLOP, or accelerator-memory efficiency.
-
-== Architectural Ablations
-
-The completed grid-shape comparison varies columns at fixed depth and depth at comparable column count. It identifies a moderate grid as the strongest allocation: L2C4 improves on L2C8 and L2C16, while L3C4 gives the best central BPC in @tab-lm-current. The remaining component ablations remove: (i) participant identities, (ii) delayed top-layer feedback from the first-layer bank, (iii) nonlinear query/key/value projections, (iv) training-time routing noise, (v) the diagonal communication cost, and (vi) the routing-entropy bonus. These experiments are required to distinguish the recurrent modular topology from its training-time routing regularizers.
+L2C4 is the compact reference configuration used for direct two-layer comparisons. L3C4 is the best observed configuration in both tasks. The shape sweep is reported in full rather than using rhetoric to designate either as a universal primary model.
 
 == Store--Distract--Query
 
-We use a controlled online task to evaluate retention under interference. With five keys and ten values, the input vocabulary contains 50 key--value store tokens, ten distractor tokens, and five key-specific query tokens. Store events overwrite the selected key. Distractors update a running sum modulo ten. At a query, the target combines the most recently stored value, the distractor sum, and, in the Hard variant, per-key store and query counts. Loss and accuracy are computed only on query events.
+#par-heading[Task]
+SDQ is an online synthetic task designed to isolate associative storage and retrieval under interference. With five keys and ten values, inputs comprise 50 key--value store tokens, ten distractor tokens, and five query tokens. A store overwrites the value associated with its key. Distractor values contribute to a running sum modulo ten. At a query, the target combines the current stored value, the distractor sum, and the configured per-key store and query counts. Cross-entropy is applied only at query events.
 
-Episode lengths are geometrically distributed with a curriculum-controlled mean. We report query accuracy by store--query gap, including failures on keys that have been overwritten, rather than aggregate token accuracy. All architectures use the same online sequence distribution, curriculum decisions, number of training tokens, and parameter budget.
-// TODO(port): insert results only after SDQ uses grnn_core and the current baseline suite.
+Episode lengths are geometrically distributed. During training, their mean increases from 10 toward 500, while store and query probabilities decrease from 0.35 toward 0.10 and 0.25. Models use 512 parallel streams, a truncation length of 32, RMSprop, gradient clipping at norm 1, and the same learning-rate schedule and online generator.
 
-== Routing and Efficiency Analysis
+#par-heading[Metric]
+The code logs `Acc++` as query accuracy on examples whose valid store--query gaps are above the current batch mean. This emphasizes the longer-gap half of non-missing queries. For each completed replicate, we average the final five logged `Acc++` values through the one-billion-token horizon and then aggregate those replicate-level averages.
 
-@tab-lm-current reports parameter count and recurrent-state scalars for every completed text8 configuration. The final resource comparison will add training throughput, inference throughput at batch size one, and peak accelerator memory. Learned routes will be summarized by per-layer entropy and average routing matrices. To test whether a route or column is functionally important rather than merely correlated with the output, we will mask it at evaluation and measure the increase in BPC or query error on held-out data.
+#wide-table(
+  caption: [Matched SDQ results at the one-billion-token protocol. Values are mean $plus.minus$ standard deviation of replicate-level final-five `Acc++` averages. Runs slightly short of the horizon follow the logging-loss convention.],
+)[
+  #table(
+    columns: (1.5fr, 0.8fr, 0.85fr, 0.65fr, 1.15fr, 1.3fr),
+    stroke: none,
+    inset: (x: 5pt, y: 2pt),
+    align: (left, center, right, center, center, right),
+    table.hline(),
+    [*Family*], [*Shape*], [*Params*], [*$n$*], [*Protocol*], [*Final-five Acc++ ↑*],
+    table.hline(),
+    [GRU], [L1], [10.18M], [3], [1B tokens], [$0.6177 plus.minus 0.0052$],
+    [GRU], [L2], [10.06M], [2], [1B tokens], [$0.5322 plus.minus 0.1027$],
+    [GRU], [L3], [10.25M], [2], [1B tokens], [$0.2865 plus.minus 0.0798$],
+    table.hline(),
+    [MoSAIC], [L1C8], [10.12M], [2], [1B tokens], [$0.7116 plus.minus 0.0167$],
+    [MoSAIC], [L2C4], [10.12M], [3], [1B tokens], [$0.8433 plus.minus 0.0055$],
+    [MoSAIC], [L2C8], [10.18M], [1], [1B tokens], [$0.8678$],
+    [MoSAIC], [L2C16], [10.09M], [1], [1B tokens], [$0.8901$],
+    [MoSAIC], [L3C4], [9.99M], [3], [1B tokens], [*$0.9204 plus.minus 0.0128$*],
+    table.hline(),
+  )
+] <tab-sdq>
 
+#par-heading[Results]
+@tab-sdq shows a consistent family-level advantage for MoSAIC: every evaluated shape has a higher central `Acc++` value than every GRU depth. In the replicated two-layer comparison, L2C4 reaches $0.8433 plus.minus 0.0055$, while GRU-L2 reaches $0.5322 plus.minus 0.1027$. L3C4 is the best observed configuration at $0.9204 plus.minus 0.0128$. The single-replicate L2C8 and L2C16 entries describe observed runs but provide less evidence about run-to-run variability.
 
-= Discussion
+== Character-Level Modeling
 
-MoSAIC changes the allocation of recurrent capacity: the same number of trainable weights is distributed across several narrower persistent states connected by a learned routing graph. The text8 results show that this allocation is useful: MoSAIC-L2C4 improves over the strongest parameter-matched GRU by 0.047 BPC, and every tested grid shape improves over every GRU depth. The within-family comparison also argues against a simple state-volume explanation, because L2C16 has more than twice the recurrent state of L2C4 but worse BPC. The improvement is not free, however: increasing column count enlarges persistent activation state and introduces quadratic routing cost in $C$. Throughput- and memory-aware measurements remain necessary to characterize that trade-off.
+#par-heading[Data and training]
+Text8 contains 100 million normalized English characters with a 27-character alphabet. We use the first 90 million characters for training and the final 10 million as a contiguous validation split. The validation split was used for limited manual configuration tuning, so we call the metric validation BPC rather than an untouched test estimate.
 
-The architecture also does not guarantee functional specialization. Distinct parameters and participant identities make differentiated behavior possible, but attention visualizations alone cannot establish it. We use held-out route and column interventions to support only those specialization claims that produce repeatable causal effects.
+GRU and MoSAIC models process 512 parallel contiguous streams with truncated backpropagation through time over 64 steps. Random state resets decay from probability $0.2/64$ toward $0.001/64$ per token, increasing the expected uninterrupted context from about 320 to 64,000 characters. Models use RMSprop, a learning rate warming to $5 times 10^{-4}$ and decaying toward $5 times 10^{-5}$, and gradient clipping at norm 1. Validation runs disable random resets and evaluate contiguous streams.
 
-#par-heading[Limitations.]
-MoSAIC remains sequential over time and therefore does not inherit the sequence-parallel training algorithms of modern linear recurrent models. The present natural-language evaluation is character-level and small-scale, and SDQ is synthetic. The grid exposes more recurrent state coordinates than some parameter-matched GRUs, so gains must be interpreted together with activation memory and throughput. The 10M-character held-out split was also used for limited manual configuration tuning, so it is not a strictly untouched test set. Finally, routing regularizers introduce additional hyperparameters; their robustness across tasks remains an empirical question.
+The Transformer uses the same tokenization, data split, reset schedule, optimizer, token batch per update, and one-billion-token budget. It processes each 64-token training segment in parallel and carries a rolling valid key/value cache between segments. We evaluate cache lengths of 256 and 64 tokens as distinct configurations.
 
+#wide-table(
+  caption: [Fixed-horizon text8 results. BPC is taken at the final logged validation point through the one-billion-token protocol; lower is better. The Transformer cache variants are distinct configurations, not replicates.],
+)[
+  #table(
+    columns: (1.35fr, 0.9fr, 0.85fr, 0.65fr, 1.15fr, 1.25fr),
+    stroke: none,
+    inset: (x: 5pt, y: 2pt),
+    align: (left, center, right, center, center, right),
+    table.hline(),
+    [*Family*], [*Shape / cache*], [*Params*], [*$n$*], [*Protocol*], [*Validation BPC ↓*],
+    table.hline(),
+    [GRU], [L1], [10.16M], [3], [1B tokens], [$1.5626 plus.minus 0.0028$],
+    [GRU], [L2], [10.04M], [3], [1B tokens], [$1.5004 plus.minus 0.0119$],
+    [GRU], [L3], [10.23M], [3], [1B tokens], [$1.4828 plus.minus 0.0062$],
+    table.hline(),
+    [MoSAIC], [L1C8], [10.11M], [2], [1B tokens], [$1.4709 plus.minus 0.0033$],
+    [MoSAIC], [L2C4], [10.11M], [3], [1B tokens], [$1.4367 plus.minus 0.0026$],
+    [MoSAIC], [L2C8], [10.17M], [2], [1B tokens], [$1.4444 plus.minus 0.0017$],
+    [MoSAIC], [L2C16], [10.09M], [2], [1B tokens], [$1.4548 plus.minus 0.0023$],
+    [MoSAIC], [L3C4], [9.99M], [3], [1B tokens], [*$1.4345 plus.minus 0.0017$*],
+    table.hline(),
+    [Transformer], [cache 256], [10.07M], [3], [1B tokens], [$1.4492 plus.minus 0.0120$],
+    [Transformer], [cache 64], [10.07M], [3], [1B tokens], [$1.4826 plus.minus 0.0057$],
+    table.hline(),
+  )
+] <tab-text8>
+
+#par-heading[Results]
+As shown in @tab-text8, every evaluated MoSAIC shape has a lower central BPC than every matched GRU. The compact L2C4 reference reaches $1.4367 plus.minus 0.0026$, compared with $1.5004 plus.minus 0.0119$ for GRU-L2. L3C4 is the best observed shape at $1.4345 plus.minus 0.0017$; the strongest GRU, L3, reaches $1.4828 plus.minus 0.0062$. The cache-256 Transformer reaches $1.4492 plus.minus 0.0120$ under the same token budget. Thus the observed MoSAIC means are lower while retaining recurrent fixed-state operation; this comparison does not establish general Transformer superiority or long-context scaling.
+
+== Topology and State Allocation
+
+Parameter matching changes hidden width and persistent-state size. @tab-topology isolates those differences for the recurrent families. At two layers, increasing MoSAIC from four to eight and sixteen columns increases state size while worsening text8 BPC relative to L2C4. L2C16 stores more than twice as many recurrent scalars as L2C4 but obtains a higher BPC. On SDQ, the central values increase across these shapes, but L2C8 and L2C16 each have only one completed run. Depth also behaves differently across families: L3C4 improves over L2C4 on both tasks, whereas deeper GRUs improve on text8 but not SDQ. These observations show that state volume alone does not explain the results and that the allocation across depth, column count, and within-column width matters.
+
+#figure(
+  table(
+    columns: (1.1fr, 0.75fr, 0.85fr, 1.05fr),
+    stroke: none,
+    inset: (x: 3pt, y: 2pt),
+    align: (left, right, right, right),
+    table.hline(),
+    [*Shape*], [*$H$*], [*State*], [*Params*],
+    table.hline(),
+    [GRU-L1], [1,296], [1,296], [10.16M],
+    [GRU-L2], [912], [1,824], [10.04M],
+    [GRU-L3], [752], [2,256], [10.23M],
+    table.hline(),
+    [L1C8], [440], [3,520], [10.11M],
+    [L2C4], [424], [3,392], [10.11M],
+    [L2C8], [312], [4,992], [10.17M],
+    [L2C16], [224], [7,168], [10.09M],
+    [L3C4], [344], [4,128], [9.99M],
+    table.hline(),
+  ),
+  caption: [Recurrent topology and persistent-state scalars per example for text8 configurations. SDQ uses the same hidden widths and shapes, with small parameter-count differences from its input and output vocabularies.],
+  placement: top,
+  kind: table,
+) <tab-topology>
+
+== Reduced-Token Baselines
+
+HGRN2, DeltaNet, and mLSTM exceed the available accelerator memory at the standard 512-stream geometry. They were therefore trained with fewer streams, smaller token batches per update, reduced token budgets, and more optimizer updates than the one-billion-token runs. @tab-reduced reports these runs as a separate implementation-level reference. They are not equal-token comparisons and do not support claims about relative resource or optimization efficiency.
+
+#figure(
+  table(
+    columns: (0.95fr, 0.65fr, 0.45fr, 0.75fr, 1.35fr),
+    stroke: none,
+    inset: (x: 3pt, y: 2pt),
+    align: (left, right, right, right, right),
+    table.hline(),
+    [*Model*], [*Tokens*], [*$n$*], [*Updates*], [*Final BPC ↓*],
+    table.hline(),
+    [HGRN2], [100M], [2], [48.8k], [$1.6675 plus.minus 0.0076$],
+    [DeltaNet], [200M], [2], [48.8k], [$1.8280 plus.minus 0.0231$],
+    [mLSTM], [200M], [1], [48.8k], [$1.6856$],
+    table.hline(),
+  ),
+  caption: [Reduced-token text8 baselines. HGRN2 uses 2,048 tokens/update; DeltaNet and mLSTM use 4,096. Standard GRU, MoSAIC, and Transformer runs use 32,768 tokens/update and approximately 30.5k updates.],
+  placement: top,
+  kind: table,
+) <tab-reduced>
+
+= Discussion and Limitations
+
+Across the controlled comparisons, MoSAIC's columnar topology is associated with better associative-memory and character-modeling results than monolithic recurrent baselines at approximately fixed parameter scale. The pattern is consistent across the evaluated shapes rather than depending only on the best run family member. The text8 result relative to the finite-context Transformer provides additional context: MoSAIC retains recurrent fixed-state operation and obtains a lower mean BPC under the present matched token budget.
+
+These results support a narrow conclusion. They do not show that columns acquire identifiable functional roles, that dense routing behaves as sparse expert selection, or that MoSAIC replaces Transformers generally. The architecture permits incremental inference with state size independent of processed sequence length, but the experiments do not establish superior long-context scaling or long-horizon retention against all alternatives.
+
+Parameter matching also leaves important resources unmatched. MoSAIC exposes more persistent state coordinates than the GRUs and performs routing computation at every layer and timestep. We have not completed controlled throughput, peak-memory, or inference-latency measurements, so the results should be interpreted as evidence about an architectural inductive bias rather than resource efficiency. Likewise, the reduced-token recurrent baselines use different token and update budgets and are not direct quality comparisons.
+
+The empirical scope is limited. Text8 is a small character-level corpus, its validation split received limited manual tuning, and the study operates at roughly ten million parameters. SDQ is synthetic and uses a curriculum-controlled online generator. Some topology entries have only one or two completed runs, and we do not make statistical-significance claims. Training-only routing regularizers add hyperparameters whose individual effects have not been isolated. Finally, the present paper omits reinforcement-learning results because the task-matched evidence is incomplete and variable.
 
 = Conclusion
 
-We introduced MoSAIC, a recurrent architecture that distributes a fixed parameter budget across independently parameterized GRU columns and learns their inputs through attention over bottom-up and delayed top-down message banks. This design separates persistent column states from an explicit recurrent communication graph while retaining constant state size with respect to sequence length. Our parameter-matched text8 evaluation shows a consistent advantage over stacked GRUs: MoSAIC-L2C4 reaches $1.437 plus.minus 0.003$ held-out BPC versus $1.484 plus.minus 0.008$ for the strongest GRU, and every evaluated MoSAIC shape outperforms every GRU depth. Increasing the grid from four to sixteen columns does not improve BPC despite more than doubling recurrent-state size, showing that the organization—not merely the volume—of persistent state matters. MoSAIC also reaches lower BPC in fewer optimizer updates than the evaluated HGRN2, mLSTM, and DeltaNet implementations. Future evaluation must complement these predictive gains with wall-clock, accelerator-memory, and component-ablation measurements.
+MoSAIC factorizes a monolithic recurrent state into persistent columns and learns how information is routed among them before independent recurrent updates. Under controlled, approximately parameter-matched one-billion-token training, this structural bias consistently improves associative memory and character-level modeling over monolithic GRUs. A similarly sized finite-context Transformer provides a matched Text8 reference, while the separate reduced-token results are reported only as non-comparable implementation context. The evidence supports modular state organization as a useful inductive bias for recurrent computation at this scale; broader claims about specialization, long-context scaling, and resource efficiency remain open.
 
-/*
-LEGACY EXPERIMENT DRAFT (pre-grnn_core). Kept temporarily for provenance while current runs finish; none of the following content is rendered.
-
-=============== BEGIN LEGACY ===============
-
-We evaluate three Grid RNN variants against GRU baselines on three benchmarks. All models are trained on a single GPU (RTX~3050). Parameter budgets are matched within benchmarks at approximately 2.1M parameters. Learning rate uses a linear warmup followed by cosine decay ($eta_"max" = 8 times 10^{-4}$), implemented via PPO @schulman2017ppo for RL experiments and BPTT for supervised tasks.
-
-== Store-Distract-Query (SDQ)
-
-#par-heading[Task.] SDQ @morad2023popgym presents sequences of tokens from a vocabulary of 65 (50 store events, 10 distractors, 5 query types). A *store* event presents a key-value pair $(k, v)$ that the model must bind for later retrieval. *Query* tokens present a previously stored key and require the model to output the correct value. The *Hard* variant additionally counts the total number of stored and queried pairs simultaneously. Models are trained online with curriculum scheduling: the average sequence length $T$ starts at 10 and increases when the moving-average improvement in Acc exceeds a threshold (checked every 200K steps; check frequency multiplied by $0.97$ on progress, $times 1.25$ on stagnation). Training runs for 1B steps on CPU with rollout length 8.
-
-#par-heading[Results.] Table~@tab-sdq shows accuracy metrics after $tilde$1B training steps. Acc measures overall token accuracy; Acc++ measures accuracy *only* on hard query tokens — the most discriminative metric because distractor tokens are trivially correct.
-
-#figure(
-  table(
-    columns: (auto, auto, auto, auto),
-    stroke: none,
-    table.hline(),
-    [*Model*], [*Params*], [*Acc*], [*Acc++*],
-    table.hline(),
-    [GRU (single-stream)], [2.1M], [~0.50], [~0.15],
-    [GridRNN (GRU cols)], [2.1M], [0.960], [0.917],
-    [GridRNN-LRU], [2.1M], [0.849], [0.694],
-    [*HopfieldGridLRU*], [2.1M], [*0.967*], [*0.932*],
-    [GridHarmonic], [2.1M], [0.849], [0.696],
-    table.hline(),
-  ),
-  caption: [SDQ-Hard results. Acc = overall token accuracy; Acc++ = accuracy on hard query tokens only. GRU baseline from preliminary runs (exact values pending full convergence run). GridRNN and HopfieldGridLRU: mean of final 10M steps (stable). GridHarmonic: best checkpoint at step 95M (peak before oscillation onset; see Discussion). GridRNN-LRU: final value at step 87M.],
-  placement: top,
-  kind: table,
-) <tab-sdq>
-
-GridRNN (GRU columns) dramatically outperforms single-stream GRU: Acc++ improves from $approx 0.15$ to $0.917$ ($+77$ pp absolute). This demonstrates that the *column structure alone* — without any specialized memory mechanism — provides decisive benefit. The grid creates structural differentiation that single-stream GRU cannot achieve regardless of width or depth. We note that the GRU baseline numbers are preliminary (full convergence run pending; see future-work document); the large magnitude of the gap makes this unlikely to reverse.
-
-*Note on GridHarmonic.* While GridHarmonic achieves 0.849~Acc++ (at peak), Table~1 also reveals that the simplest grid variant (GridRNN, GRU columns) reaches 0.917~Acc++ — exceeding GridHarmonic and suggesting the core column structure contributes more than the additional Delta-rule and EMA components in this task.
-
-HopfieldGridLRU ($0.967$~Acc, $0.932$~Acc++) further improves over the GRU-column variant by combining spectral memory stability (LRU spectral grid) with sharp Hopfield retrieval for cross-column information routing. The learnable $beta$ per head allows fine-grained tuning of retrieval selectivity.
-
-GridRNN-LRU without Hopfield messages (0.849~Acc++) underperforms the GRU-column variant, suggesting that the complex-valued LRU state alone is not sufficient: the Hopfield message layer is critical for sharp inter-column routing.
-
-GridHarmonic (0.849~Acc++) currently underperforms HopfieldGridLRU. Two known issues: (1) column representation norms grow unboundedly in upper layers after ~100M steps (e.g., $||h_("col0, L2")||$ exceeds 300 at step 110M), causing oscillations; (2) the Acc/store metric (store-operation accuracy) returns NaN throughout training due to a masking bug, meaning the quality of the store operation itself is unverifiable. Both issues are tracked in Future Work.
-
-== MIKASA/POPGym Benchmark
-
-#par-heading[Task.] POPGym @morad2023popgym provides a suite of partially observable environments testing four memory types: object (remember a property of an object), sequential (remember the order of events), capacity (hold many items simultaneously), and spatial (remember a map). We evaluate on two tasks from MIKASA @cherepanov2025mikasa:
-- *RepeatFirst* (object memory): the agent observes $N$ symbols and must reproduce the first one at episode end. Episode length is 51 steps; per-step reward $+1/50$ for correct recall.
-- *HigherLower* (sequential memory): predict whether the next card is higher or lower than the current; requires tracking the running distribution of revealed cards.
-
-All models are trained with PPO @schulman2017ppo, $gamma=0.99$, $lambda_"GAE"=0.95$, 64 parallel environments, rollout length 32, for up to 200M environment steps.
-
-#figure(
-  table(
-    columns: (auto, auto, auto),
-    stroke: none,
-    table.hline(),
-    [*Model*], [*RepeatFirst*], [*HigherLower*],
-    table.hline(),
-    [GRU (Morad 2023)], [pending], [pending],
-    [GridRNN (GRU)], [pending], [pending],
-    [GridRNN-EMA], [*~0.95* #super[†]], [~0.41 #super[†]],
-    table.hline(),
-  ),
-  caption: [POPGym results (episode return, scale $[{-}1, 1]$; higher is better). #super[†]Results at 74M/200M steps (37% of training). Full 200M-step results and GRU baseline comparison pending.],
-  placement: top,
-  kind: table,
-) <tab-mikasa>
-
-#par-heading[Results.] Table~@tab-mikasa shows results for GridRNN-EMA at 37% of training (74M/200M steps). GridRNN-EMA achieves episode return $approx 0.95$ on RepeatFirst, approaching the theoretical maximum return of~1.0. This indicates that the EMA surprise gate successfully identifies the first-observation event (the only one worth writing) and stores it reliably against 50 subsequent distractors.
-
-Performance on HigherLower ($~0.41$) is lower, consistent with the harder sequential nature of this task: the agent must track a running distribution rather than simply recall a single item. This gap motivates combining EMA surprise writing with LRU spectral memory to address sequential tasks (a target for future work).
-
-#par-heading[GridRNN-EMA training curve.] At 37% of training (74M steps), the RepeatFirst episode return ($approx 0.95$) is already near-optimal. Convergence on this environment is typically reached between 30–50M steps; the remaining 126M steps are expected to consolidate rather than substantially improve return. The HigherLower curve ($approx 0.41$) has not plateaued — we expect continued improvement toward a target return of $>0.6$ at 200M steps, but this requires confirming empirically.
-
-#par-heading[LRU instability under PPO.] Two additional models were stopped early at 15M steps with negative episode returns ($< 0$). In GridRNN-LRU, policy entropy $H$ collapsed from 1.1 to 0.19 bits within the first 10M steps — an irreversible determinization that prevented further learning. Specifically, the LRU spectral constraint produces a very smooth hidden-state trajectory, which causes the policy to commit to a single action early. In HopfieldGridLRU, $H$ remained higher (1.18 bits) but training oscillated without monotone improvement. Both behaviours point to a structural incompatibility between LRU's linear recurrence (no saturating nonlinearity) and standard PPO's entropy coefficient (0.01), rather than slow convergence. Increasing `entropy_coef` to 0.05 is the most promising fix (future work).
-
-== Language Modeling
-
-#par-heading[Setup.] We evaluate on two character-level datasets: *text8* (100M chars, 27-token alphabet) and *Shakespeare* (1.1M chars, 65-token alphabet). Models are trained with BPTT (rollout length 16 for GridHarmonic, 8 for others), 128 parallel environment streams, and a reset-probability curriculum that decays from 0.01 to $10^{-4}$ over training, gradually increasing effective context length. All Grid RNN models use $approx 2.1$M parameters to enable fair comparison; published baselines use substantially larger models.
-
-#figure(
-  table(
-    columns: (auto, auto, auto, auto),
-    stroke: none,
-    table.hline(),
-    [*Model*], [*Params*], [*Text8 BPC*], [*Shakes. BPC*],
-    table.hline(),
-    [Transformer-XL @dai2019transformerxl], [277M], [1.06], [—],
-    [SHA-RNN @merity2019sharnn], [53M], [1.07], [—],
-    [AWD-LSTM @merity2018awdlstm], [24M], [1.19], [—],
-    table.hline(),
-    [GRU (ours)], [2.1M], [2.09], [1.95],
-    [GridRNN (GRU)], [2.1M], [—], [1.72],
-    [HopfieldGridRNN (LSTM+Hopfield)], [2.1M], [—], [1.68],
-    [*GridHarmonic*], [2.1M], [*1.68*], [—],
-    table.hline(),
-  ),
-  caption: [Character-level language modeling (bits per character, BPC; lower is better). Published baselines use models 12–130$times$ larger. Our models are all $approx$2.1M parameters. Grid variants consistently improve over the single-stream GRU baseline.],
-  placement: top,
-  kind: table,
-) <tab-lm>
-
-#par-heading[Results.] Table~@tab-lm shows character-level BPC. GridHarmonic achieves 1.68~BPC on text8 with 2.1M parameters, compared to AWD-LSTM at 1.19~BPC with 24M parameters (12× more). While Grid RNN does not close the absolute gap to SOTA, we emphasize that the comparison is intentionally cross-scale: our goal is to demonstrate consistent improvement *within a fixed parameter budget*. GridHarmonic improves over single-stream GRU by 0.41 BPC (19.6% relative), matching the pattern of improvement seen in SDQ.
-
-#par-heading[Training Dynamics.] Table~@tab-text8-curve tracks GridHarmonic (v3) BPC progression on text8 over 270M steps. BPC decreases continuously from 2.83 at 5M steps to 1.68 at 270M, without divergence or oscillation — in contrast to SDQ training where column-norm instability appears after 100M steps. The curriculum increases effective context length ($T$) from 100 to 239 tokens as BPC improves, so later steps train on significantly longer sequences. The residual improvement rate at 250–270M is 0.010 BPC/50M steps, suggesting further gains remain possible with extended training.
-
-#figure(
-  table(
-    columns: (auto, auto, auto, auto),
-    stroke: none,
-    table.hline(),
-    [*Step*], [*BPC*], [*Acc*], [*Context $T$*],
-    table.hline(),
-    [5M],  [2.83], [0.407], [100],
-    [25M], [2.25], [0.521], [103],
-    [50M], [1.90], [0.589], [114],
-    [100M], [1.78], [0.611], [135],
-    [150M], [1.74], [0.620], [160],
-    [200M], [1.71], [0.627], [189],
-    [270M], [*1.68*], [*0.634*], [*239*],
-    table.hline(),
-  ),
-  caption: [GridHarmonic text8 BPC progression over 270M training steps. Context $T$ is the effective sequence length set by the curriculum. Training terminated early; rate at 270M ($approx 0.010$ BPC/50M) suggests further improvement possible.],
-  placement: top,
-  kind: table,
-) <tab-text8-curve>
-
-#par-heading[Memory Diagnostics.] GridHarmonic exposes interpretable internal metrics for the SurpriseDelta memory module. At step 270M (text8): the weight matrix norms grow monotonically across layers ($||bold(W)||_F$: L0=1.07, L1=1.53, L2=1.90), confirming that deeper layers — with slower spectral radii ($r_"max"$ up to 0.999) — accumulate more persistent associations. Write-gate $alpha_t$ remains in $(0.85, 0.89)$ across layers, indicating consistently active writing without saturation. Matrix fullness ($||bold(W)||_F / sqrt(d_k d_v)$) stays below 3% at all layers, indicating ample remaining capacity. Crucially, column diversity (mean pairwise cosine distance between column states) remains moderate at L2=2.16 on text8, whereas the same metric reaches 7.79 on SDQ at layer~2 — flagging the norm explosion visible in column norms (Section~Discussion).
-
-== Ablation: Column Count
-
-To isolate the effect of grid width, we compare two GridRNN configurations matched to the same parameter budget ($approx 2.1$M) on SDQ-Hard:
-
-#figure(
-  table(
-    columns: (auto, auto, auto, auto, auto),
-    stroke: none,
-    table.hline(),
-    [*Cols*], [*Layers*], [*H*], [*Acc*], [*Acc++*],
-    table.hline(),
-    [2], [1], [115], [0.734], [0.494],
-    [4], [3], [128], [0.960], [0.917],
-    table.hline(),
-  ),
-  caption: [Ablation: column count vs. depth at fixed $approx$2.1M params (SDQ-Hard). Increasing from 2 to 4 columns ($+$2 layers) yields $+42$ pp Acc++.],
-  placement: top,
-  kind: table,
-) <tab-ablation>
-
-Moving from 2 columns / 1 layer to 4 columns / 3 layers while keeping the parameter count constant yields $+22.6$~pp Acc ($0.734 arrow.r 0.960$) and $+42.3$~pp Acc++ ($0.494 arrow.r 0.917$). This confirms that column count is the primary driver of performance, not raw hidden size: distributing capacity across more specialized columns provides dramatically more representational power for associative tasks than concentrating it in a deeper single stream.
-
-
-= Discussion
-
-*Why does column structure help?* The grid architecture creates a structural asymmetry: column~0 always receives data; other columns must extract information via the message layer. This asymmetry forces columns into differentiated roles — early-layer columns distribute information while later-layer columns develop specialized query or storage behaviors. The learnable column identity keys allow the attention to select source columns by identity, enabling consistent routing policies to emerge across training.
-
-*When does Grid RNN fail?* HopfieldGridLRU and GridRNN-LRU both fail in early RL due to entropy collapse under PPO (see §Experiments). A cleaner ablation of the Hopfield message layer would require a GRU-column variant with Hopfield messages vs. standard MHA messages; currently GridRNN-LRU vs. HopfieldGridLRU conflates cell type (GRU vs. LRU) with message type (standard MHA vs. Hopfield), making it impossible to attribute the SDQ performance gap to one factor alone. This ablation is planned as future work.
-
-*Limitations.* (1) GridHarmonic SDQ results are reported at peak checkpoint (95M steps), not at convergence — the model oscillates thereafter, which we attribute to unbounded column-norm growth in upper layers. (2) The Hopfield/LRU comparison in Table~1 is confounded. (3) We do not yet have a GRU baseline on MIKASA (Table~2 pending), which is a critical gap before this section is publishable.
-
-A full sweep over $C in {2, 3, 4, 5}$ columns at fixed parameters is needed to cleanly quantify the effect of column count independent of depth; the current ablation only covers two points. All open gaps are tracked in the supplementary future-work document.
-
-
-= Conclusion
-
-We introduced Grid Recurrent Networks, a 2D recurrent architecture where $L times C$ cells organized in layers and columns exchange information via inter-column multi-head attention. The grid structure enables spontaneous column specialization without explicit supervision, and serves as a modular framework compatible with diverse memory mechanisms. Across three benchmarks, Grid RNN variants consistently and substantially outperform single-stream GRU baselines: HopfieldGridLRU achieves 96.7% on SDQ-Hard; GridRNN-EMA reaches episode return $approx 0.95$ on POPGym RepeatFirst at only 37% of full training; GridHarmonic achieves 1.68 BPC on text8 with 2.1M parameters.
-
-Future work will complete the MIKASA evaluation suite (including HigherLower, MultiarmedBandit, and harder difficulty levels), provide full comparison with published POPGym baselines, investigate entropy-regularized training to improve LRU-cell convergence under PPO, and run a systematic column-count ablation.
-
-=============== END LEGACY ===============
-*/
-
-// ─────────────────────────────────────────────────────────────────────────────
-// REFERENCES
-// ─────────────────────────────────────────────────────────────────────────────
-
-#bibliography("refs.bib",
+#bibliography(
+  "refs.bib",
   style: "american-psychological-association",
-  title: "References")
+  title: "References",
+)
 
 ] // end columns
