@@ -57,7 +57,7 @@ Recurrent Independent Mechanisms (RIMs) \citep{goyal2019rims} maintain separate 
 Multi-Dimensional RNNs \citep{graves2007mdrnn} propagate information recurrently along multiple axes of structured data. Grid LSTM \citep{kalchbrenner2015gridlstm} arranges LSTM blocks in a multidimensional grid whose dimensions exchange hidden and memory vectors through fixed connections. MoSAIC uses a grid as an organization of modules rather than as an additional axis of the input. All columns share one temporal axis, retain separate recurrent states, and communicate through content-dependent routing rather than edges fixed by input geometry.
 
 \paragraph{Modern recurrent and attention models.}
-Recent architectures strengthen recurrent alternatives to full self-attention by redesigning the recurrent update or its memory representation. LRUs \citep{orvieto2023lru} stabilize long linear recurrences; HGRN2 \citep{qin2024hgrn2} expands the state of a gated linear RNN; Mamba-2 \citep{dao2024mamba2} connects selective state-space models with structured attention; DeltaNet \citep{yang2024deltanet} uses delta-rule matrix state; and xLSTM \citep{beck2024xlstm} includes scalar- and matrix-memory variants. Transformers \citep{vaswani2017attention} and segment-recurrent variants such as Transformer-XL \citep{dai2019transformerxl} instead retain a finite or growing bank of token representations for attention. MoSAIC keeps a conventional nonlinear GRU update and changes how recurrent state is divided and routed. Our experiments compare against GRUs and finite-context Transformers under the same token budget; memory-limited implementations of HGRN2, DeltaNet, and mLSTM are reported only under their separate reduced-token protocols.
+Recent architectures strengthen recurrent alternatives to full self-attention by redesigning the recurrent update or its memory representation. LRUs \citep{orvieto2023lru} stabilize long linear recurrences; HGRN2 \citep{qin2024hgrn2} expands the state of a gated linear RNN; Mamba-2 \citep{dao2024mamba2} connects selective state-space models with structured attention; DeltaNet \citep{yang2024deltanet} uses delta-rule matrix state; and xLSTM \citep{beck2024xlstm} includes scalar- and matrix-memory variants. Transformers \citep{vaswani2017attention} and segment-recurrent variants such as Transformer-XL \citep{dai2019transformerxl} instead retain a finite or growing bank of token representations for attention. MoSAIC keeps a conventional nonlinear GRU update and changes how recurrent state is divided and routed. Our experiments compare against GRUs and finite-context Transformers under the same token budget; memory-limited implementations of HGRN2, DeltaNet, and mLSTM were run separately under non-comparable budgets.
 
 \begin{figure*}[t]
 \centering
@@ -181,7 +181,7 @@ GRU & L3 & 10.25M & 2 & 990M & $0.2865 \pm 0.0798$ \\
 MoSAIC & L1C8 & 10.12M & 3 & 1000M & $0.7051 \pm 0.0163$ \\
 MoSAIC & L2C4 & 10.12M & 3 & 985M & $0.8433 \pm 0.0055$ \\
 MoSAIC & L2C8 & 10.18M & 3 & 1000M & $0.8664 \pm 0.0099$ \\
-MoSAIC & L2C16 & 10.09M & 1 & 1000M & $0.8901$ \\
+MoSAIC & L2C16 & 10.09M & 3 & 1000M & $0.8911 \pm 0.0049$ \\
 MoSAIC & L3C4 & 9.99M & 3 & 1000M & $\mathbf{0.9204 \pm 0.0128}$ \\
 \bottomrule
 \end{tabular}
@@ -208,7 +208,7 @@ Episode lengths are geometrically distributed. During training, their mean incre
 The code logs \texttt{Acc++} as query accuracy on examples whose valid store--query gaps are above the current batch mean. This emphasizes the longer-gap half of non-missing queries. For each completed replicate, we average the final five logged \texttt{Acc++} values through the one-billion-token horizon and then aggregate those replicate-level averages.
 
 \paragraph{Results.}
-Table~\ref{tab:sdq} shows a consistent family-level advantage for MoSAIC: every evaluated shape has a higher central \texttt{Acc++} value than every GRU depth. In the replicated two-layer comparison, L2C4 reaches $0.8433 \pm 0.0055$, while GRU-L2 reaches $0.5322 \pm 0.1027$. L3C4 is the best observed configuration at $0.9204 \pm 0.0128$. L2C16 remains a single-replicate observation and therefore provides limited evidence about run-to-run variability.
+Table~\ref{tab:sdq} shows a consistent family-level advantage for MoSAIC: every evaluated shape has a higher central \texttt{Acc++} value than every GRU depth. In the replicated two-layer comparison, L2C4 reaches $0.8433 \pm 0.0055$, while GRU-L2 reaches $0.5322 \pm 0.1027$. L2C16 reaches $0.8911 \pm 0.0049$, and L3C4 is the best observed configuration at $0.9204 \pm 0.0128$.
 
 \begin{figure*}[t]
 \centering
@@ -255,7 +255,7 @@ As shown in Table~\ref{tab:text8}, every evaluated MoSAIC shape has a lower cent
 
 \subsection{Topology and State Allocation}
 
-Parameter matching changes hidden width and persistent-state size. Table~\ref{tab:topology} isolates those differences for the recurrent families. At two layers, increasing MoSAIC from four to eight and sixteen columns increases state size while worsening text8 BPC relative to L2C4. L2C16 stores more than twice as many recurrent scalars as L2C4 but obtains a higher BPC. On SDQ, the central values increase across these shapes, although L2C16 has only one completed run. Depth also behaves differently across families: L3C4 improves over L2C4 on both tasks, whereas deeper GRUs improve on text8 but not SDQ. These observations show that state volume alone does not explain the results and that the allocation across depth, column count, and within-column width matters.
+Parameter matching changes hidden width and persistent-state size. Table~\ref{tab:topology} isolates those differences for the recurrent families. At two layers, increasing MoSAIC from four to eight and sixteen columns increases state size while worsening text8 BPC relative to L2C4. L2C16 stores more than twice as many recurrent scalars as L2C4 but obtains a higher BPC. On SDQ, the central values increase across these shapes, with three completed runs for each shape. Depth also behaves differently across families: L3C4 improves over L2C4 on both tasks, whereas deeper GRUs improve on text8 but not SDQ. These observations show that state volume alone does not explain the results and that the allocation across depth, column count, and within-column width matters.
 
 \begin{table}[t]
 \centering
@@ -280,7 +280,7 @@ L3C4 & 344 & 4,128 & 9.99M \\
 \end{table}
 
 \paragraph{Reduced-token baselines.}
-HGRN2, DeltaNet, and mLSTM exceeded available memory at the standard 512-stream geometry. Their completed runs therefore use different token, batch, and update budgets from the one-billion-token comparisons. We retain them only as non-comparable implementation context and draw no relative quality or efficiency conclusion from them.
+HGRN2, DeltaNet, and mLSTM exceeded available memory at the standard 512-stream geometry and were run separately under non-comparable token, batch, and update budgets. We draw no direct quality or efficiency comparison from them.
 
 \section{Discussion and Limitations}
 
@@ -290,11 +290,11 @@ These results support a narrow conclusion. They do not show that columns acquire
 
 Parameter matching also leaves important resources unmatched. MoSAIC exposes more persistent state coordinates than the GRUs and performs routing computation at every layer and timestep. We have not completed controlled throughput, peak-memory, or inference-latency measurements, so the results should be interpreted as evidence about an architectural inductive bias rather than resource efficiency. Likewise, the reduced-token recurrent baselines use different token and update budgets and are not direct quality comparisons.
 
-The empirical scope is limited. Text8 is a small character-level corpus, its validation split received limited manual tuning, and the study operates at roughly ten million parameters. SDQ is synthetic and uses a curriculum-controlled online generator. SDQ L2C16 has one completed run, text8 L2C16 has two, and the current SDQ GRU-L2/L3 aggregates use two runs; we make no statistical-significance claims. Training-only routing regularizers add hyperparameters whose individual effects have not been isolated. Finally, the present paper omits reinforcement-learning results because the task-matched evidence is incomplete and variable.
+The empirical scope is limited. Text8 is a small character-level corpus, its validation split received limited manual tuning, and the study operates at roughly ten million parameters. SDQ is synthetic and uses a curriculum-controlled online generator. Text8 L2C16 and the current SDQ GRU-L2/L3 aggregates use two runs; we make no statistical-significance claims. Training-only routing regularizers add hyperparameters whose individual effects have not been isolated. Preliminary task-matched RL runs were excluded because final performance was unstable and did not provide a reliable comparison.
 
 \section{Conclusion}
 
-MoSAIC factorizes a monolithic recurrent state into persistent columns and learns how information is routed among them before independent recurrent updates. Under controlled, approximately parameter-matched one-billion-token training, this structural bias consistently improves associative memory and character-level modeling over monolithic GRUs. A similarly sized finite-context Transformer provides a matched text8 reference, while the separate reduced-token results are reported only as non-comparable implementation context. The evidence supports modular state organization as a useful inductive bias for recurrent computation at this scale; broader claims about specialization, long-context scaling, and resource efficiency remain open.
+MoSAIC factorizes a monolithic recurrent state into persistent columns and learns how information is routed among them before independent recurrent updates. Under controlled, approximately parameter-matched one-billion-token training, this structural bias consistently improves associative memory and character-level modeling over monolithic GRUs. A similarly sized finite-context Transformer provides a matched text8 reference, while memory-limited recurrent baselines were run separately under non-comparable budgets. The evidence supports modular state organization as a useful inductive bias for recurrent computation at this scale; broader claims about specialization, long-context scaling, and resource efficiency remain open.
 
 \bibliography{refs}
 
