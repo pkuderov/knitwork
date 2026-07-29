@@ -28,6 +28,7 @@ REDUCED_BUDGET_BASELINES = {
     "hgrn2_10.13M",
     "mlstm_10.11M",
 }
+REDUCED_BASELINE_MODELS = {"delta_net", "hgrn2", "mlstm"}
 MODEL_CFG_ALIASES = {
     ("rnn_2L", None): ("rnn", "rnn_L2"),
 }
@@ -198,13 +199,27 @@ def main_sdq_groups(groups):
     return result
 
 
-def sdq_final_window_result(group):
+def reduced_sdq_groups(groups):
+    result = []
+    for group in groups:
+        runs = [
+            run for run in group["runs"]
+            if run["state"] == "finished"
+            and run["group_model"] in REDUCED_BASELINE_MODELS
+            and not is_standard_protocol(run)
+        ]
+        if runs:
+            result.append({"name": group["name"], "runs": runs})
+    return result
+
+
+def sdq_final_window_result(group, step_limit=TEXT_STEP_LIMIT):
     per_run = []
     endpoints = []
     for run in group["runs"]:
         points = [
             (step, value) for step, value in curve(run, "Acc++")
-            if step <= TEXT_STEP_LIMIT
+            if step <= step_limit
         ]
         final_window = points[-5:]
         per_run.append(np.mean([value for _, value in final_window]))
@@ -411,58 +426,13 @@ def write_report(path, text_groups, sdq_groups, mikasa_groups):
         "This is an exploratory tracker snapshot, not a selected paper result set.",
         "Runs are grouped by the Comet `model` and `model_cfg` parameters, with the user-confirmed legacy `rnn_2L` alias merged into `rnn / rnn_L2`. Mikasa RL groups additionally require the same Comet `env`.",
         "",
-        "## Launch priority: configurations below three replicates",
+        "## Exploratory reading",
         "",
-        "This is an operational coverage ranking, not a performance ranking. Completed and running runs both count toward the three-replicate target. Standard-protocol configurations rank ahead of nonstandard or reduced-budget configurations; within each tier, fewer required launches rank first and SDQ precedes Text8 under the current critical path.",
+        "- The three non-RNN baselines (DeltaNet, HGRN2, and mLSTM) use reduced `n_envs` and `n_steps` because of their memory requirements. Their Text8 results belong in the update-indexed view; their SDQ results are shown separately below and are not directly comparable to the standard 1B-token protocol.",
+        "- SDQ's online generator supplies the reported evaluation metrics, so no separate validation split is expected. Each aggregate is the mean of each completed run's final five logged `Acc++` values, followed by mean ± standard deviation across runs.",
+        "- Mikasa RL is status-only until task-matched runs complete. Do not compare `env/EpRet` across different POPGym tasks.",
         "",
-        "| Rank | Priority | Experiment | Model config | Completed | Running | Counted | New launches to reach 3 | Protocol |",
-        "| ---: | --- | --- | --- | ---: | ---: | ---: | ---: | --- |",
-        *(
-            "| {rank} | {priority} | {experiment} | {name} | {completed} | {running} | {counted} | {needed} | {protocol} |".format(
-                rank=index,
-                priority=launch_priority_label(group),
-                experiment=group["experiment"],
-                name=group["name"],
-                completed=group["completed"],
-                running=group["running"],
-                counted=group["counted"],
-                needed=group["launches_needed"],
-                protocol="standard" if group["standard"] else "nonstandard/reduced",
-            )
-            for index, group in enumerate(
-                launch_priority_groups(text_groups, sdq_groups),
-                start=1,
-            )
-        ),
-        "",
-        "## Per-seed status",
-        "",
-        "`same model/model_cfg` is verified from Comet. `replicate N` is an analysis label: intentional null seeds mean the Comet ID is the stable run identifier.",
-        "",
-        "| Experiment | Model config | Seed | State | Progress | Metrics | Logged budget | Configuration comparability | Obvious anomaly |",
-        "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
-        *(
-            status_row(run, seed_index)
-            for groups in (text_groups, sdq_groups)
-            for group in groups
-            for seed_index, run in enumerate(group["runs"], start=1)
-        ),
-        "",
-        "## Mikasa RL: live per-seed status",
-        "",
-        "This is a tracker-status view only: the new runs are not treated as a completed comparison or paper result. `env/EpRet` is the online mean completed-episode return logged by the runner. The relevant core matrix is task-matched `rnn / rnn_L2` versus `grnn / grnn_L2C4`; do not compare returns across different POPGym tasks.",
-        "",
-        "| Task | Model config | Seed | State | Progress | Metrics | Logged budget | Configuration comparability | Obvious anomaly |",
-        "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
-        *(
-            status_row(run, seed_index).replace(
-                "| Mikasa RL |",
-                f"| {run_task(run).removeprefix('popgym-').removesuffix('-v0')} |",
-                1,
-            )
-            for group in mikasa_groups
-            for seed_index, run in enumerate(group["runs"], start=1)
-        ),
+        "The companion figure is `figures/aaai_comet_snapshot.png`; it covers Text8 and SDQ only, not Mikasa RL.",
         "",
         "## Text8: completed-seed results at the comparable horizon",
         "",
@@ -545,12 +515,95 @@ def write_report(path, text_groups, sdq_groups, mikasa_groups):
             for group in main_sdq_groups(sdq_groups)
         ),
         "",
-        "## Exploratory reading",
+        "## Store--Distract--Query: reduced-budget baseline results",
         "",
-        "- The three non-RNN baselines (DeltaNet, HGRN2, and mLSTM) use reduced `n_envs` and `n_steps` because of their memory requirements. The update-indexed text8 panel is the appropriate relative-efficiency view for those baselines.",
-        "- SDQ's online generator supplies the reported evaluation metrics, so no separate validation split is expected. Its aggregate uses completed standard-protocol runs only.",
+        "Completed DeltaNet, HGRN2, and mLSTM runs only. These use reduced token budgets and different batch/update accounting, so they are reported separately from the standard 1B-token SDQ table.",
         "",
-        "The companion figure is `figures/aaai_comet_snapshot.png`; it covers Text8 and SDQ only, not Mikasa RL.",
+        "| Model config | Completed replicates | Tokens | Batch tokens/update | Planned updates | Final logged point | Final-five Acc++ ↑ | Comet IDs |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
+        *(
+            "| {name} | {seeds} | {tokens} | {batch} | {updates} | {horizon} | {acc} | {ids} |".format(
+                name=group["name"],
+                seeds=len(group["runs"]),
+                tokens=format_step(number(group["runs"][0]["parameters"].get("n_steps"))),
+                batch=format_int(
+                    number(group["runs"][0]["parameters"].get("n_envs"))
+                    * number(group["runs"][0]["parameters"].get("rollout_len")),
+                ),
+                updates=format_updates(planned_updates(group["runs"][0])),
+                horizon=format_step(
+                    sdq_final_window_result(
+                        group,
+                        number(group["runs"][0]["parameters"].get("n_steps")),
+                    )["min_endpoint"],
+                ),
+                acc=format_mean_std(
+                    sdq_final_window_result(
+                        group,
+                        number(group["runs"][0]["parameters"].get("n_steps")),
+                    )["mean"],
+                    sdq_final_window_result(
+                        group,
+                        number(group["runs"][0]["parameters"].get("n_steps")),
+                    )["std"],
+                ),
+                ids=", ".join(f"`{run['id'][:8]}`" for run in group["runs"]),
+            )
+            for group in reduced_sdq_groups(sdq_groups)
+        ),
+        "",
+        "## Launch priority: configurations below three replicates",
+        "",
+        "This is an operational coverage ranking, not a performance ranking. Completed and running runs both count toward the three-replicate target. Standard-protocol configurations rank ahead of nonstandard or reduced-budget configurations; within each tier, fewer required launches rank first and SDQ precedes Text8 under the current critical path. Mikasa RL is intentionally excluded because its task-matched two-replicate matrix has a different coverage target.",
+        "",
+        "| Rank | Priority | Experiment | Model config | Completed | Running | Counted | New launches to reach 3 | Protocol |",
+        "| ---: | --- | --- | --- | ---: | ---: | ---: | ---: | --- |",
+        *(
+            "| {rank} | {priority} | {experiment} | {name} | {completed} | {running} | {counted} | {needed} | {protocol} |".format(
+                rank=index,
+                priority=launch_priority_label(group),
+                experiment=group["experiment"],
+                name=group["name"],
+                completed=group["completed"],
+                running=group["running"],
+                counted=group["counted"],
+                needed=group["launches_needed"],
+                protocol="standard" if group["standard"] else "nonstandard/reduced",
+            )
+            for index, group in enumerate(
+                launch_priority_groups(text_groups, sdq_groups),
+                start=1,
+            )
+        ),
+        "",
+        "## Per-seed status",
+        "",
+        "`same model/model_cfg` is verified from Comet. `replicate N` is an analysis label: intentional null seeds mean the Comet ID is the stable run identifier.",
+        "",
+        "| Experiment | Model config | Seed | State | Progress | Metrics | Logged budget | Configuration comparability | Obvious anomaly |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+        *(
+            status_row(run, seed_index)
+            for groups in (text_groups, sdq_groups)
+            for group in groups
+            for seed_index, run in enumerate(group["runs"], start=1)
+        ),
+        "",
+        "## Mikasa RL: live per-seed status",
+        "",
+        "This is a tracker-status view only: the new runs are not treated as a completed comparison or paper result. `env/EpRet` is the online mean completed-episode return logged by the runner. The relevant core matrix is task-matched `rnn / rnn_L2` versus `grnn / grnn_L2C4`.",
+        "",
+        "| Task | Model config | Seed | State | Progress | Metrics | Logged budget | Configuration comparability | Obvious anomaly |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+        *(
+            status_row(run, seed_index).replace(
+                "| Mikasa RL |",
+                f"| {run_task(run).removeprefix('popgym-').removesuffix('-v0')} |",
+                1,
+            )
+            for group in mikasa_groups
+            for seed_index, run in enumerate(group["runs"], start=1)
+        ),
         "",
     ]
     path.write_text("\n".join(lines), encoding="utf-8")
