@@ -77,6 +77,16 @@ This is a separate checkpoint-selection view, not a fixed-horizon comparison. It
 | rnn / rnn_L2 | 3 | 1.4995 ± 0.0116 | `28f302f7`, `376d8795`, `eb741ad3` |
 | rnn / rnn_L3 | 2 | 1.4843 ± 0.0080 | `06eefd39`, `8771e623` |
 
+## Text8: reduced-token, increased-update baselines
+
+This separate table is not part of the 1B-token RNN/GRNN comparison. Updates equal `n_steps / (n_envs × rollout_len)`; the rollout length is 64 for these runs. The standard 1B-token RNN/GRNN protocol has 30.5k planned updates. Final and best BPC are both shown because this is a completed-run status view, not a fixed-horizon comparison.
+
+| Model config | Tokens | Batch tokens/update | Planned updates | Final val BPC ↓ | Best val BPC ↓ | Comet IDs |
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
+| delta_net / delta_net | 200.0M | 4,096 | 48.8k | 1.8443 ± 0.0000 | 1.8292 ± 0.0000 | `09e90471` |
+| hgrn2 / hgrn2 | 100.0M | 2,048 | 48.8k | 1.6728 ± 0.0000 | 1.6728 ± 0.0000 | `0e139079` |
+| mlstm / mlstm | 200.0M | 4,096 | 48.8k | 1.6856 ± 0.0000 | 1.6624 ± 0.0000 | `61dbc44b` |
+
 ## Store--Distract--Query (`knitwork-sdq`)
 
 `Acc++` is the logged online-generator evaluation metric. Curves aggregate runs with the same `model` and `model_cfg`; the table uses the peak of the group mean curve.

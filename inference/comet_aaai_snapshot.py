@@ -147,6 +147,42 @@ def best_checkpoint_result(group):
     return {"mean": mean, "std": std}
 
 
+def reduced_text_groups(groups):
+    result = []
+    for group in groups:
+        runs = [
+            run for run in group["runs"]
+            if run["state"] == "finished" and run["name"] in REDUCED_BUDGET_BASELINES
+        ]
+        if runs:
+            result.append({"name": group["name"], "runs": runs})
+    return result
+
+
+def planned_updates(run):
+    parameters = run["parameters"]
+    n_envs = number(parameters.get("n_envs"))
+    rollout_len = number(parameters.get("rollout_len"))
+    n_steps = number(parameters.get("n_steps"))
+    if None in (n_envs, rollout_len, n_steps):
+        return None
+    return n_steps / (n_envs * rollout_len)
+
+
+def format_updates(value):
+    if value is None:
+        return "—"
+    return f"{value / 1e3:.1f}k"
+
+
+def reduced_budget_result(group, field):
+    values = [
+        metric(run["summary"], "val/BPC", field)
+        for run in group["runs"]
+    ]
+    return mean_std(values)
+
+
 def mean_std(values):
     values = np.asarray(values, dtype=float)
     return values.mean(), values.std(ddof=1) if len(values) > 1 else 0.0
@@ -291,6 +327,28 @@ def write_report(path, text_groups, sdq_groups):
                 ids=", ".join(f"`{run['id'][:8]}`" for run in group["runs"]),
             )
             for group in main_text_groups(text_groups)
+        ),
+        "",
+        "## Text8: reduced-token, increased-update baselines",
+        "",
+        "This separate table is not part of the 1B-token RNN/GRNN comparison. Updates equal `n_steps / (n_envs × rollout_len)`; the rollout length is 64 for these runs. The standard 1B-token RNN/GRNN protocol has 30.5k planned updates. Final and best BPC are both shown because this is a completed-run status view, not a fixed-horizon comparison.",
+        "",
+        "| Model config | Tokens | Batch tokens/update | Planned updates | Final val BPC ↓ | Best val BPC ↓ | Comet IDs |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | --- |",
+        *(
+            "| {name} | {tokens} | {batch} | {updates} | {final_bpc} | {best_bpc} | {ids} |".format(
+                name=group["name"],
+                tokens=format_step(number(group["runs"][0]["parameters"].get("n_steps"))),
+                batch=format_int(
+                    number(group["runs"][0]["parameters"].get("n_envs"))
+                    * number(group["runs"][0]["parameters"].get("rollout_len")),
+                ),
+                updates=format_updates(planned_updates(group["runs"][0])),
+                final_bpc=format_mean_std(*reduced_budget_result(group, "valueCurrent")),
+                best_bpc=format_mean_std(*reduced_budget_result(group, "valueMin")),
+                ids=", ".join(f"`{run['id'][:8]}`" for run in group["runs"]),
+            )
+            for group in reduced_text_groups(text_groups)
         ),
         "",
         "## Store--Distract--Query (`knitwork-sdq`)",
