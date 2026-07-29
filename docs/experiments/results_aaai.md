@@ -1,6 +1,6 @@
 # AAAI Comet Snapshot
 
-Retrieved read-only from Comet workspace `team-rl-exp` at 2026-07-29 07:32 UTC.
+Retrieved read-only from Comet workspace `team-rl-exp` at 2026-07-29 10:06 UTC.
 This is an exploratory tracker snapshot, not a selected paper result set.
 Runs are grouped by the Comet `model` and `model_cfg` parameters, with the user-confirmed legacy `rnn_2L` alias merged into `rnn / rnn_L2`. Mikasa RL groups additionally require the same Comet `env`.
 
@@ -18,10 +18,10 @@ RNN, GRNN/MoSAIC, and Transformer only. Each run is truncated at 1B tokens; runs
 
 | Model config | Completed replicates | Protocol | Final logged point | Val BPC ↓ | Comet IDs |
 | --- | ---: | --- | ---: | ---: | --- |
-| grnn / grnn_L1C8 | 2 | 1B tokens | 1000.0M | 1.4709 ± 0.0033 | `4d8fa3da`, `55c0a476` |
+| grnn / grnn_L1C8 | 3 | 1B tokens | 1000.0M | 1.4687 ± 0.0046 | `4d8fa3da`, `55c0a476`, `e8976d83` |
 | grnn / grnn_L2C16 | 2 | 1B tokens | 1000.0M | 1.4548 ± 0.0023 | `6b99c6b4`, `e1c8f4a8` |
 | grnn / grnn_L2C4 | 3 | 1B tokens | 980.0M | 1.4367 ± 0.0026 | `250f9d15`, `6f5b2321`, `e302a67f` |
-| grnn / grnn_L2C8 | 2 | 1B tokens | 1000.0M | 1.4444 ± 0.0017 | `2096ea92`, `5ea4642f` |
+| grnn / grnn_L2C8 | 3 | 1B tokens | 1000.0M | 1.4452 ± 0.0019 | `2096ea92`, `5ea4642f`, `c67c3ce1` |
 | grnn / grnn_L3C4 | 3 | 1B tokens | 1000.0M | 1.4345 ± 0.0017 | `1642ea03`, `3c4487e1`, `fe0228bf` |
 | rnn / rnn_L1 | 3 | 1B tokens | 980.0M | 1.5626 ± 0.0028 | `539f02e3`, `bd167357`, `c159bbe1` |
 | rnn / rnn_L2 | 3 | 1B tokens | 1000.0M | 1.5004 ± 0.0119 | `28f302f7`, `376d8795`, `eb741ad3` |
@@ -35,10 +35,10 @@ This is a separate checkpoint-selection view, not a fixed-horizon comparison. It
 
 | Model config | Completed replicates | Best val BPC ↓ | Comet IDs |
 | --- | ---: | ---: | --- |
-| grnn / grnn_L1C8 | 2 | 1.4678 ± 0.0016 | `4d8fa3da`, `55c0a476` |
+| grnn / grnn_L1C8 | 3 | 1.4665 ± 0.0024 | `4d8fa3da`, `55c0a476`, `e8976d83` |
 | grnn / grnn_L2C16 | 2 | 1.4485 ± 0.0028 | `6b99c6b4`, `e1c8f4a8` |
 | grnn / grnn_L2C4 | 3 | 1.4367 ± 0.0026 | `250f9d15`, `6f5b2321`, `e302a67f` |
-| grnn / grnn_L2C8 | 2 | 1.4395 ± 0.0012 | `2096ea92`, `5ea4642f` |
+| grnn / grnn_L2C8 | 3 | 1.4399 ± 0.0010 | `2096ea92`, `5ea4642f`, `c67c3ce1` |
 | grnn / grnn_L3C4 | 3 | 1.4312 ± 0.0022 | `1642ea03`, `3c4487e1`, `fe0228bf` |
 | rnn / rnn_L1 | 3 | 1.5626 ± 0.0028 | `539f02e3`, `bd167357`, `c159bbe1` |
 | rnn / rnn_L2 | 3 | 1.4995 ± 0.0116 | `28f302f7`, `376d8795`, `eb741ad3` |
@@ -54,7 +54,7 @@ This separate table is not part of the 1B-token RNN/GRNN comparison. Updates equ
 | --- | ---: | ---: | ---: | ---: | ---: | --- |
 | delta_net / delta_net | 200.0M | 4,096 | 48.8k | 1.8280 ± 0.0231 | 1.8101 ± 0.0271 | `09e90471`, `27cc5c7e` |
 | hgrn2 / hgrn2 | 100.0M | 2,048 | 48.8k | 1.6675 ± 0.0076 | 1.6675 ± 0.0076 | `075ff085`, `0e139079` |
-| mlstm / mlstm | 200.0M | 4,096 | 48.8k | 1.6856 ± 0.0000 | 1.6624 ± 0.0000 | `61dbc44b` |
+| mlstm / mlstm | 200.0M | 4,096 | 48.8k | 1.6797 ± 0.0084 | 1.6553 ± 0.0101 | `61dbc44b`, `af86a53a` |
 
 ## Store--Distract--Query: completed-replicate final-window results
 
@@ -62,10 +62,10 @@ This separate table is not part of the 1B-token RNN/GRNN comparison. Updates equ
 
 | Model config | Completed replicates | Protocol | Final logged point | Final-five Acc++ ↑ | Comet IDs |
 | --- | ---: | --- | ---: | ---: | --- |
-| grnn / grnn_L1C8 | 2 | 1B tokens | 1000.0M | 0.7116 ± 0.0167 | `916dc7cb`, `f5fcd7c7` |
+| grnn / grnn_L1C8 | 3 | 1B tokens | 1000.0M | 0.7051 ± 0.0163 | `4d99ced1`, `916dc7cb`, `f5fcd7c7` |
 | grnn / grnn_L2C16 | 1 | 1B tokens | 1000.0M | 0.8901 ± 0.0000 | `d529d07a` |
 | grnn / grnn_L2C4 | 3 | 1B tokens | 985.0M | 0.8433 ± 0.0055 | `78aebd89`, `a270cafe`, `e96f713f` |
-| grnn / grnn_L2C8 | 1 | 1B tokens | 1000.0M | 0.8678 ± 0.0000 | `295cb9db` |
+| grnn / grnn_L2C8 | 3 | 1B tokens | 1000.0M | 0.8664 ± 0.0099 | `295cb9db`, `a9e72f09`, `df1a63f2` |
 | grnn / grnn_L3C4 | 3 | 1B tokens | 1000.0M | 0.9204 ± 0.0128 | `014edb68`, `4f55585a`, `bd180492` |
 | rnn / rnn_L1 | 3 | 1B tokens | 970.0M | 0.6177 ± 0.0052 | `45901ecb`, `6ce37058`, `91ca2493` |
 | rnn / rnn_L2 | 2 | 1B tokens | 980.0M | 0.5322 ± 0.1027 | `69d27694`, `6dfc8619` |
@@ -77,7 +77,7 @@ Completed DeltaNet, HGRN2, and mLSTM runs only. These use reduced token budgets 
 
 | Model config | Completed replicates | Tokens | Batch tokens/update | Planned updates | Final logged point | Final-five Acc++ ↑ | Comet IDs |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
-| delta_net / delta_net | 1 | 250.0M | 4,096 | 61.0k | 250.0M | 0.1753 ± 0.0000 | `e4583757` |
+| delta_net / delta_net | 2 | 250.0M | 4,096 | 61.0k | 250.0M | 0.1529 ± 0.0317 | `e4036e50`, `e4583757` |
 | hgrn2 / hgrn2 | 2 | 125.0M | 2,048 | 61.0k | 125.0M | 0.1095 ± 0.0004 | `e677376d`, `e8fa8d5c` |
 | mlstm / mlstm | 2 | 250.0M | 4,096 | 61.0k | 250.0M | 0.1239 ± 0.0037 | `2e5ffc55`, `fd556d5f` |
 
@@ -87,18 +87,15 @@ This is an operational coverage ranking, not a performance ranking. Completed an
 
 | Rank | Priority | Experiment | Model config | Completed | Running | Counted | New launches to reach 3 | Protocol |
 | ---: | --- | --- | --- | ---: | ---: | ---: | ---: | --- |
-| 1 | P1: complete 3-replicate standard group | SDQ | grnn / grnn_L1C8 | 2 | 0 | 2 | 1 | standard |
-| 2 | P1: complete 3-replicate standard group | SDQ | rnn / rnn_L2 | 2 | 0 | 2 | 1 | standard |
-| 3 | P1: complete 3-replicate standard group | SDQ | rnn / rnn_L3 | 2 | 0 | 2 | 1 | standard |
-| 4 | P1: complete 3-replicate standard group | text8 | grnn / grnn_L1C8 | 2 | 0 | 2 | 1 | standard |
-| 5 | P1: complete 3-replicate standard group | text8 | grnn / grnn_L2C16 | 2 | 0 | 2 | 1 | standard |
-| 6 | P2: standard group needs multiple launches | SDQ | grnn / grnn_L2C16 | 1 | 0 | 1 | 2 | standard |
-| 7 | P3: nonstandard or reduced-budget group | SDQ | delta_net / delta_net | 1 | 1 | 2 | 1 | nonstandard/reduced |
-| 8 | P3: nonstandard or reduced-budget group | SDQ | hgrn2 / hgrn2 | 2 | 0 | 2 | 1 | nonstandard/reduced |
-| 9 | P3: nonstandard or reduced-budget group | SDQ | mlstm / mlstm | 2 | 0 | 2 | 1 | nonstandard/reduced |
-| 10 | P3: nonstandard or reduced-budget group | text8 | delta_net / delta_net | 2 | 0 | 2 | 1 | nonstandard/reduced |
-| 11 | P3: nonstandard or reduced-budget group | text8 | hgrn2 / hgrn2 | 2 | 0 | 2 | 1 | nonstandard/reduced |
-| 12 | P3: nonstandard or reduced-budget group | text8 | mlstm / mlstm | 1 | 1 | 2 | 1 | nonstandard/reduced |
+| 1 | P1: complete 3-replicate standard group | SDQ | rnn / rnn_L2 | 2 | 0 | 2 | 1 | standard |
+| 2 | P1: complete 3-replicate standard group | SDQ | rnn / rnn_L3 | 2 | 0 | 2 | 1 | standard |
+| 3 | P1: complete 3-replicate standard group | text8 | grnn / grnn_L2C16 | 2 | 0 | 2 | 1 | standard |
+| 4 | P3: nonstandard or reduced-budget group | SDQ | delta_net / delta_net | 2 | 0 | 2 | 1 | nonstandard/reduced |
+| 5 | P3: nonstandard or reduced-budget group | SDQ | hgrn2 / hgrn2 | 2 | 0 | 2 | 1 | nonstandard/reduced |
+| 6 | P3: nonstandard or reduced-budget group | SDQ | mlstm / mlstm | 2 | 0 | 2 | 1 | nonstandard/reduced |
+| 7 | P3: nonstandard or reduced-budget group | text8 | delta_net / delta_net | 2 | 0 | 2 | 1 | nonstandard/reduced |
+| 8 | P3: nonstandard or reduced-budget group | text8 | hgrn2 / hgrn2 | 2 | 0 | 2 | 1 | nonstandard/reduced |
+| 9 | P3: nonstandard or reduced-budget group | text8 | mlstm / mlstm | 2 | 0 | 2 | 1 | nonstandard/reduced |
 
 ## Per-seed status
 
@@ -110,6 +107,7 @@ This is an operational coverage ranking, not a performance ranking. Completed an
 | text8 | delta_net_10.10M (delta_net / delta_net) | replicate 2 (`27cc5c7e`) | finished | 200.0M / 200.0M | val/BPC: best 1.7909; current 1.8116 | 64 envs × 200.0M | same model/model_cfg (Comet); reduced budget | current BPC is 0.021 above best |
 | text8 | grnn.L1C8_10.11M (grnn / grnn_L1C8) | replicate 1 (`4d8fa3da`) | finished | 1000.0M / 1000.0M | val/BPC: best 1.4666; current 1.4686 | 512 envs × 1000.0M | same model/model_cfg (Comet); standard budget | — |
 | text8 | grnn.L1C8_10.11M (grnn / grnn_L1C8) | replicate 2 (`55c0a476`) | finished | 1000.0M / 1000.0M | val/BPC: best 1.4689; current 1.4733 | 512 envs × 1000.0M | same model/model_cfg (Comet); standard budget | — |
+| text8 | grnn.L1C8_10.11M (grnn / grnn_L1C8) | replicate 3 (`e8976d83`) | finished | 1000.0M / 1000.0M | val/BPC: best 1.4641; current 1.4642 | 512 envs × 1000.0M | same model/model_cfg (Comet); standard budget | — |
 | text8 | grnn.L2C16_10.09M (grnn / grnn_L2C16) | replicate 1 (`6b99c6b4`) | finished | 1000.0M / 1000.0M | val/BPC: best 1.4506; current 1.4564 | 512 envs × 1000.0M | same model/model_cfg (Comet); standard budget | — |
 | text8 | grnn.L2C16_10.09M (grnn / grnn_L2C16) | replicate 2 (`e1c8f4a8`) | finished | 1000.0M / 1000.0M | val/BPC: best 1.4465; current 1.4531 | 512 envs × 1000.0M | same model/model_cfg (Comet); standard budget | — |
 | text8 | grnn.L2C4_10.11M (grnn / grnn_L2C4) | replicate 1 (`250f9d15`) | finished | 1000.0M / 1000.0M | val/BPC: best 1.4352; current 1.4391 | 512 envs × 1000.0M | same model/model_cfg (Comet); standard budget | — |
@@ -117,14 +115,14 @@ This is an operational coverage ranking, not a performance ranking. Completed an
 | text8 | grnn.L2C4_10.11M (grnn / grnn_L2C4) | replicate 3 (`e302a67f`) | finished | 1495.1M / 1500.0M | val/BPC: best 1.4319; current 1.4327 | 512 envs × 1500.0M | same model/model_cfg (Comet); standard budget | — |
 | text8 | grnn.L2C8_10.17M (grnn / grnn_L2C8) | replicate 1 (`2096ea92`) | finished | 1000.0M / 1000.0M | val/BPC: best 1.4387; current 1.4456 | 512 envs × 1000.0M | same model/model_cfg (Comet); standard budget | — |
 | text8 | grnn.L2C8_10.17M (grnn / grnn_L2C8) | replicate 2 (`5ea4642f`) | finished | 1000.0M / 1000.0M | val/BPC: best 1.4404; current 1.4431 | 512 envs × 1000.0M | same model/model_cfg (Comet); standard budget | — |
-| text8 | grnn.L2C8_10.17M (grnn / grnn_L2C8) | replicate 3 (`c67c3ce1`) | running | 925.0M / 1000.0M | val/BPC: best 1.4425; current 1.4425 | 512 envs × 1000.0M | same model/model_cfg (Comet); standard budget | state: running |
+| text8 | grnn.L2C8_10.17M (grnn / grnn_L2C8) | replicate 3 (`c67c3ce1`) | finished | 1000.0M / 1000.0M | val/BPC: best 1.4405; current 1.4469 | 512 envs × 1000.0M | same model/model_cfg (Comet); standard budget | — |
 | text8 | grnn.L3C4_9.99M (grnn / grnn_L3C4) | replicate 1 (`1642ea03`) | finished | 1000.0M / 1000.0M | val/BPC: best 1.4286; current 1.4330 | 512 envs × 1000.0M | same model/model_cfg (Comet); standard budget | — |
 | text8 | grnn.L3C4_9.99M (grnn / grnn_L3C4) | replicate 2 (`3c4487e1`) | finished | 1000.0M / 1000.0M | val/BPC: best 1.4322; current 1.4341 | 512 envs × 1000.0M | same model/model_cfg (Comet); standard budget | — |
 | text8 | grnn.L3C4_9.99M (grnn / grnn_L3C4) | replicate 3 (`fe0228bf`) | finished | 1000.0M / 1000.0M | val/BPC: best 1.4327; current 1.4364 | 512 envs × 1000.0M | same model/model_cfg (Comet); standard budget | — |
 | text8 | hgrn2_10.13M (hgrn2 / hgrn2) | replicate 1 (`075ff085`) | finished | 100.0M / 100.0M | val/BPC: best 1.6621; current 1.6621 | 32 envs × 100.0M | same model/model_cfg (Comet); reduced budget | — |
 | text8 | hgrn2_10.13M (hgrn2 / hgrn2) | replicate 2 (`0e139079`) | finished | 100.0M / 100.0M | val/BPC: best 1.6728; current 1.6728 | 32 envs × 100.0M | same model/model_cfg (Comet); reduced budget | — |
 | text8 | mlstm_10.11M (mlstm / mlstm) | replicate 1 (`61dbc44b`) | finished | 200.0M / 200.0M | val/BPC: best 1.6624; current 1.6856 | 64 envs × 200.0M | same model/model_cfg (Comet); reduced budget | current BPC is 0.023 above best |
-| text8 | mlstm_10.11M (mlstm / mlstm) | replicate 2 (`af86a53a`) | running | 151.0M / 200.0M | val/BPC: best 1.6887; current 1.7103 | 64 envs × 200.0M | same model/model_cfg (Comet); reduced budget | state: running; current BPC is 0.022 above best |
+| text8 | mlstm_10.11M (mlstm / mlstm) | replicate 2 (`af86a53a`) | finished | 200.0M / 200.0M | val/BPC: best 1.6482; current 1.6738 | 64 envs × 200.0M | same model/model_cfg (Comet); reduced budget | current BPC is 0.026 above best |
 | text8 | rnn.L1_10.16M (rnn / rnn_L1) | replicate 1 (`539f02e3`) | finished | 1000.0M / 1000.0M | val/BPC: best 1.5648; current 1.5656 | 512 envs × 1000.0M | same model/model_cfg (Comet); standard budget | — |
 | text8 | rnn.L1_10.16M (rnn / rnn_L1) | replicate 2 (`bd167357`) | finished | 1495.1M / 1500.0M | val/BPC: best 1.5522; current 1.5525 | 512 envs × 1500.0M | same model/model_cfg (Comet); standard budget | — |
 | text8 | rnn.L1_10.16M (rnn / rnn_L1) | replicate 3 (`c159bbe1`) | finished | 1000.0M / 1000.0M | val/BPC: best 1.5594; current 1.5606 | 512 envs × 1000.0M | same model/model_cfg (Comet); standard budget | — |
@@ -140,17 +138,20 @@ This is an operational coverage ranking, not a performance ranking. Completed an
 | text8 | transformer.64_10.07M (transformer / transformer_64) | replicate 1 (`36f19488`) | finished | 1000.0M / 1000.0M | val/BPC: best 1.4805; current 1.4805 | 512 envs × 1000.0M | same model/model_cfg (Comet); standard budget | — |
 | text8 | transformer.64_10.07M (transformer / transformer_64) | replicate 2 (`95c2b701`) | finished | 1000.0M / 1000.0M | val/BPC: best 1.4869; current 1.4869 | 512 envs × 1000.0M | same model/model_cfg (Comet); standard budget | — |
 | text8 | transformer.64_10.07M (transformer / transformer_64) | replicate 3 (`cc0279fb`) | finished | 977.6M / 1000.0M | val/BPC: best 1.4774; current 1.4774 | 512 envs × 1000.0M | same model/model_cfg (Comet); standard budget | — |
-| SDQ | delta_net_10.12M (delta_net / delta_net) | replicate 1 (`e4036e50`) | running | 218.8M / 250.0M | Acc++: best 0.2156; current 0.1276 | 128 envs × 250.0M | same model/model_cfg (Comet); nonstandard budget | state: running; current Acc++ is 0.088 below best |
+| SDQ | delta_net_10.12M (delta_net / delta_net) | replicate 1 (`e4036e50`) | finished | 250.0M / 250.0M | Acc++: best 0.2156; current 0.1304 | 128 envs × 250.0M | same model/model_cfg (Comet); nonstandard budget | current Acc++ is 0.085 below best |
 | SDQ | delta_net_10.12M (delta_net / delta_net) | replicate 2 (`e4583757`) | finished | 250.0M / 250.0M | Acc++: best 0.2892; current 0.1725 | 128 envs × 250.0M | same model/model_cfg (Comet); nonstandard budget | current Acc++ is 0.117 below best |
-| SDQ | grnn.L1C8_10.12M (grnn / grnn_L1C8) | replicate 1 (`916dc7cb`) | finished | 1000.0M / 1000.0M | Acc++: best 0.7994; current 0.7316 | 512 envs × 1000.0M | same model/model_cfg (Comet); standard budget | current Acc++ is 0.068 below best |
-| SDQ | grnn.L1C8_10.12M (grnn / grnn_L1C8) | replicate 2 (`f5fcd7c7`) | finished | 1000.0M / 1000.0M | Acc++: best 0.8006; current 0.7050 | 512 envs × 1000.0M | same model/model_cfg (Comet); standard budget | current Acc++ is 0.096 below best |
-| SDQ | grnn.L2C16_10.09M (grnn / grnn_L2C16) | replicate 1 (`d529d07a`) | finished | 1000.0M / 1000.0M | Acc++: best 0.9411; current 0.8866 | 512 envs × 1000.0M | same model/model_cfg (Comet); standard budget | current Acc++ is 0.055 below best |
+| SDQ | grnn.L1C8_10.12M (grnn / grnn_L1C8) | replicate 1 (`4d99ced1`) | finished | 1000.0M / 1000.0M | Acc++: best 0.7994; current 0.6968 | 512 envs × 1000.0M | same model/model_cfg (Comet); standard budget | current Acc++ is 0.103 below best |
+| SDQ | grnn.L1C8_10.12M (grnn / grnn_L1C8) | replicate 2 (`916dc7cb`) | finished | 1000.0M / 1000.0M | Acc++: best 0.7994; current 0.7316 | 512 envs × 1000.0M | same model/model_cfg (Comet); standard budget | current Acc++ is 0.068 below best |
+| SDQ | grnn.L1C8_10.12M (grnn / grnn_L1C8) | replicate 3 (`f5fcd7c7`) | finished | 1000.0M / 1000.0M | Acc++: best 0.8006; current 0.7050 | 512 envs × 1000.0M | same model/model_cfg (Comet); standard budget | current Acc++ is 0.096 below best |
+| SDQ | grnn.L2C16_10.09M (grnn / grnn_L2C16) | replicate 1 (`445fe938`) | running | 980.0M / 1000.0M | Acc++: best 0.9404; current 0.8857 | 512 envs × 1000.0M | same model/model_cfg (Comet); standard budget | state: running; current Acc++ is 0.055 below best |
+| SDQ | grnn.L2C16_10.09M (grnn / grnn_L2C16) | replicate 2 (`d529d07a`) | finished | 1000.0M / 1000.0M | Acc++: best 0.9411; current 0.8866 | 512 envs × 1000.0M | same model/model_cfg (Comet); standard budget | current Acc++ is 0.055 below best |
+| SDQ | grnn.L2C16_10.09M (grnn / grnn_L2C16) | replicate 3 (`e913443d`) | running | 915.0M / 1000.0M | Acc++: best 0.9212; current 0.8854 | 512 envs × 1000.0M | same model/model_cfg (Comet); standard budget | state: running |
 | SDQ | grnn.L2C4_10.12M (grnn / grnn_L2C4) | replicate 1 (`78aebd89`) | finished | 1000.0M / 1000.0M | Acc++: best 0.9056; current 0.8330 | 512 envs × 1000.0M | same model/model_cfg (Comet); standard budget | current Acc++ is 0.073 below best |
 | SDQ | grnn.L2C4_10.12M (grnn / grnn_L2C4) | replicate 2 (`a270cafe`) | finished | 1000.0M / 1000.0M | Acc++: best 0.9243; current 0.8416 | 512 envs × 1000.0M | same model/model_cfg (Comet); standard budget | current Acc++ is 0.083 below best |
 | SDQ | grnn.L2C4_10.12M (grnn / grnn_L2C4) | replicate 3 (`e96f713f`) | finished | 985.0M / 1000.0M | Acc++: best 0.9061; current 0.8471 | 512 envs × 1000.0M | same model/model_cfg (Comet); standard budget | current Acc++ is 0.059 below best |
 | SDQ | grnn.L2C8_10.18M (grnn / grnn_L2C8) | replicate 1 (`295cb9db`) | finished | 1000.0M / 1000.0M | Acc++: best 0.9017; current 0.8716 | 512 envs × 1000.0M | same model/model_cfg (Comet); standard budget | — |
-| SDQ | grnn.L2C8_10.18M (grnn / grnn_L2C8) | replicate 2 (`a9e72f09`) | running | 455.0M / 1000.0M | Acc++: best 0.9001; current 0.8588 | 512 envs × 1000.0M | same model/model_cfg (Comet); standard budget | state: running |
-| SDQ | grnn.L2C8_10.18M (grnn / grnn_L2C8) | replicate 3 (`df1a63f2`) | running | 870.0M / 1000.0M | Acc++: best 0.9081; current 0.7715 | 512 envs × 1000.0M | same model/model_cfg (Comet); standard budget | state: running; current Acc++ is 0.137 below best |
+| SDQ | grnn.L2C8_10.18M (grnn / grnn_L2C8) | replicate 2 (`a9e72f09`) | finished | 1000.0M / 1000.0M | Acc++: best 0.9001; current 0.8618 | 512 envs × 1000.0M | same model/model_cfg (Comet); standard budget | — |
+| SDQ | grnn.L2C8_10.18M (grnn / grnn_L2C8) | replicate 3 (`df1a63f2`) | finished | 1000.0M / 1000.0M | Acc++: best 0.9081; current 0.8765 | 512 envs × 1000.0M | same model/model_cfg (Comet); standard budget | — |
 | SDQ | grnn.L3C4_9.99M (grnn / grnn_L3C4) | replicate 1 (`014edb68`) | finished | 1000.0M / 1000.0M | Acc++: best 0.9265; current 0.9124 | 512 envs × 1000.0M | same model/model_cfg (Comet); standard budget | — |
 | SDQ | grnn.L3C4_9.99M (grnn / grnn_L3C4) | replicate 2 (`4f55585a`) | finished | 1000.0M / 1000.0M | Acc++: best 0.9324; current 0.9230 | 512 envs × 1000.0M | same model/model_cfg (Comet); standard budget | — |
 | SDQ | grnn.L3C4_9.99M (grnn / grnn_L3C4) | replicate 3 (`bd180492`) | finished | 1000.0M / 1000.0M | Acc++: best 0.9359; current 0.9311 | 512 envs × 1000.0M | same model/model_cfg (Comet); standard budget | — |
@@ -172,9 +173,17 @@ This is a tracker-status view only: the new runs are not treated as a completed 
 
 | Task | Model config | Seed | State | Progress | Metrics | Logged budget | Configuration comparability | Obvious anomaly |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| HigherLowerMedium | grnn.L2C4_HigherLowerMedium_10.10M (grnn / grnn_L2C4) | replicate 1 (`bceadf8c`) | finished | 30.0M / 30.0M | env/EpRet: best 0.4292; current 0.4292 | 512 envs × 30.0M | same model/model_cfg (Comet); RL task/budget recorded; compare within task and matching batch settings | — |
-| HigherLowerMedium | rnn.L2_HigherLowerMedium_10.01M (rnn / rnn_L2) | replicate 1 (`0ecc98e5`) | running | 19.8M / 30.0M | env/EpRet: best 0.4918; current 0.4618 | 512 envs × 30.0M | same model/model_cfg (Comet); RL task/budget recorded; compare within task and matching batch settings | state: running |
-| HigherLowerMedium | rnn.L2_HigherLowerMedium_10.01M (rnn / rnn_L2) | replicate 2 (`a25445fd`) | finished | 30.0M / 30.0M | env/EpRet: best 0.4846; current 0.2502 | 512 envs × 30.0M | same model/model_cfg (Comet); RL task/budget recorded; compare within task and matching batch settings | — |
-| RepeatFirstEasy | grnn.L2C4_RepeatFirstEasy_10.10M (grnn / grnn_L2C4) | replicate 1 (`32ea146a`) | finished | 25.9M / 30.0M | env/EpRet: best 0.9967; current 0.0786 | 512 envs × 30.0M | same model/model_cfg (Comet); RL task/budget recorded; compare within task and matching batch settings | finished below 95% of configured steps |
-| RepeatFirstEasy | grnn.L2C4_RepeatFirstEasy_10.10M (grnn / grnn_L2C4) | replicate 2 (`3bb1fea8`) | running | 10.2M / 30.0M | env/EpRet: best 0.9952; current 0.9952 | 512 envs × 30.0M | same model/model_cfg (Comet); RL task/budget recorded; compare within task and matching batch settings | state: running |
+| HigherLowerMedium | grnn.L2C4_HigherLowerMedium_10.10M (grnn / grnn_L2C4) | replicate 1 (`5a6de20e`) | finished | 24.9M / 30.0M | env/EpRet: best 0.3686; current 0.3537 | 512 envs × 30.0M | same model/model_cfg (Comet); RL task/budget recorded; compare within task and matching batch settings | finished below 95% of configured steps |
+| HigherLowerMedium | grnn.L2C4_HigherLowerMedium_10.10M (grnn / grnn_L2C4) | replicate 2 (`bceadf8c`) | finished | 30.0M / 30.0M | env/EpRet: best 0.4292; current 0.4292 | 512 envs × 30.0M | same model/model_cfg (Comet); RL task/budget recorded; compare within task and matching batch settings | — |
+| HigherLowerMedium | grnn.L2C4_HigherLowerMedium_10.10M (grnn / grnn_L2C4) | replicate 3 (`c746f325`) | finished | 30.0M / 30.0M | env/EpRet: best 0.3929; current 0.3675 | 512 envs × 30.0M | same model/model_cfg (Comet); RL task/budget recorded; compare within task and matching batch settings | — |
+| HigherLowerMedium | rnn.L2_HigherLowerMedium_10.01M (rnn / rnn_L2) | replicate 1 (`0ecc98e5`) | finished | 30.0M / 30.0M | env/EpRet: best 0.4918; current 0.2955 | 512 envs × 30.0M | same model/model_cfg (Comet); RL task/budget recorded; compare within task and matching batch settings | — |
+| HigherLowerMedium | rnn.L2_HigherLowerMedium_10.01M (rnn / rnn_L2) | replicate 2 (`571cbdb9`) | running | 21.8M / 50.0M | env/EpRet: best 0.4904; current 0.3818 | 512 envs × 50.0M | same model/model_cfg (Comet); RL task/budget recorded; compare within task and matching batch settings | state: running |
+| HigherLowerMedium | rnn.L2_HigherLowerMedium_10.01M (rnn / rnn_L2) | replicate 3 (`a25445fd`) | finished | 30.0M / 30.0M | env/EpRet: best 0.4846; current 0.2502 | 512 envs × 30.0M | same model/model_cfg (Comet); RL task/budget recorded; compare within task and matching batch settings | — |
+| HigherLowerMedium | rnn.L2_HigherLowerMedium_10.01M (rnn / rnn_L2) | replicate 4 (`a808fa96`) | finished | 30.0M / 30.0M | env/EpRet: best 0.4929; current 0.3131 | 512 envs × 30.0M | same model/model_cfg (Comet); RL task/budget recorded; compare within task and matching batch settings | — |
+| RepeatFirstEasy | grnn.L2C4_RepeatFirstEasy_10.10M (grnn / grnn_L2C4) | replicate 1 (`222d9042`) | running | 18.8M / 30.0M | env/EpRet: best 0.9964; current 0.9964 | 512 envs × 30.0M | same model/model_cfg (Comet); RL task/budget recorded; compare within task and matching batch settings | state: running |
+| RepeatFirstEasy | grnn.L2C4_RepeatFirstEasy_10.10M (grnn / grnn_L2C4) | replicate 2 (`329f0e24`) | finished | 30.0M / 30.0M | env/EpRet: best 0.9968; current 0.5601 | 512 envs × 30.0M | same model/model_cfg (Comet); RL task/budget recorded; compare within task and matching batch settings | — |
+| RepeatFirstEasy | grnn.L2C4_RepeatFirstEasy_10.10M (grnn / grnn_L2C4) | replicate 3 (`32ea146a`) | finished | 30.0M / 30.0M | env/EpRet: best 0.9967; current 0.2297 | 512 envs × 30.0M | same model/model_cfg (Comet); RL task/budget recorded; compare within task and matching batch settings | — |
+| RepeatFirstEasy | grnn.L2C4_RepeatFirstEasy_10.10M (grnn / grnn_L2C4) | replicate 4 (`ecde89d7`) | finished | 30.0M / 30.0M | env/EpRet: best 0.9950; current 0.9255 | 512 envs × 30.0M | same model/model_cfg (Comet); RL task/budget recorded; compare within task and matching batch settings | — |
 | RepeatFirstEasy | rnn.L2_RepeatFirstEasy_10.00M (rnn / rnn_L2) | replicate 1 (`55935152`) | finished | 30.0M / 30.0M | env/EpRet: best 1.0000; current 0.9983 | 512 envs × 30.0M | same model/model_cfg (Comet); RL task/budget recorded; compare within task and matching batch settings | — |
+| RepeatFirstEasy | rnn.L2_RepeatFirstEasy_10.00M (rnn / rnn_L2) | replicate 2 (`627a3c9e`) | finished | 30.0M / 30.0M | env/EpRet: best 0.9999; current 0.9977 | 512 envs × 30.0M | same model/model_cfg (Comet); RL task/budget recorded; compare within task and matching batch settings | — |
+| RepeatFirstEasy | rnn.L2_RepeatFirstEasy_10.00M (rnn / rnn_L2) | replicate 3 (`f8600b20`) | finished | 30.0M / 30.0M | env/EpRet: best 0.9993; current 0.9913 | 512 envs × 30.0M | same model/model_cfg (Comet); RL task/budget recorded; compare within task and matching batch settings | — |

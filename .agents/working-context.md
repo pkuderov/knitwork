@@ -178,25 +178,82 @@ do not wait for them before writing.
 Use a clean matched-budget story in the main paper; do not place every tracked
 model on the same plot.
 
-1. Add one full-width, two-panel learning-curve figure:
-   - **Text8:** GRU-L2, GRU-L3, MoSAIC-L2C4, MoSAIC-L3C4, and
-     Transformer-cache-256.
-   - **SDQ:** GRU-L1 (best GRU), GRU-L2, MoSAIC-L2C4, and MoSAIC-L3C4.
-   - Use processed tokens/steps on the x-axis through 1B, completed replicates
-     only, mean curves with clearly labeled variability bands. Keep identical
-     family colors and shape-specific line styles across panels.
-   - Transformer-cache-64 remains in the final-results table as a context
-     variant but is omitted from the curve to reduce clutter.
+1. Add one required full-width, two-panel learning-curve figure. Generate a
+   vector PDF at `article/latex/fig_learning_curves.pdf`, approximately
+   7.0 inches wide by 2.8--3.0 inches high. The exact figure title is
+   **“Learning dynamics under the standard 1B-token protocol.”**
+
+   **Panel (a):**
+   - Panel title: **“text8 character modeling”**.
+   - Series: `GRU-L2`, `GRU-L3`, `MoSAIC-L2C4`, `MoSAIC-L3C4`, and
+     `Transformer-256`.
+   - X axis label: **“Processed tokens (billions)”**; linear range
+     `[0.0, 1.0]`, ticks at `0.0, 0.2, ..., 1.0`.
+   - Y axis label: **“Validation BPC ↓”**; linear range approximately
+     `[1.40, 2.65]`, using readable 0.2 increments. Do not use a log scale.
+
+   **Panel (b):**
+   - Panel title: **“Store–Distract–Query”**.
+   - Series: `GRU-L1`, `GRU-L2`, `MoSAIC-L2C4`, and `MoSAIC-L3C4`.
+   - X axis label and range: the same as panel (a).
+   - Y axis label: **“Long-gap query accuracy (Acc++ ↑)”**; linear range
+     `[0.0, 1.0]`, ticks at `0.0, 0.2, ..., 1.0`.
+
+   **Data and aggregation:**
+   - Use standard-protocol runs only and cap every curve at 1B processed
+     tokens. Exclude reduced-budget HGRN2, DeltaNet, and mLSTM runs.
+   - Use completed replicates only. Do not include interim runs or a
+     single-replicate topology merely to add another line.
+   - Align replicate curves on their common scheduled logging grid. Do not
+     extrapolate through a missing tail or past the last logged point.
+   - Plot the replicate mean and a shaded **±1 sample standard deviation**
+     band at each shared point. State replicate count in the legend.
+   - Text8 uses logged validation BPC, not training BPC or a best-checkpoint
+     envelope. SDQ uses the logged `Acc++` trajectory; the final table, not the
+     curve, applies the final-five aggregation rule.
+   - Do not apply additional smoothing beyond the metric already stored by the
+     experiment logger.
+
+   **Names and style:**
+   - All user-facing labels must say **MoSAIC**, never `GRNN`, `grnn`, or raw
+     tracker names. Likewise use `GRU`, not `rnn`.
+   - Use family colors consistently in both panels: GRU `#4C78A8`, MoSAIC
+     `#F58518`, Transformer `#54A24B`.
+   - Use line styles to distinguish topology: L1 dotted, L2/L2C4 dashed,
+     L3/L3C4 solid, and Transformer-256 dash-dot. Use line width about 2 pt.
+   - Draw uncertainty bands in the corresponding family color with alpha about
+     `0.15`, no visible band edge. Use a light unobtrusive grid.
+   - Use one shared legend centered below the two panels, in at most two rows.
+     Labels should be, for example, `MoSAIC-L2C4 (n=3)`.
+   - Use compact publication typography (roughly 8 pt labels/ticks and
+     7--8 pt legend) compatible with the AAAI LaTeX figure width. Avoid large
+     plotting-library default titles and excessive whitespace.
+
+   Suggested LaTeX caption:
+   **“Learning dynamics under the standard 1B-token protocol. Lines show the
+   mean across completed replicates and shading shows ±1 standard deviation.
+   (a) Validation BPC on text8. (b) Online long-gap query accuracy on SDQ.
+   Final SDQ values in the table use the mean of each replicate's last five
+   logged values.”**
+
+   `Transformer-64` remains in the final-results table as a context variant but
+   is omitted from the curve to reduce clutter.
 2. Keep the current two task-specific full-width final-results tables for the
    standard protocol. They are readable and show the full topology sweep.
    Consolidate them only if the official template creates severe page
    pressure; a combined table would otherwise become unnecessarily dense.
+   In every table and caption, rename the tracker/config family `grnn` to
+   **MoSAIC** and `rnn` to **GRU**; raw internal names and Comet IDs must not
+   appear.
 3. Keep the compact topology/state-allocation table because it addresses the
    major parameter-versus-state confound.
 4. Do not mix reduced-token HGRN2, DeltaNet, or mLSTM curves with the standard
    1B curves. Put their exact token/update/batch table and an update-indexed
-   diagnostic plot in supplementary material if time permits. In the main
-   paper, mention them only as separately budgeted implementation references.
+   Text8 diagnostic plot in supplementary material if time permits. That
+   optional supplementary plot should use optimizer updates (thousands) on the
+   x axis, validation BPC on the y axis, and clearly label every model's token
+   budget and batch size in the caption. In the main paper, mention these
+   models only as separately budgeted implementation references.
 5. Do not use `docs/experiments/figures/aaai_comet_snapshot.png` unchanged. It
    contains operational legends, interim runs, and too many series.
 
