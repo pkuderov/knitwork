@@ -26,9 +26,120 @@ Last refreshed: 2026-07-29, with about **3 hours remaining**.
 - Results must improve a paper that remains submittable without unfinished RL
   runs. Mikasa is optional if it cannot be made credible and integrated safely.
 
+## Positioning brief for writing agents
+
+### High-level motivation
+
+The motivating problem is **how recurrent computation is organized**, not
+primarily how to extend its nominal context length. A conventional RNN
+compresses memory and computation into a single monolithic hidden-state stream.
+Increasing its width or depth adds capacity but does not give the model an
+explicit topology in which different state-bearing components can interact.
+
+MoSAIC introduces **modularity as an architectural inductive bias**. It
+factorizes hidden state into persistent recurrent columns and lets information
+move among them through learned attention-based routing. The core intuition is
+“divide state and computation, then learn how the parts communicate,” rather
+than forcing every role through one undifferentiated recurrent vector.
+
+The original research vision was broader and agent-centric: bound and free
+columns, multimodal inputs and outputs, emergent functional specialization,
+perception/planning/control subsystems, auxiliary objectives, feedback paths,
+and lifelong or multitask agents. This vision can motivate the direction or
+appear briefly in discussion, but **it is not what the present paper
+demonstrates**.
+
+### Paper-scoped thesis
+
+Use the following as the central thesis:
+
+> MoSAIC treats modular state organization as an inductive bias for recurrent
+> computation. It factorizes a monolithic hidden state into persistent columns
+> and learns how information is routed among them. Under controlled,
+> approximately parameter-matched training, this structural bias consistently
+> improves associative memory and character-level modeling over monolithic
+> recurrent baselines.
+
+The Text8 Transformer result is supporting context, not the definition of the
+paper:
+
+> MoSAIC retains recurrent fixed-state operation while achieving lower mean
+> Text8 BPC than a similarly sized finite-context Transformer under the current
+> matched token budget.
+
+Phrase this as the observed result, not as proof that MoSAIC generally replaces
+Transformers or scales better to long contexts.
+
+### Supported contribution structure
+
+1. **Architecture:** a layered grid of persistent recurrent columns with
+   content-dependent, attention-mediated inter-column communication.
+2. **Controlled topology:** column count and depth provide explicit axes for
+   organizing recurrent state and computation at roughly fixed parameter
+   scale.
+3. **Empirical evidence:** matched RNN/GRNN comparisons on SDQ and Text8 show
+   consistent benefits from the modular topology; Text8 additionally includes
+   the finite-context Transformer comparison.
+4. **Breadth, if defensible:** Mikasa may show that the architecture functions
+   in online RL, but it is preliminary supporting evidence and not required for
+   the main thesis.
+
+The new `article/typst/fig_architecture.pdf` is a **mechanism diagram**. It
+explains the time/depth grid, per-column recurrent update, and routing
+calculation. It is not behavioral evidence that columns specialize.
+
+### Architectural property versus demonstrated advantage
+
+Attention is applied among a fixed collection of recurrent columns rather than
+over an ever-growing token history. Consequently, the model carries a
+fixed-size recurrent state as sequence length grows and is compatible with
+incremental/streaming inference. State this as an architectural property or
+secondary motivation. The current experiments do **not** establish superior
+long-context scaling or long-horizon retention relative to all alternatives.
+
+### Explicit non-claims
+
+Do not claim:
+
+- emergent column specialization or identifiable functional roles;
+- bound/free-column behavior or multimodal fusion;
+- sparse, conditional, or mixture-of-experts computation;
+- state of the art or general Transformer replacement;
+- superiority over reduced-budget external baselines under equal token
+  budgets;
+- robust RL superiority from the current Mikasa evidence;
+- empirically demonstrated long-context scaling.
+
+Use “attention-mediated communication” or “learned routing” for the implemented
+dense mechanism. Do not imply sparse expert selection. Treat hypotheses from
+`_supp/` as motivation/future work, never as established results.
+
+### Conceptual relation to prior work
+
+Do not claim to invent modular recurrence in general. The closest conceptual
+neighbors include Recurrent Independent Mechanisms, Relational Memory Core,
+Grid LSTM/multidimensional recurrent models, and parallel-cell RNNs. The
+intended distinction is the regular layered topology of persistent recurrent
+columns with learned inter-column communication. Verify exact comparisons and
+citations before writing them.
+
+### Recommended narrative
+
+1. Monolithic recurrence provides persistent state but no explicit modular
+   organization.
+2. MoSAIC supplies a columnar state topology plus learned communication.
+3. SDQ tests whether this bias helps structured associative memory.
+4. Text8 tests whether the benefit transfers to natural sequential prediction,
+   with RNN and Transformer references.
+5. Analysis/topology results show how depth and column organization matter.
+6. RL, if retained, is preliminary evidence of online applicability.
+7. Discussion returns to the broader modular-agent vision while clearly
+   labeling it future work.
+
 ### Immediate work order
 
-1. Freeze the paper’s central claim, outline, and evidence/figure/table set.
+1. Apply the locked positioning above; freeze the outline and
+   evidence/figure/table set.
 2. Inventory the current Typst source against AAAI page, anonymity, references,
    and submission requirements.
 3. Draft or repair the minimum complete paper using only verified evidence.
@@ -118,7 +229,6 @@ do not wait for them before writing.
 
 ## Open decisions
 
-- Exact central claim and positioning of MoSAIC.
 - Which GRNN configuration is the primary model versus an architectural sweep.
 - Whether and how Mikasa enters the main paper.
 - Final architecture/results figures and tables.

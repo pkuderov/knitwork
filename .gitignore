@@ -1,5 +1,6 @@
 # ======= custom =======
 temp.py
+tmp/
 .aim
 server/
 agent.md
