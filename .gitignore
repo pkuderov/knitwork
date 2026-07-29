@@ -4,13 +4,20 @@ tmp/
 .aim
 server/
 agent.md
-/article/latex/aaai2026.pdf
+/article/typst/paper.pdf
 /article/typst/paper_en.pdf
 /article/typst/paper_ru.pdf
 /docs/experiments/figures/
 # ======================
 
 .DS_Store
+
+# Tex aux files
+/article/**/*.aux
+/article/**/*.bbl
+/article/**/*.blg
+/article/**/*.log
+/article/**/*.out
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

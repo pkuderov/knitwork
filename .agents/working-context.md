@@ -173,6 +173,33 @@ do not wait for them before writing.
    description; change the SDQ wording from “inputs comprise” to “the
    vocabulary comprises” when listing token types.
 
+### Default main-paper result presentation
+
+Use a clean matched-budget story in the main paper; do not place every tracked
+model on the same plot.
+
+1. Add one full-width, two-panel learning-curve figure:
+   - **Text8:** GRU-L2, GRU-L3, MoSAIC-L2C4, MoSAIC-L3C4, and
+     Transformer-cache-256.
+   - **SDQ:** GRU-L1 (best GRU), GRU-L2, MoSAIC-L2C4, and MoSAIC-L3C4.
+   - Use processed tokens/steps on the x-axis through 1B, completed replicates
+     only, mean curves with clearly labeled variability bands. Keep identical
+     family colors and shape-specific line styles across panels.
+   - Transformer-cache-64 remains in the final-results table as a context
+     variant but is omitted from the curve to reduce clutter.
+2. Keep the current two task-specific full-width final-results tables for the
+   standard protocol. They are readable and show the full topology sweep.
+   Consolidate them only if the official template creates severe page
+   pressure; a combined table would otherwise become unnecessarily dense.
+3. Keep the compact topology/state-allocation table because it addresses the
+   major parameter-versus-state confound.
+4. Do not mix reduced-token HGRN2, DeltaNet, or mLSTM curves with the standard
+   1B curves. Put their exact token/update/batch table and an update-indexed
+   diagnostic plot in supplementary material if time permits. In the main
+   paper, mention them only as separately budgeted implementation references.
+5. Do not use `docs/experiments/figures/aaai_comet_snapshot.png` unchanged. It
+   contains operational legends, interim runs, and too many series.
+
 ## Evidence source
 
 - **All ordinary agents must use `docs/experiments/results_aaai.md` as the
@@ -185,6 +212,31 @@ do not wait for them before writing.
   fails. Direct user-confirmed `tmux` observation overrides Comet only for live
   process state; the snapshot remains the authority for logged evidence.
 - Code/configs are authoritative for implementation and protocol details.
+
+### Authoritative implementation and configuration map
+
+Do not use legacy `knitwork/models/grnn.py` or older experiment recipes to
+describe the submitted model. The unified experiment registry is
+`knitwork/models/utils.py`. Its active core implementations are:
+
+- MoSAIC/GRNN: `knitwork/models/grnn_core.py` — `GridRnn`.
+- Monolithic GRU: `knitwork/models/gru.py` — `GruCore`.
+- DeltaNet: `knitwork/models/baseline/delta_net.py` — `DeltaNetCore`.
+- HGRN2: `knitwork/models/baseline/hgrn2.py` — `HGRN2Core`.
+- mLSTM: `knitwork/models/baseline/mlstm.py` — `mLSTMCore`.
+- Transformer: `knitwork/models/baseline/transformer.py` —
+  `TransformerCore`.
+
+The submitted experiment scale/protocol is defined by each experiment's
+`large.yaml`, not `base.yaml` or older standalone configs:
+
+- Text8: `knitwork/exps/text/config/large.yaml`, run through
+  `knitwork/exps/text/run.py`; Transformer uses
+  `knitwork/exps/text/run_offline.py` with the same large config.
+- SDQ: `knitwork/exps/sdq/config/large.yaml`, run through
+  `knitwork/exps/sdq/run.py`.
+- Mikasa: `knitwork/exps/mikasa/config/large.yaml`, run through
+  `knitwork/exps/mikasa/run.py`.
 
 ## Current experiment evidence
 
