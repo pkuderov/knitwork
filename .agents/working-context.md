@@ -1,6 +1,7 @@
 # Working context
 
-Last refreshed: 2026-07-29, with about **3 hours remaining**.
+Last refreshed: 2026-07-29 13:34 Europe/Moscow, with about **1.5 hours
+remaining**.
 
 ## AAAI-27 deadline
 
@@ -13,24 +14,31 @@ Last refreshed: 2026-07-29, with about **3 hours remaining**.
 
 ## Paper state
 
-- Editable authority: `article/typst/paper_en.typ`.
+- Editable authority: **`article/latex/paper.tex`**. The Typst draft is now
+  historical and must not be edited or treated as the current manuscript.
 - Read `article/AGENTS.md` before paper work and preserve anonymity and
   submission formatting.
-- A coherent first manuscript iteration now exists and compiles to
-  `article/typst/paper_en.pdf`: five rendered pages including references under
-  the temporary custom Typst layout. The central argument is conservative and
-  aligned with the positioning brief; Mikasa is correctly omitted for now.
-- The paper is not yet submission-ready. The source manually approximates AAAI
-  formatting rather than using the official AAAI-27 author kit, and pagination
-  may change during template migration.
-- `fig_architecture.pdf` is included as a mechanism diagram, but it is currently
-  placed at single-column width and its detailed router labels are too small.
-  Make it span both columns or simplify/crop it.
+- The current LaTeX manuscript compiles with the official AAAI-27 author kit to
+  `article/latex/paper.pdf` and is six pages including references. It remains
+  work in progress and needs final content, page-limit, anonymity, citation,
+  and submission checks.
+- `article/latex/fig_architecture.pdf` is included as a full-width mechanism
+  diagram.
+- `article/latex/fig_learning_curves.pdf` has been generated as a 7.0 by 2.95
+  inch vector figure and its curves match the current results snapshot. Before
+  inclusion, add a little right margin so the final `1.0` tick cannot clip and
+  resolve the ambiguous duplicated shared-legend entries. Prefer a deduplicated
+  legend with task-specific replicate counts stated in the caption. The figure
+  is not yet included in `paper.tex`.
+- A separate agent is filling
+  `article/latex/ReproducibilityChecklist.tex`. Do not duplicate that task;
+  review its conservative answer choices and unresolved author-only facts when
+  it returns.
 - The dirty draft may contain reusable material, especially related work, but
   every claim and citation must be checked. Do not inherit obsolete
   Grid-RNN/Harmonic-GRNN framing or quantitative claims.
-- Results must improve a paper that remains submittable without unfinished RL
-  runs. Mikasa is optional if it cannot be made credible and integrated safely.
+- Mikasa is omitted from this submission. Do not spend the remaining paper
+  window trying to integrate the unstable RL evidence.
 
 ## Positioning brief for writing agents
 
@@ -86,9 +94,9 @@ Transformers or scales better to long contexts.
 3. **Empirical evidence:** matched RNN/GRNN comparisons on SDQ and Text8 show
    consistent benefits from the modular topology; Text8 additionally includes
    the finite-context Transformer comparison.
-4. **Breadth, if defensible:** Mikasa may show that the architecture functions
-   in online RL, but it is preliminary supporting evidence and not required for
-   the main thesis.
+Mikasa is omitted from the current paper. Its deadline-time evidence is mixed
+and includes MoSAIC instability, so it does not provide defensible supporting
+breadth for this submission.
 
 The new `article/typst/fig_architecture.pdf` is a **mechanism diagram**. It
 explains the time/depth grid, per-column recurrent update, and routing
@@ -138,15 +146,14 @@ citations before writing them.
 4. Text8 tests whether the benefit transfers to natural sequential prediction,
    with RNN and Transformer references.
 5. Analysis/topology results show how depth and column organization matter.
-6. RL, if retained, is preliminary evidence of online applicability.
-7. Discussion returns to the broader modular-agent vision while clearly
+6. Discussion returns to the broader modular-agent vision while clearly
    labeling it future work.
 
 ### Immediate work order
 
 1. Apply the locked positioning above; freeze the outline and
    evidence/figure/table set.
-2. Inventory the current Typst source against AAAI page, anonymity, references,
+2. Inventory the current LaTeX source against AAAI page, anonymity, references,
    and submission requirements.
 3. Draft or repair the minimum complete paper using only verified evidence.
 4. Integrate results and the new architecture visualization; compile and
@@ -157,21 +164,22 @@ citations before writing them.
 Experiments continue asynchronously. Review them only at bounded checkpoints;
 do not wait for them before writing.
 
-### First-iteration review priorities
+### Current final-pass priorities
 
-1. Migrate/check against the official AAAI-27 author kit; font replacement
-   alone is not a complete compliance check.
-2. Make the architecture mechanism figure legible at final rendered size.
-3. Specify the implemented communication loss, normalized entropy term,
+1. Finish the WIP LaTeX manuscript and integrate the corrected full-width
+   learning-curve figure.
+2. Specify the implemented communication loss, normalized entropy term,
    task-specific coefficients, and routing-noise values sufficiently for
    reproduction. The current generic objective hides meaningful training
    details.
-4. Add a clean paper-specific learning-curve figure if time permits. Do not
-   insert `aaai_comet_snapshot.png` unchanged because it contains interim runs
-   and operational legends inconsistent with the paper aggregation rules.
-5. Add the Text8 data citation and a compact Transformer architecture
+3. Verify the Text8 data citation and compact Transformer architecture
    description; change the SDQ wording from “inputs comprise” to “the
    vocabulary comprises” when listing token types.
+4. Refresh paper numbers and the learning-curve caption only after the final
+   GRU-L2 SDQ replicate enters `results_aaai.md`; until then retain the verified
+   two-replicate aggregate.
+5. Compile and visually inspect the final PDF, then perform page-limit,
+   anonymity, citation, checklist, and submission-mechanics checks.
 
 ### Default main-paper result presentation
 
@@ -264,7 +272,7 @@ model on the same plot.
   remembered numbers.
 - Only the explicitly designated Comet-results task may access Comet and
   refresh the snapshot at the user’s request.
-- Current snapshot retrieval time: **2026-07-29 07:32 UTC**.
+- Current snapshot retrieval time: **2026-07-29 10:06 UTC**.
 - Comet can transiently label healthy jobs `finished` when server connectivity
   fails. Direct user-confirmed `tmux` observation overrides Comet only for live
   process state; the snapshot remains the authority for logged evidence.
@@ -316,6 +324,10 @@ The submitted experiment scale/protocol is defined by each experiment's
 ### Store–Distract–Query
 
 - SDQ is complete enough for the paper and strongly favors GRNN.
+- The final third standard-protocol `rnn.L2`/GRU-L2 replicate is expected in
+  about 30 minutes. Until the evidence snapshot is refreshed after it finishes,
+  report GRU-L2 as `n=2` and retain the current aggregate below. Do not guess
+  the eventual three-replicate aggregate.
 - Decision-relevant matched results:
   - GRNN-L2C4: `0.8433 ± 0.0055` final-five `Acc++`.
   - RNN-L2: `0.5322 ± 0.1027`.
@@ -325,22 +337,17 @@ The submitted experiment scale/protocol is defined by each experiment's
 
 ### Mikasa RL
 
-- Core tasks: `RepeatFirstEasy`, `HigherLowerMedium`, and optionally
-  `RepeatFirstMedium`.
-- Core models: parameter-matched `rnn.L2` and `grnn.L2C4`.
-- RL remains status-only until task-matched cells complete and a reporting
-  convention is fixed.
-- At the current snapshot:
-  - `HigherLowerMedium`: GRNN has one completed run at current return `0.429`;
-    RNN has one completed run at `0.250` and one running around `0.462`.
-    Evidence is incomplete and variable.
-  - `RepeatFirstEasy`: one RNN run completed stably near `1.0`. One GRNN run
-    reached about `0.997` but later collapsed and ended early at 25.9M/30M with
-    current return about `0.079`; another GRNN run was running near `0.995`.
-  - No completed `RepeatFirstMedium` comparison is in the snapshot.
-- Treat the GRNN collapse as genuine instability. Do not hide it by selecting
-  peak return post hoc. Do not claim RL superiority from the present snapshot.
-- HGRN2 RL is no longer deadline-critical; it requires batch/protocol changes.
+- **Decision: omit Mikasa from the current paper.**
+- `RepeatFirstEasy` now has three stable GRU-L2 completions near `1.0`.
+  MoSAIC-L2C4 repeatedly reaches about `0.995`--`0.997`, but several completed
+  runs later collapse to substantially lower returns. Treat this as genuine
+  instability; do not select peak return post hoc.
+- `HigherLowerMedium` has several completed runs for both families, but results
+  are variable, one MoSAIC run ended early, and one longer GRU run remained in
+  progress at the snapshot.
+- No completed `RepeatFirstMedium` comparison is in the snapshot.
+- These runs remain exploratory status evidence only. Do not claim RL
+  superiority or add an RL table/curve during the submission critical path.
 
 ## Result-reporting conventions
 
@@ -360,11 +367,11 @@ The submitted experiment scale/protocol is defined by each experiment's
 
 ## Open decisions
 
-- Which GRNN configuration is the primary model versus an architectural sweep.
-- Whether and how Mikasa enters the main paper.
-- Final architecture/results figures and tables.
-- What material from the dirty draft is safe to retain.
-- Page budget, supplementary-material scope, and submission checklist.
+- Final placement and caption of the learning-curve figure after its two small
+  layout fixes.
+- Whether there is enough page budget for any supplementary reduced-budget
+  baseline material; it is nonessential and must not displace the main story.
+- Final checklist review and submission mechanics.
 
 ## Project pointer
 

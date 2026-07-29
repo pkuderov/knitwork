@@ -89,7 +89,7 @@ def plot_series(axis, groups, spec, metric_name):
         color=color,
         linestyle=linestyle,
         linewidth=2.0,
-        label=f"{label} (n={len(runs)})",
+        label=label,
     )
     axis.fill_between(
         result["x"],
@@ -158,12 +158,19 @@ def main():
         fontsize=9,
         y=0.99,
     )
-    handles = text_handles + sdq_handles
+    handles = [
+        text_handles[0],
+        text_handles[1],
+        text_handles[2],
+        text_handles[3],
+        text_handles[4],
+        sdq_handles[0],
+    ]
     figure.legend(
         handles,
         [handle.get_label() for handle in handles],
         loc="lower center",
-        ncol=5,
+        ncol=3,
         fontsize=7.2,
         frameon=False,
         columnspacing=1.25,
@@ -172,7 +179,7 @@ def main():
     )
     figure.subplots_adjust(
         left=0.085,
-        right=0.992,
+        right=0.975,
         top=0.83,
         bottom=0.28,
         wspace=0.28,
