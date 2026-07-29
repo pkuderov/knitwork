@@ -21,7 +21,7 @@ model: rnn.L1
 n_envs: 512
 async_envs: false
 rollout_len: 32
-n_steps: 1.0e+9
+n_steps: 1.0e+8
 compile: true
 
 rl:
@@ -33,12 +33,12 @@ rl:
   max_grad_norm: 0.5
   ppo_epochs: 4
 
-inspect_schedule: 5.0e+5
-vis_inspect_schedule: 5.0e+5
+inspect_schedule: 2.0e+5
+vis_inspect_schedule: 2.0e+5
 
 communication:
-  loss_weight: 5.0e-2
-  entropy_weight: 5.0e-3
+  loss_weight: 5.0e-3
+  entropy_weight: 5.0e-4
 
 # ======> Models
 rnn_L1:
