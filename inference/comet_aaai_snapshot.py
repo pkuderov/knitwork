@@ -15,10 +15,11 @@ from comet_ml.api import API
 
 
 WORKSPACE = "team-rl-exp"
-PROJECTS = ("knitwork-text", "knitwork-sdq")
+PROJECTS = ("knitwork-text", "knitwork-sdq", "knitwork-mikasa")
 PROJECT_LABELS = {
     "knitwork-text": "text8",
     "knitwork-sdq": "SDQ",
+    "knitwork-mikasa": "Mikasa RL",
 }
 TEXT_STEP_LIMIT = 1e9
 NEAR_HORIZON_FRACTION = 0.95
@@ -77,6 +78,12 @@ def parameter_map(experiment):
     }
 
 
+def normalized_parameter(value):
+    if isinstance(value, str):
+        return value.strip()
+    return value
+
+
 def collect_project(api, project):
     runs = []
     for experiment in api.get_experiments(
@@ -93,8 +100,12 @@ def collect_project(api, project):
             "summary": summary_map(experiment),
             "parameters": parameter_map(experiment),
         })
-        runs[-1]["model"] = runs[-1]["parameters"].get("model")
-        runs[-1]["model_cfg"] = runs[-1]["parameters"].get("model_cfg")
+        runs[-1]["model"] = normalized_parameter(
+            runs[-1]["parameters"].get("model"),
+        )
+        runs[-1]["model_cfg"] = normalized_parameter(
+            runs[-1]["parameters"].get("model_cfg"),
+        )
         runs[-1]["group_model"], runs[-1]["group_model_cfg"] = MODEL_CFG_ALIASES.get(
             (runs[-1]["model"], runs[-1]["model_cfg"]),
             (runs[-1]["model"], runs[-1]["model_cfg"]),
@@ -105,18 +116,36 @@ def collect_project(api, project):
 def group_runs(runs):
     grouped = defaultdict(list)
     for run in runs:
-        grouped[(run["group_model"], run["group_model_cfg"])].append(run)
+        name = group_label(
+            run_task(run),
+            run["group_model"],
+            run["group_model_cfg"],
+        )
+        grouped[name].append(run)
     return [
         {
-            "name": model_label(model, model_cfg),
+            "name": name,
             "runs": sorted(group, key=lambda run: run["id"]),
         }
-        for (model, model_cfg), group in sorted(grouped.items())
+        for name, group in sorted(grouped.items())
     ]
 
 
 def model_label(model, model_cfg):
     return f"{model or '—'} / {model_cfg or '—'}"
+
+
+def run_task(run):
+    if run["project"] != "knitwork-mikasa":
+        return None
+    return run["parameters"].get("env")
+
+
+def group_label(task, model, model_cfg):
+    label = model_label(model, model_cfg)
+    if task is None:
+        return label
+    return f"{task.removeprefix('popgym-').removesuffix('-v0')} — {label}"
 
 
 def main_text_groups(groups):
@@ -290,6 +319,11 @@ def status_metric(run):
         best = metric(run["summary"], metric_name, "valueMin")
         current = metric(run["summary"], metric_name, "valueCurrent")
         return metric_name, best, current
+    if run["project"] == "knitwork-mikasa":
+        metric_name = "env/EpRet"
+        best = metric(run["summary"], metric_name, "valueMax")
+        current = metric(run["summary"], metric_name, "valueCurrent")
+        return metric_name, best, current
     metric_name = "Acc++"
     best = metric(run["summary"], metric_name, "valueMax")
     current = metric(run["summary"], metric_name, "valueCurrent")
@@ -308,7 +342,9 @@ def comparability_label(run):
     parameters = run["parameters"]
     n_envs = number(parameters.get("n_envs"))
     n_steps = number(parameters.get("n_steps"))
-    if run["name"] in REDUCED_BUDGET_BASELINES:
+    if run["project"] == "knitwork-mikasa":
+        budget = "RL task/budget recorded; compare within task and matching batch settings"
+    elif run["name"] in REDUCED_BUDGET_BASELINES:
         budget = "reduced budget"
     elif n_envs == 512 and n_steps >= TEXT_STEP_LIMIT:
         budget = "standard budget"
@@ -326,8 +362,16 @@ def comparability_label(run):
 def anomaly_label(run):
     metric_name, best, current = status_metric(run)
     notes = []
+    final_step = metric(run["summary"], "global_step", "valueCurrent")
+    target_step = number(run["parameters"].get("n_steps"))
     if run["state"] != "finished":
         notes.append(f"state: {run['state']}")
+    elif (
+        final_step is not None
+        and target_step is not None
+        and final_step < NEAR_HORIZON_FRACTION * target_step
+    ):
+        notes.append("finished below 95% of configured steps")
     if best is None or current is None:
         notes.append(f"missing {metric_name}")
     elif metric_name == "val/BPC" and current - best > 0.01:
@@ -358,14 +402,14 @@ def status_row(run, seed_index):
     )
 
 
-def write_report(path, text_groups, sdq_groups):
+def write_report(path, text_groups, sdq_groups, mikasa_groups):
     retrieved_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     lines = [
         "# AAAI Comet Snapshot",
         "",
         f"Retrieved read-only from Comet workspace `{WORKSPACE}` at {retrieved_at}.",
         "This is an exploratory tracker snapshot, not a selected paper result set.",
-        "Runs are grouped by the Comet `model` and `model_cfg` parameters, with the user-confirmed legacy `rnn_2L` alias merged into `rnn / rnn_L2`.",
+        "Runs are grouped by the Comet `model` and `model_cfg` parameters, with the user-confirmed legacy `rnn_2L` alias merged into `rnn / rnn_L2`. Mikasa RL groups additionally require the same Comet `env`.",
         "",
         "## Launch priority: configurations below three replicates",
         "",
@@ -401,6 +445,22 @@ def write_report(path, text_groups, sdq_groups):
             status_row(run, seed_index)
             for groups in (text_groups, sdq_groups)
             for group in groups
+            for seed_index, run in enumerate(group["runs"], start=1)
+        ),
+        "",
+        "## Mikasa RL: live per-seed status",
+        "",
+        "This is a tracker-status view only: the new runs are not treated as a completed comparison or paper result. `env/EpRet` is the online mean completed-episode return logged by the runner. The relevant core matrix is task-matched `rnn / rnn_L2` versus `grnn / grnn_L2C4`; do not compare returns across different POPGym tasks.",
+        "",
+        "| Task | Model config | Seed | State | Progress | Metrics | Logged budget | Configuration comparability | Obvious anomaly |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+        *(
+            status_row(run, seed_index).replace(
+                "| Mikasa RL |",
+                f"| {run_task(run).removeprefix('popgym-').removesuffix('-v0')} |",
+                1,
+            )
+            for group in mikasa_groups
             for seed_index, run in enumerate(group["runs"], start=1)
         ),
         "",
@@ -490,7 +550,7 @@ def write_report(path, text_groups, sdq_groups):
         "- The three non-RNN baselines (DeltaNet, HGRN2, and mLSTM) use reduced `n_envs` and `n_steps` because of their memory requirements. The update-indexed text8 panel is the appropriate relative-efficiency view for those baselines.",
         "- SDQ's online generator supplies the reported evaluation metrics, so no separate validation split is expected. Its aggregate uses completed standard-protocol runs only.",
         "",
-        "The companion figure is `figures/aaai_comet_snapshot.png`.",
+        "The companion figure is `figures/aaai_comet_snapshot.png`; it covers Text8 and SDQ only, not Mikasa RL.",
         "",
     ]
     path.write_text("\n".join(lines), encoding="utf-8")
@@ -657,8 +717,9 @@ def main():
     api = API()
     text_groups = group_runs(collect_project(api, PROJECTS[0]))
     sdq_groups = group_runs(collect_project(api, PROJECTS[1]))
+    mikasa_groups = group_runs(collect_project(api, PROJECTS[2]))
+    write_report(args.report, text_groups, sdq_groups, mikasa_groups)
     plot_curves(args.figure, text_groups, sdq_groups)
-    write_report(args.report, text_groups, sdq_groups)
     print(f"Wrote {args.report} and {args.figure}")
 
 
