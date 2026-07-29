@@ -3,7 +3,7 @@ name: null
 log:
   logger: comet
   project: knitwork-mikasa
-  schedule: 5.0e+6
+  schedule: 5.0e+5
 
 device: null
 dtype: float32
@@ -18,7 +18,7 @@ env: null
 model: rnn.L1
 
 n_envs: 512
-async_envs: true
+async_envs: false
 rollout_len: 32
 n_steps: 1.0e+9
 compile: true
@@ -26,7 +26,7 @@ compile: true
 rl:
   gamma: 0.995
   gae_lambda: 0.95
-  clip_eps: 0.2
+  clip_eps: 0.1
   value_coef: 0.5
   entropy_coef: 0.005
   max_grad_norm: 0.5
