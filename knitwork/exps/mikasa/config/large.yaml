@@ -37,8 +37,8 @@ inspect_schedule: 2.0e+5
 vis_inspect_schedule: 2.0e+5
 
 communication:
-  loss_weight: 1.0e-4
-  entropy_weight: 1.0e-5
+  loss_weight: 1.0e-5
+  entropy_weight: 1.0e-6
 
 # ======> Models
 rnn_L1:
