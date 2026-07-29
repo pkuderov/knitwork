@@ -8,6 +8,10 @@ log:
 device: null
 dtype: float32
 
+# prio-debug: 0,3,6
+# prio-run: 4,7
+# high-risk: 5,1,2
+
 exp: rl_mikasa
 env-id: 0
 env: null
@@ -20,7 +24,7 @@ n_steps: 1.0e+9
 compile: true
 
 rl:
-  gamma: 0.99
+  gamma: 0.995
   gae_lambda: 0.95
   clip_eps: 0.2
   value_coef: 0.5

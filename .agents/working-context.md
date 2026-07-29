@@ -45,12 +45,16 @@ available evidence; the submission should not depend on a risky unfinished run.
   but has not been extensively reviewed by the user. The intended full run is
   1B tokens with rollout length 64, 512 environments, and `mem_len=256`,
   matching the recurrent runs in update count and total processed steps.
-- Two Transformer Text8 replicates have now been launched with this protocol.
-  At launch, their estimated completion time was roughly two hours.
-- The Transformer pipeline is now confirmed working. A third Transformer run
-  has been launched with `mem_len=64` on a free lower-memory GPU, matching the
-  recurrent rollout length. Treat it as a distinct context-length variant or
-  ablation, **not** as a third replicate of the two `mem_len=256` runs.
+- The Transformer pipeline is confirmed working. The current evidence snapshot
+  contains two qualifying near-1B/full-1B `mem_len=256` replicates in the
+  comparable table. Another healthy `mem_len=256` run is still running and
+  nearing completion; although Comet may temporarily label it `finished` at
+  767.1M because of a bad connection, the user has verified it directly in
+  `tmux`.
+- The `mem_len=64` Transformer is a distinct context-length variant matching
+  the recurrent rollout length, **not** an interchangeable replicate of the
+  `mem_len=256` model. The current snapshot contains three qualifying
+  `mem_len=64` replicates.
 - RL is the highest-risk direction. A useful run is expected to take roughly
   1--4 hours on one GPU. One seed is accepted under the deadline constraint;
   one validated Mikasa task would already be useful, while two or three are
@@ -68,12 +72,17 @@ available evidence; the submission should not depend on a risky unfinished run.
   snapshot for experiment status and quantitative results.** They should not
   access or query Comet directly, or substitute remembered/tracker-derived
   numbers, unless the user explicitly assigns them the Comet-refresh task.
+- Exception for live process state: unstable server connectivity can make
+  Comet periodically mark a healthy running job as `finished`. A direct
+  user-confirmed `tmux`/process observation overrides Comet for whether the job
+  is still alive. Continue using the snapshot for actually logged quantitative
+  evidence, and refresh it after connectivity or run completion.
 - Comet ML remains the underlying live tracker. The designated Comet-analysis
   task may use `inference/comet_aaai_snapshot.py` to refresh the snapshot when
   the user requests it; after refresh, downstream agents should again consume
   the document rather than Comet.
 - The current `docs/experiments/results_aaai.md` snapshot was retrieved
-  2026-07-29 00:30 UTC. It separates the 1B RNN/GRNN Text8 comparison,
+  2026-07-29 05:23 UTC. It separates the 1B RNN/GRNN/Transformer Text8 comparison,
   reduced-token/increased-update Text8 baselines, and completed-replicate SDQ
   final-window aggregates according to the reporting conventions below.
 
@@ -89,11 +98,14 @@ available evidence; the submission should not depend on a risky unfinished run.
 
 ### Immediate work order
 
-The user is finalizing the RL experiment preparation while the two Transformer
-runs train. RL should pass a bounded correctness/smoke-test gate, after which
-the smallest defensible experiment matrix should be launched. The user then
-returns to the paper without waiting for RL or Transformer completion; their
-results are incorporated when ready.
+The user is almost ready to launch RL experiments. RL should pass a bounded
+correctness/smoke-test gate, after which the smallest defensible experiment
+matrix should be launched immediately. The user then returns to the paper
+without waiting for RL completion; results are incorporated asynchronously.
+Several already-started runs may still increase seed coverage, but no third
+replicates are planned for the long-running nonstandard baselines. Do not start
+additional seed-filling work merely to satisfy the snapshot's operational
+three-replicate ranking if it competes with RL or paper completion.
 
 ### Default result-reporting conventions
 
