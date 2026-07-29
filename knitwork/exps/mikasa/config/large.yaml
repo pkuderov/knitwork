@@ -67,7 +67,7 @@ grnn_L1C8:
   ln_msg: true
   bank: 2
   mha: 2
-  noise_std: 0.05
+  noise_std: 0.02
 
 grnn_L2C4:
   hidden_size: 424
@@ -77,7 +77,7 @@ grnn_L2C4:
   ln_msg: true
   bank: 2
   mha: 2
-  noise_std: 0.05
+  noise_std: 0.02
 
 grnn_L2C8:
   hidden_size: 312
@@ -87,7 +87,7 @@ grnn_L2C8:
   ln_msg: true
   bank: 2
   mha: 2
-  noise_std: 0.05
+  noise_std: 0.02
 
 grnn_L2C16:
   hidden_size: 224
@@ -97,7 +97,7 @@ grnn_L2C16:
   ln_msg: true
   bank: 2
   mha: 2
-  noise_std: 0.05
+  noise_std: 0.02
 
 grnn_L3C4:
   hidden_size: 344
@@ -107,7 +107,7 @@ grnn_L3C4:
   ln_msg: true
   bank: 2
   mha: 2
-  noise_std: 0.05
+  noise_std: 0.02
 
 delta_net:
   hidden_size: 692
