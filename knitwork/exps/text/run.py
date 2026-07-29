@@ -65,6 +65,8 @@ def main(config):
 
     config['model_cfg'] = config['model'].replace('.', '_')
     config['model'] = config['model'].split('.', 1)[0]
+    if config['model'] == 'transformer':
+        raise ValueError('Use run_offline.py for the model=transformer')
 
     wrapper_cfg = config[f'{config["wrapper_model"]}_wrapper'] | dict(
         input_size=n_chars, output_size=n_chars,

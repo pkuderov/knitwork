@@ -38,7 +38,7 @@ def next_rollout(gen, rollout_len):
 def main(config):
     torch.set_float32_matmul_precision('high')
 
-    default_name = f'{config["model"]}.offline'
+    default_name = config["model"]
     name_sfx = config.get('name') or config['log'].get('name') or ''
     config['offline'] = True
 
@@ -69,7 +69,8 @@ def main(config):
         val_gen = TextGenerator(
             val_data, n_envs=n_envs, ignore_index=CE_ignore_index,
             seed=get_seed(rng), device=device,
-        ).to(device)
+        )
+        val_gen = torch.compile(val_gen.to(device))
         max_rollout = min(
             max_rollout,
             max(100 * rollout_len, round(len(val_data) / n_envs)),
@@ -78,7 +79,8 @@ def main(config):
     gen = TextGenerator(
         train_data, n_envs=n_envs, ignore_index=CE_ignore_index,
         seed=get_seed(rng), device=device,
-    ).to(device)
+    )
+    gen = torch.compile(gen.to(device))
 
     config['model_cfg'] = config['model'].replace('.', '_')
     config['model'] = config['model'].split('.', 1)[0]
