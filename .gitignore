@@ -227,3 +227,5 @@ knitwork/gens/data/*
 
 # Comet.ml offline-run archives (runtime artifact)
 .cometml-runs/
+# local agent config; skills/status/SKILL.md carried a Comet API key
+.claude/
