@@ -45,6 +45,12 @@ available evidence; the submission should not depend on a risky unfinished run.
   but has not been extensively reviewed by the user. The intended full run is
   1B tokens with rollout length 64, 512 environments, and `mem_len=256`,
   matching the recurrent runs in update count and total processed steps.
+- Two Transformer Text8 replicates have now been launched with this protocol.
+  At launch, their estimated completion time was roughly two hours.
+- The Transformer pipeline is now confirmed working. A third Transformer run
+  has been launched with `mem_len=64` on a free lower-memory GPU, matching the
+  recurrent rollout length. Treat it as a distinct context-length variant or
+  ablation, **not** as a third replicate of the two `mem_len=256` runs.
 - RL is the highest-risk direction. A useful run is expected to take roughly
   1--4 hours on one GPU. One seed is accepted under the deadline constraint;
   one validated Mikasa task would already be useful, while two or three are
@@ -80,6 +86,14 @@ available evidence; the submission should not depend on a risky unfinished run.
 - Which existing SDQ/Text8 results are paper-ready after a fresh Comet
   snapshot.
 - Paper positioning, result inclusion/exclusion, and submission checklist.
+
+### Immediate work order
+
+The user is finalizing the RL experiment preparation while the two Transformer
+runs train. RL should pass a bounded correctness/smoke-test gate, after which
+the smallest defensible experiment matrix should be launched. The user then
+returns to the paper without waiting for RL or Transformer completion; their
+results are incorporated when ready.
 
 ### Default result-reporting conventions
 

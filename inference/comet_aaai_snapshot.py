@@ -228,6 +228,55 @@ def format_mean_std(mean, std):
     return f"{mean:.4f} ± {std:.4f}"
 
 
+def is_standard_protocol(run):
+    parameters = run["parameters"]
+    return (
+        number(parameters.get("n_envs")) == 512
+        and number(parameters.get("n_steps")) >= TEXT_STEP_LIMIT
+    )
+
+
+def launch_priority_groups(text_groups, sdq_groups):
+    candidates = []
+    for groups in (sdq_groups, text_groups):
+        for group in groups:
+            completed = sum(run["state"] == "finished" for run in group["runs"])
+            running = sum(run["state"] == "running" for run in group["runs"])
+            counted = completed + running
+            launches_needed = max(0, 3 - counted)
+            if launches_needed == 0:
+                continue
+            standard = all(is_standard_protocol(run) for run in group["runs"])
+            experiment = PROJECT_LABELS[group["runs"][0]["project"]]
+            candidates.append({
+                "experiment": experiment,
+                "name": group["name"],
+                "completed": completed,
+                "running": running,
+                "counted": counted,
+                "launches_needed": launches_needed,
+                "standard": standard,
+            })
+
+    candidates.sort(
+        key=lambda group: (
+            not group["standard"],
+            group["launches_needed"],
+            group["experiment"] != "SDQ",
+            group["name"],
+        ),
+    )
+    return candidates
+
+
+def launch_priority_label(group):
+    if group["standard"] and group["launches_needed"] == 1:
+        return "P1: complete 3-replicate standard group"
+    if group["standard"]:
+        return "P2: standard group needs multiple launches"
+    return "P3: nonstandard or reduced-budget group"
+
+
 def status_metric(run):
     if run["project"] == "knitwork-text":
         metric_name = "val/BPC"
@@ -310,6 +359,30 @@ def write_report(path, text_groups, sdq_groups):
         f"Retrieved read-only from Comet workspace `{WORKSPACE}` at {retrieved_at}.",
         "This is an exploratory tracker snapshot, not a selected paper result set.",
         "Runs are grouped by the Comet `model` and `model_cfg` parameters, with the user-confirmed legacy `rnn_2L` alias merged into `rnn / rnn_L2`.",
+        "",
+        "## Launch priority: configurations below three replicates",
+        "",
+        "This is an operational coverage ranking, not a performance ranking. Completed and running runs both count toward the three-replicate target. Standard-protocol configurations rank ahead of nonstandard or reduced-budget configurations; within each tier, fewer required launches rank first and SDQ precedes Text8 under the current critical path.",
+        "",
+        "| Rank | Priority | Experiment | Model config | Completed | Running | Counted | New launches to reach 3 | Protocol |",
+        "| ---: | --- | --- | --- | ---: | ---: | ---: | ---: | --- |",
+        *(
+            "| {rank} | {priority} | {experiment} | {name} | {completed} | {running} | {counted} | {needed} | {protocol} |".format(
+                rank=index,
+                priority=launch_priority_label(group),
+                experiment=group["experiment"],
+                name=group["name"],
+                completed=group["completed"],
+                running=group["running"],
+                counted=group["counted"],
+                needed=group["launches_needed"],
+                protocol="standard" if group["standard"] else "nonstandard/reduced",
+            )
+            for index, group in enumerate(
+                launch_priority_groups(text_groups, sdq_groups),
+                start=1,
+            )
+        ),
         "",
         "## Per-seed status",
         "",
