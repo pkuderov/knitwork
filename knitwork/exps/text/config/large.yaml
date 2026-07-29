@@ -223,6 +223,14 @@ transformer:
   mem_len: 256
   dropout: 0.0
 
+transformer_64:
+  hidden_size: 560
+  n_layers: 4
+  n_heads: 4
+  d_ff: 1120
+  mem_len: 64
+  dropout: 0.0
+
 transformer_1m:
   hidden_size: 160    # ~840K params: 4L, 4H, ff=320, mem=256
   n_layers: 4
