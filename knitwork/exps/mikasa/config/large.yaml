@@ -18,7 +18,15 @@ async_envs: true
 rollout_len: 32
 n_steps: 1.0e+9
 compile: true
-entropy_coef: 0.005
+
+rl:
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_eps: 0.2
+  value_coef: 0.5
+  entropy_coef: 0.005
+  max_grad_norm: 0.5
+  ppo_epochs: 4
 
 inspect_schedule: 5.0e+5
 vis_inspect_schedule: 5.0e+5

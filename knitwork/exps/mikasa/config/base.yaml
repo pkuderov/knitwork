@@ -17,7 +17,15 @@ n_envs: 64
 async_envs: false
 rollout_len: 8
 n_steps: 5.0e+5
-entropy_coef: 0.005
+
+rl:
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_eps: 0.2
+  value_coef: 0.5
+  entropy_coef: 0.005
+  max_grad_norm: 0.5
+  ppo_epochs: 4
 
 inspect_schedule: 1.0e+5
 vis_inspect_schedule: 1.0e+5

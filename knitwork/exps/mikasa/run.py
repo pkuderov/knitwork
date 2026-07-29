@@ -22,19 +22,10 @@ from knitwork.common.utils import (
     get_dtype,
 )
 from knitwork.models.utils import build_model
-from knitwork.rl.on_policy import EpisodeStats, flatten_obs, sample_batch, train_batch
+from knitwork.rl.on_policy import EpisodeStats, flatten_obs, prep_obs, sample_batch, train_batch
 
 # Side-effect import: registers all POPGym environment IDs.
 import popgym  # noqa: F401
-
-
-GAMMA = 0.99
-GAE_LAMBDA = 0.95
-CLIP_EPS = 0.2
-VALUE_COEF = 0.5
-MAX_GRAD_NORM = 0.5
-PPO_EPOCHS = 4
-
 
 def main(config):
     torch.set_float32_matmul_precision('high')
@@ -62,10 +53,9 @@ def main(config):
     n_actions = int(act_space.n)
 
     obs, _ = env.reset(seed=get_seed(rng))
-    obs = flatten_obs(obs, obs_space)
+    obs = prep_obs(obs, obs_space, device, is_discrete, dtype)
     obs_dim = obs.shape[1]
-    previous_episode_end = np.zeros(n_envs, dtype=bool)
-    episode_end_before_previous = np.zeros(n_envs, dtype=bool)
+    done = torch.zeros(n_envs, dtype=torch.bool, device=device)
     episode_stats = EpisodeStats(n_envs)
     print(
         f'Env: {env_id} | obs_type={"discrete" if is_discrete else "continuous"}'
@@ -102,7 +92,7 @@ def main(config):
 
     rollout_len = config['rollout_len']
     n_steps = int(config['n_steps'])
-    entropy_coef = float(config.get('entropy_coef', 0.005))
+    rl_cfg = config['rl']
     communication_cfg = config.get('communication', {})
     comm_loss_weight = float(communication_cfg.get('loss_weight', 0.0))
     comm_entropy_weight = float(communication_cfg.get('entropy_weight', 0.0))
@@ -113,22 +103,16 @@ def main(config):
     if not vis_scheduler.is_infinite and has_grid:
         from knitwork.visualization.attn_flow import AttnFlowVisualizerNew
         from knitwork.visualization.cka import CKAVisualizerNew
-        attn_vis = AttnFlowVisualizerNew(
-            n_layers=rnn.n_layers,
-            n_columns=rnn.n_columns,
-            lr=0.01,
-        )
-        cka_vis = CKAVisualizerNew(
-            n_layers=rnn.n_layers,
-            n_columns=rnn.n_columns,
-            lr=0.01,
-        )
+        attn_vis = AttnFlowVisualizerNew(n_layers=rnn.n_layers, n_columns=rnn.n_columns, lr=0.01)
+        cka_vis = CKAVisualizerNew(n_layers=rnn.n_layers, n_columns=rnn.n_columns, lr=0.01)
+        vis_draw_scheduler = create_scheduler(4)
 
     def inject_visualizations(step, *, scalars, figures):
         if not has_grid or vis_scheduler.is_infinite:
             return
-        figures |= attn_vis.get_figures()
-        figures |= cka_vis.get_figures()
+        if vis_draw_scheduler.tick():
+            figures |= attn_vis.get_figures()
+            figures |= cka_vis.get_figures()
 
     logger = start_logger(
         config,
@@ -141,79 +125,67 @@ def main(config):
     )
 
     step = 0
-    state = None
-    try:
-        while step < n_steps:
-            inspect_due = False
-            def capture_fn():
-                nonlocal inspect_due
-                inspect_due |= inspect_scheduler.tick(n_envs)
-                return vis_scheduler.tick(n_envs)
+    state = model.rnn.reset_state(None, bsz=n_envs)
+    while step < n_steps:
+        inspect_due = False
+        def capture_fn():
+            nonlocal inspect_due
+            inspect_due |= inspect_scheduler.tick(n_envs)
+            return vis_scheduler.tick(n_envs)
 
-            def on_sample_step(sampled_state, info, capture):
-                if not capture or not has_grid:
-                    return
-                cka_vis.update(sampled_state['h'])
-                if 'attn_weights' in info:
-                    attn_vis.update(info['attn_weights'])
+        def on_sample_step(sampled_state, info, capture):
+            if not capture or not has_grid:
+                return
+            cka_vis.update(sampled_state['h'])
+            if 'attn_weights' in info:
+                attn_vis.update(info['attn_weights'])
 
-            batch, state, obs, previous_episode_end, episode_end_before_previous = sample_batch(
-                env,
-                model,
-                state,
-                obs,
-                previous_episode_end,
-                episode_end_before_previous,
-                obs_space=obs_space,
-                rollout_len=rollout_len,
-                dtype=dtype,
-                is_discrete=is_discrete,
-                capture_fn=capture_fn,
-                on_step=on_sample_step,
-            )
-            train_metrics = train_batch(
-                model,
-                batch,
-                optim,
-                ppo_epochs=PPO_EPOCHS,
-                clip_eps=CLIP_EPS,
-                value_coef=VALUE_COEF,
-                entropy_coef=entropy_coef,
-                max_grad_norm=MAX_GRAD_NORM,
-                gamma=GAMMA,
-                gae_lambda=GAE_LAMBDA,
-                comm_loss_weight=comm_loss_weight,
-                comm_entropy_weight=comm_entropy_weight,
-            )
-            step += n_envs * rollout_len
-            episode_stats.update(batch)
+        batch, state, obs, done = sample_batch(
+            env,
+            model,
+            state,
+            obs,
+            done,
+            obs_space=obs_space,
+            rollout_len=rollout_len,
+            dtype=dtype,
+            is_discrete=is_discrete,
+            capture_fn=capture_fn,
+            on_step=on_sample_step,
+        )
+        train_metrics = train_batch(
+            model,
+            batch,
+            optim,
+            ppo_epochs=rl_cfg['ppo_epochs'],
+            clip_eps=rl_cfg['clip_eps'],
+            value_coef=rl_cfg['value_coef'],
+            entropy_coef=rl_cfg['entropy_coef'],
+            max_grad_norm=rl_cfg['max_grad_norm'],
+            gamma=rl_cfg['gamma'],
+            gae_lambda=rl_cfg['gae_lambda'],
+            comm_loss_weight=comm_loss_weight,
+            comm_entropy_weight=comm_entropy_weight,
+        )
+        step += n_envs * rollout_len
+        episode_stats.update(batch)
 
-            state = model.detach_state(state)
-            lr.step()
+        state = model.detach_state(state)
+        lr.step()
 
-            metrics = {
-                'PolicyLoss': train_metrics['policy_loss'],
-                'ValueLoss': train_metrics['value_loss'],
-                'Entropy': train_metrics['entropy'],
-                'MeanReward': train_metrics['mean_reward'],
-                '|Grad|': train_metrics['grad_norm'],
-                'LR': lr.val,
-                'Upd': train_metrics['n_optimizer_steps'],
-            }
-            if train_metrics['comm_loss']:
-                metrics['L_comm'] = train_metrics['comm_loss']
-                metrics['H_comm'] = train_metrics['comm_entropy']
-            logger.accumulate(to_loggable_metrics(metrics), key='slow')
-            logger.accumulate(episode_stats.get(), prefix='env', key='fast')
+        metrics = train_metrics | {
+            'LR': lr.val,
+        }
+        logger.accumulate(metrics, key='slow')
+        logger.accumulate(episode_stats.get(), prefix='env', key='fast')
 
-            if has_grid and inspect_due:
-                log_col_similarity(rnn, state, logger)
-                log_attn_beta(rnn, logger)
+        if has_grid and inspect_due:
+            log_col_similarity(rnn, state, logger)
+            log_attn_beta(rnn, logger)
 
-            logger.log(step, flush=True)
-    finally:
-        env.close()
+        logger.log(step, flush=True)
 
+    env.close()
     logger.log(step, flush=True, force=True)
     logger.finish()
 
@@ -246,18 +218,18 @@ def log_attn_beta(rnn, logger):
 
 
 def print_short_summary(step, *, scalars, figures, max_steps, lr):
-    if 'PolicyLoss' not in scalars:
+    if 'L_pi' not in scalars:
         return
-    env_return = scalars.get('env/ep_return')
+    env_return = scalars.get('env/EpRet')
     env_sfx = f' EpRet:{env_return:.3f}' if env_return is not None else ''
     print(
         f'[{format_readable_num(step)}/{format_readable_num(max_steps, frac=0)}]'
         f' {format_readable_num(scalars["perf/fps"], frac=0)}fps |'
         f' LR:{int(100 * scalars["LR"] / lr.base_val)}%'
-        f' PL:{scalars["PolicyLoss"]:.3f}'
-        f' VL:{scalars["ValueLoss"]:.3f}'
-        f' H:{scalars["Entropy"]:.2f}'
-        f' R:{scalars["MeanReward"]:.3f}'
+        f' PL:{scalars["L_pi"]:.3f}'
+        f' VL:{scalars["L_v"]:.3f}'
+        f' H:{scalars["H"]:.2f}'
+        f' R:{scalars["Rew"]:.3f}'
         f'{env_sfx}'
     )
 
