@@ -291,9 +291,13 @@ def print_short_summary(step, *, scalars, figures, max_steps, lr):
 @torch.no_grad()
 def update_in_word_acc(in_word_acc, in_word_pos, acc, active):
     positions = torch.stack(in_word_pos).reshape(-1)[active]
+    positions = np.minimum(
+        to_numpy(positions, copy=False),
+        in_word_acc.n_bins - 1,
+    )
     in_word_acc.put(
         {'in_word_stats/Acc': to_numpy(acc, copy=False).ravel()},
-        ixs=to_numpy(positions, copy=False),
+        ixs=positions,
     )
 
 

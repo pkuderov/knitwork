@@ -58,14 +58,18 @@ available evidence; the submission should not depend on a risky unfinished run.
   SDQ/Text8 seed-adding runs can be stopped if necessary.
 - Additional SDQ/Text8 runs have just been submitted to obtain second or third
   seeds where possible.
-- Live experiment truth is in Comet ML. `inference/comet_aaai_snapshot.py` is
-  an AI-generated inspection script; the existing Comet-analysis task can be
-  asked to download and refresh results.
-- The refreshed snapshot is `docs/experiments/results_aaai.md`, retrieved
-  2026-07-28 23:37 UTC. Its aggregate tables are exploratory, not directly
-  paper-ready: their shared-horizon aggregation includes incomplete seeds, so
-  a newly running seed can move the comparison far earlier in training and
-  make the reported aggregate misleading.
+- **Agents should use `docs/experiments/results_aaai.md` as the shared evidence
+  snapshot for experiment status and quantitative results.** They should not
+  access or query Comet directly, or substitute remembered/tracker-derived
+  numbers, unless the user explicitly assigns them the Comet-refresh task.
+- Comet ML remains the underlying live tracker. The designated Comet-analysis
+  task may use `inference/comet_aaai_snapshot.py` to refresh the snapshot when
+  the user requests it; after refresh, downstream agents should again consume
+  the document rather than Comet.
+- The current `docs/experiments/results_aaai.md` snapshot was retrieved
+  2026-07-29 00:30 UTC. It separates the 1B RNN/GRNN Text8 comparison,
+  reduced-token/increased-update Text8 baselines, and completed-replicate SDQ
+  final-window aggregates according to the reporting conventions below.
 
 ### Open decisions
 
