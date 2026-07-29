@@ -65,7 +65,7 @@ class StoreDistractQueryGenerator:
     @property
     def p_term(self):
         return 1.0 / self.T
-    
+
     @property
     def lr_stats(self):
         return 0.2 / self.T

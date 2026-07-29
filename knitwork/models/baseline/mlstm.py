@@ -137,3 +137,90 @@ class mLSTM(nn.Module):
         """Last-layer output for critic: [B, H]."""
         *_, y = h
         return y[-1]
+
+
+class mLSTMCore(nn.Module):
+    """Feature-level mLSTM core for use with model wrappers."""
+    has_attn = False
+
+    def __init__(
+            self, *,
+            hidden_size, n_layers,
+            dtype, device,
+    ):
+        super().__init__()
+        self.hidden_size = hidden_size
+        self.n_layers = n_layers
+        self.dtype = dtype
+        self.device = device
+
+        self.layers = nn.ModuleList([
+            _mLSTMLayer(hidden_size, hidden_size)
+            for _ in range(n_layers)
+        ])
+        self.norm_out = nn.RMSNorm(hidden_size)
+
+        print(f'mLSTM core {n_layers}L w/ {hidden_size} hidden units')
+
+    def forward(self, x: torch.Tensor, state: dict, **_):
+        assert x.shape[0] == 1
+        x = x.squeeze(0)
+        if state is None:
+            state = self.init_state(x.shape[0])
+
+        new_C, new_n, new_m = [], [], []
+        for layer, C, n, m in zip(
+                self.layers, state['C'], state['n'], state['m']
+        ):
+            x, (C, n, m) = layer(x, (C, n, m))
+            new_C.append(C)
+            new_n.append(n)
+            new_m.append(m)
+
+        state = {'C': new_C, 'n': new_n, 'm': new_m}
+        return self.norm_out(x), state, {}
+
+    def reset_state(self, state=None, reset_mask=None, *, bsz=None):
+        if state is None:
+            bsz = reset_mask.shape[0] if reset_mask is not None else bsz
+            return self.init_state(bsz)
+
+        keep_matrix = (~reset_mask.flatten())[:, None, None]
+        keep_vector = keep_matrix.squeeze(-1)
+        return {
+            'C': [C * keep_matrix for C in state['C']],
+            'n': [n * keep_vector for n in state['n']],
+            'm': [m * keep_vector for m in state['m']],
+        }
+
+    def detach_state(self, state):
+        if state is None:
+            return state
+        return {
+            key: [value.detach() for value in values]
+            for key, values in state.items()
+        }
+
+    def init_state(self, bsz):
+        matrices = [
+            torch.zeros(
+                bsz, self.hidden_size, self.hidden_size,
+                device=self.device, dtype=self.dtype,
+            )
+            for _ in self.layers
+        ]
+        vectors = [
+            torch.zeros(
+                bsz, self.hidden_size,
+                device=self.device, dtype=self.dtype,
+            )
+            for _ in self.layers
+        ]
+        scalars = [
+            torch.zeros(
+                bsz, 1,
+                device=self.device, dtype=self.dtype,
+            )
+            for _ in self.layers
+        ]
+        return {'C': matrices, 'n': vectors, 'm': scalars}

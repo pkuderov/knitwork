@@ -3,18 +3,19 @@ name: null
 log:
   logger: comet
   project: knitwork-text
-  dump_status: false
-  schedule: 2.0e+6
+  schedule: 5.0e+5
 
 device: null
 dtype: float32
 
 exp: text
 gen: tinysh
-model: rnn
+wrapper_model: token
+model: rnn.L1
+
 n_envs: 64
 rollout_len: 8
-n_steps: 2.0e+7
+n_steps: 4.0e+6
 
 inspect_schedule: 1.0e+5
 vis_inspect_schedule: 1.0e+5
@@ -22,10 +23,10 @@ inspect_n_in_word_acc: 5
 
 eval:
   enabled: true
-  on_start: true
+  on_start: false
   split: 0.1
-  context_window: 100
-  schedule: 5.0e+6
+  # context_window: 100
+  schedule: 2.0e+6
   max_rollout: 1.0e+4
 
 gens:
@@ -35,33 +36,62 @@ gens:
       val: 0.2
       tar: 0.001
       lr: 0.04
-      schedule: 200
+      schedule: 500
   tinysh:
     path: $MY_HOME/data/text/tinyshakespeare_1.1M.txt
     reset_prob:
       val: 0.2
       tar: 0.001
       lr: 0.04
-      schedule: 200
+      schedule: 500
+
+token_wrapper: {}
+communication:
+  loss_weight: 5.0e-2
+  entropy_weight: 5.0e-3
 
 # ======> Models
-rnn:
-  embedding_size: 64
-  base_hidden_size: 128
+rnn_L1:
+  hidden_size: 128
   n_layers: 1
   use_bias: true
   dropout: 0.0
 
-grnn:
-  embedding_size: 64
-  base_hidden_size: 128
+rnn_L2:
+  hidden_size: 92
+  n_layers: 2
+  use_bias: true
+  dropout: 0.0
+
+grnn_L1C2:
+  hidden_size: 80
   n_layers: 1
   n_columns: 2
   n_attn_heads: 4
-  messaging: post
-  use_bias: true
-  dropout: 0.0
-  col_identities: true
+  ln_msg: true
+  bank: 2
+  mha: 2
+  noise_std: 0.1
+
+grnn_L1C8:
+  hidden_size: 44
+  n_layers: 1
+  n_columns: 8
+  n_attn_heads: 4
+  ln_msg: true
+  bank: 2
+  mha: 2
+  noise_std: 0.1
+
+grnn_L2C4:
+  hidden_size: 44
+  n_layers: 2
+  n_columns: 4
+  n_attn_heads: 4
+  ln_msg: true
+  bank: 2
+  mha: 2
+  noise_std: 0.1
 
 grnn_err:
   embedding_size: 64
@@ -238,20 +268,17 @@ grnn_harmonic:
 
 # --- external baselines ---
 delta_net:
-  embedding_size: 64
-  hidden_size: 128
-  n_layers: 3
+  hidden_size: 86
+  n_layers: 2
 
 hgrn2:
-  embedding_size: 64
-  hidden_size: 128
-  n_layers: 3
+  hidden_size: 61
+  n_layers: 2
   expand: 4
 
 mlstm:
-  embedding_size: 64
-  hidden_size: 128
-  n_layers: 3
+  hidden_size: 86
+  n_layers: 2
 
 grnn_base:
   embedding_size: 64
@@ -263,16 +290,14 @@ grnn_base:
 
 # Transformer configs at different scales
 transformer:
-  embedding_size: 64
-  hidden_size: 128    # ~540K params: 4L, 4H, ff=256, mem=256
-  n_layers: 4
+  hidden_size: 72
+  n_layers: 2
   n_heads: 4
-  d_ff: 256
-  mem_len: 256
+  d_ff: 224
+  mem_len: 64
   dropout: 0.0
 
 transformer_1m:
-  embedding_size: 64
   hidden_size: 160    # ~840K params: 4L, 4H, ff=320, mem=256
   n_layers: 4
   n_heads: 4
@@ -281,7 +306,6 @@ transformer_1m:
   dropout: 0.0
 
 transformer_2m:
-  embedding_size: 64
   hidden_size: 256    # ~2.1M params: 4L, 4H, ff=512, mem=512
   n_layers: 4
   n_heads: 4
@@ -401,10 +425,10 @@ lr:
   warmup:
     val: 1.0e-9
     n_linear_steps: 50
-    schedule: 48
+    schedule: 192
 
 trackers:
-  slow: 5.0e-4
-  fast: 4.0e-2
+  slow: 5.0e-3
+  fast: 2.0e-2
   list: null
   eval: null

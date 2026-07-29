@@ -1,5 +1,3 @@
-#import "../../shared_styles.typ"
-
 #set page(
   width: 600pt,
   margin: (x: 8mm, y: 6mm),

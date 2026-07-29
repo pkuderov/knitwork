@@ -160,15 +160,9 @@ def get_dtype(dtype: str = None, default=torch.float):
 
 
 def to_torch(x, device=None, copy=True):
-    if isinstance(x, np.ndarray):
-        if copy:
-            x = x.copy()
-        return torch.from_numpy(x).to(device)
-
-    if isinstance(x, torch.Tensor) or x is None:
+    if x is None:
         return x
-
-    x = torch.tensor(x, device=device)
+    x = torch.as_tensor(x, device=device)
     if copy:
         x = x.clone()
     return x

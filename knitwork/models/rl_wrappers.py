@@ -32,7 +32,7 @@ class GridRnnContinuous(GridRnn):
     def forward(self, obs: torch.Tensor, h=None, return_attn=False):
         x = self.embedding(obs.float())             # [B, embedding_size]
         if self.use_postmsg:
-            h, extras = self.grid_step_postmsg(x, h=h, return_attn=return_attn)
+            h, extras = self.grid_step(x, h=h, return_attn=return_attn)
         else:
             h, extras = self.grid_step_premsg(x, h=h), {}
         z = h[-1][0]

@@ -5,18 +5,21 @@ log:
   project: knitwork-text
   dump_status: false
   schedule: 5.0e+6
+  # schedule: 1.0e+6
 
 device: null
 dtype: float32
 
 exp: text
 gen: text8
-model: rnn
+wrapper_model: token
+model: rnn.L1
+
 n_envs: 512
 rollout_len: 64
 n_steps: 1.0e+9
+# n_steps: 0.4e+7
 
-adapt_to_bsz: auto
 compile: true
 
 inspect_schedule: 5.0e+5
@@ -25,9 +28,8 @@ inspect_n_in_word_acc: 5
 
 eval:
   enabled: true
-  on_start: true
+  on_start: false
   split: 0.1
-  # context_window: 100
   schedule: 2.0e+7
   max_rollout: 2.0e+4
 
@@ -47,304 +49,86 @@ gens:
       lr: 0.04
       schedule: 100
 
+token_wrapper: {}
+communication:
+  loss_weight: 5.0e-2
+  entropy_weight: 5.0e-3
+
 # ======> Models
-rnn:
-  embedding_size: 64
-  base_hidden_size: 1800
+rnn_L1:
+  hidden_size: 1296
   n_layers: 1
   use_bias: true
   dropout: 0.0
 
-rnn_2L:
-  embedding_size: 64
-  base_hidden_size: 1800
+rnn_L2:
+  hidden_size: 912
   n_layers: 2
   use_bias: true
   dropout: 0.0
 
-rnn_3L:
-  embedding_size: 64
-  base_hidden_size: 1800
+rnn_L3:
+  hidden_size: 752
   n_layers: 3
   use_bias: true
   dropout: 0.0
 
-grnn:
-  embedding_size: 64
-  base_hidden_size: 1800
-  n_layers: 2
-  n_columns: 4
-  n_attn_heads: 4
-  messaging: post
-  use_bias: true
-  dropout: 0.0
-  col_identities: true
-
-grnn_err:
-  embedding_size: 64
-  base_hidden_size: 1800
-  n_layers: 2
-  n_columns: 4
-  n_attn_heads: 4
-  messaging: post
-  use_bias: true
-  dropout: 0.0
-  col_identities: true
-
-hgrnn:
-  embedding_size: 64
-  hidden_size: 110
+grnn_L1C8:
+  hidden_size: 440
   n_layers: 1
-  n_columns: 2
+  n_columns: 8
   n_attn_heads: 4
-  messaging: post
-  use_bias: true
-  dropout: 0.0
+  ln_msg: true
+  bank: 2
+  mha: 2
+  noise_std: 0.05
 
-grnn2:
-  embedding_size: 72
-  hidden_size: 128
+grnn_L2C4:
+  hidden_size: 424
   n_layers: 2
-  n_columns: 3
-  n_attn_heads: 4
-  messaging: post
-  use_bias: true
-  dropout: 0.0
-  col_identities: true
-
-  vae_latent_dim: 64
-  vae_kl_weight: 1.0e-3
-  use_time_gate: false
-
-  time_gate_delay_scale: -2.0
-
-  col_drop_prob: 0.0
-
-grnn_loss:
-  embedding_size: 64
-  hidden_size: 128
-  n_layers: 4
   n_columns: 4
   n_attn_heads: 4
-  messaging: post
-  use_bias: true
-  dropout: 0.0
-  col_identities: true
+  ln_msg: true
+  bank: 2
+  mha: 2
+  noise_std: 0.05
 
-grnn_res:
-  hidden_size: 300
-  embedding_size: 64
-  n_layers: 3
-  n_columns: 5 
-  n_reservoir_cols: 2
-  n_attn_heads: 4
-  messaging: post
-  col_identities: true
-  spectral_radius: 0.9 
-  reservoir_scale: 0.1 
-
-grnn_engram:
-  embedding_size: 64
-  n_attn_heads: 4
-  messaging: post
-  use_bias: true
-  dropout: 0.0
-  n_columns: 4
-  hidden_size: 128
-
-  n_layers: 4
-  col_identities: true
-
-  n_engram_slots: 16
-
-  engram_top_k: 4
-
-  engram_hebb_lr: 0.1
-  engram_gate_write: true
-
-grnn_prec_delta:
-  embedding_size: 64
-  hidden_size: 128
+grnn_L2C8:
+  hidden_size: 312
   n_layers: 2
-  n_columns: 3
+  n_columns: 8
   n_attn_heads: 4
-  messaging: post
-  col_identities: true
-  delta_lr: 0.01
-  delta_decay: 0.99
-  beta2: 0.999
-  eps: 1.0e-8
+  ln_msg: true
+  bank: 2
+  mha: 2
+  noise_std: 0.05
 
-grnn_ema_mem:
-  embedding_size: 64
-  hidden_size: 128
+grnn_L2C16:
+  hidden_size: 224
   n_layers: 2
-  n_columns: 3
+  n_columns: 16
   n_attn_heads: 4
-  messaging: post
-  col_identities: true
-  ema_beta: 0.9
-  lam_base: 0.01
+  ln_msg: true
+  bank: 2
+  mha: 2
+  noise_std: 0.05
 
-grnn_delta:
-  embedding_size: 64
-  hidden_size: 128
-  n_layers: 4
-  n_columns: 4
-  n_attn_heads: 4
-  messaging: post
-  dropout: 0.05
-  ff_mult: 4
-  r_min_layers: 0.2
-  r_max_layers: 0.9995
-  lru_r_per_col: true
-  dk_fast: 16
-  dv_fast: 16
-  dk_slow: 32
-  dv_slow: 32
-  mem_decay_fast: [0.5, 0.7, 0.85, 0.9]
-  mem_decay_slow: [0.97, 0.985, 0.995, 0.999]
-  use_cross_layer_skip: false
-
-grnn_delta_wide:
-  embedding_size: 96
-  hidden_size: 160
-  n_layers: 4
-  n_columns: 4
-  n_attn_heads: 4
-  messaging: post
-  dropout: 0.05
-  ff_mult: 4
-  r_min_layers: 0.1
-  r_max_layers: 0.9995
-  lru_r_per_col: true
-  dk_fast: 20
-  dv_fast: 20
-  dk_slow: 40
-  dv_slow: 40
-  mem_decay_fast: [0.4, 0.6, 0.75, 0.9]
-  mem_decay_slow: [0.96, 0.98, 0.993, 0.999]
-  use_cross_layer_skip: true
-
-grnn_harmonic:
-  embedding_size: 64
-  hidden_size: 128
+grnn_L3C4:
+  hidden_size: 344
   n_layers: 3
   n_columns: 4
   n_attn_heads: 4
-  messaging: post
-  dropout: 0.0
-  ffn_expansion: 2
-  attn_dropout: 0.0
-  # 2D spectral LRU hierarchy
-  r_min_col: 0.3
-  r_min_layers: 0.7
-  r_max_layers: 0.999
-  # Surprise-Delta Memory
-  ema_beta: 0.9
-  ema_beta_min: 0.7    # per-layer EMA beta: layer0=0.7 (fast) → layerL=0.9 (slow)
-  delta_decay: 0.99
-  delta_decay_min: 0.95
-  lam_base: 0.01
-  # Frozen Reservoir — for long-range BPC
-  n_reservoir_cols: 4
-  reservoir_hidden_size: 64
-  r_res_min: 0.90
-  r_res_max: 0.999
-  multi_col_head: true    # mean over all columns for LM prediction
+  ln_msg: true
+  bank: 2
+  mha: 2
+  noise_std: 0.05
 
-# --- external baselines ---
-delta_net:
-  embedding_size: 64
-  hidden_size: 128
-  n_layers: 3
-
-hgrn2:
-  embedding_size: 64
-  hidden_size: 128
-  n_layers: 3
-  expand: 4
-
-mlstm:
-  embedding_size: 64
-  hidden_size: 128
-  n_layers: 3
-
-grnn_base:
-  embedding_size: 64
-  hidden_size: 90
-  n_layers: 1
-  n_columns: 4
-  use_bias: true
-  dropout: 0.0
-
-# Transformer configs at different scales
-transformer:
-  embedding_size: 64
-  hidden_size: 128    # ~540K params: 4L, 4H, ff=256, mem=256
-  n_layers: 4
-  n_heads: 4
-  d_ff: 256
-  mem_len: 256
-  dropout: 0.0
-
-transformer_1m:
-  embedding_size: 64
-  hidden_size: 160    # ~840K params: 4L, 4H, ff=320, mem=256
-  n_layers: 4
-  n_heads: 4
-  d_ff: 320
-  mem_len: 256
-  dropout: 0.0
-
-transformer_2m:
-  embedding_size: 64
-  hidden_size: 256    # ~2.1M params: 4L, 4H, ff=512, mem=512
-  n_layers: 4
-  n_heads: 4
-  d_ff: 512
-  mem_len: 512
-  dropout: 0.1
-
-mamba:
-  embedding_size: 64
-  hidden_size: 128
-  n_layers: 3
-  d_state: 16
-  d_conv: 4
-  expand: 2
-
-# fixed attention variants (architecture_analysis.md §7.1), ~200K params
 grnn_fix:
   embedding_size: 64
   hidden_size: 464
   n_layers: 2
   n_columns: 4
   n_attn_heads: 4
-  use_bias: true
-  dropout: 0.0
-
-hgrnn_fix:
-  embedding_size: 64
-  hidden_size: 104
-  n_layers: 1
-  n_columns: 2
-  n_attn_heads: 4
-  use_bias: true
-  dropout: 0.0
-
-grnn_fix_v3:
-  embedding_size: 64
-  hidden_size: 64
-  n_layers: 2
-  n_columns: 3
-  n_attn_heads: 4
-  beta_scale: 3.0
-  aux_div_weight: 0.05
-  aux_gate_weight: 0.02
-  aux_act_weight: 0.02
-  aux_every: 8
-  gate_std_target: 0.15
   use_bias: true
   dropout: 0.0
 
@@ -396,48 +180,6 @@ grnn_fix_v4_L2C8:
   use_bias: true
   dropout: 0.1
 
-hgrnn_fix_v4:
-  embedding_size: 64
-  hidden_size: 56
-  n_layers: 2
-  n_columns: 3
-  n_attn_heads: 4
-  beta_scale: 3.0
-  timescale_spread: 1.0
-  aux_div_weight: 0.05
-  aux_gate_weight: 0.1
-  aux_act_weight: 0.02
-  aux_sat_weight: 0.02
-  aux_every: 8
-  gate_std_target: 0.15
-  sat_target: 0.8
-  use_bias: true
-  dropout: 0.0
-
-grnn_fix_v5:
-  embedding_size: 64
-  hidden_size: 60
-  n_layers: 2
-  n_columns: 3
-  n_attn_heads: 4
-  n_lru_cols: 1
-  beta_scale: 3.0
-  timescale_spread: 1.0
-  r_floor_min: 0.9
-  r_floor_max: 0.95
-  lru_grad_scale: 0.1
-  reservoir_mult: 2
-  spectral_radius: 0.95
-  aux_div_weight: 0.05
-  aux_gate_weight: 0.1
-  aux_act_weight: 0.02
-  aux_sat_weight: 0.02
-  aux_every: 8
-  gate_std_target: 0.15
-  sat_target: 0.8
-  use_bias: true
-  dropout: 0.1
-
 grnn_feedback:
   embedding_size: 64
   base_hidden_size: 1800
@@ -449,6 +191,69 @@ grnn_feedback:
   fb_init: 0.1
   use_bias: true
   dropout: 0.0
+
+# --- external baselines ---
+delta_net:
+  hidden_size: 692
+  n_layers: 3
+
+hgrn2:
+  hidden_size: 490
+  n_layers: 3
+  expand: 4
+
+mlstm:
+  hidden_size: 692
+  n_layers: 3
+
+grnn_base:
+  embedding_size: 64
+  hidden_size: 90
+  n_layers: 1
+  n_columns: 4
+  use_bias: true
+  dropout: 0.0
+
+# Transformer configs at different scales
+transformer:
+  hidden_size: 560
+  n_layers: 4
+  n_heads: 4
+  d_ff: 1120
+  mem_len: 256
+  dropout: 0.0
+
+transformer_64:
+  hidden_size: 560
+  n_layers: 4
+  n_heads: 4
+  d_ff: 1120
+  mem_len: 64
+  dropout: 0.0
+
+transformer_1m:
+  hidden_size: 160    # ~840K params: 4L, 4H, ff=320, mem=256
+  n_layers: 4
+  n_heads: 4
+  d_ff: 320
+  mem_len: 256
+  dropout: 0.0
+
+transformer_2m:
+  hidden_size: 256    # ~2.1M params: 4L, 4H, ff=512, mem=512
+  n_layers: 4
+  n_heads: 4
+  d_ff: 512
+  mem_len: 512
+  dropout: 0.1
+
+mamba:
+  embedding_size: 64
+  hidden_size: 128
+  n_layers: 3
+  d_state: 16
+  d_conv: 4
+  expand: 2
 # <====== Models
 
 # base LR config

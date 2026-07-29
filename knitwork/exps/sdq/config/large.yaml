@@ -1,0 +1,150 @@
+seed: null
+name: null
+log:
+  logger: comet
+  project: knitwork-sdq
+  schedule: 5.0e+6
+
+device: null
+dtype: float32
+
+exp: sdq
+gen: hard
+wrapper_model: token
+model: rnn.L1
+
+n_envs: 512
+rollout_len: 32
+n_steps: 1.0e+9
+compile: true
+
+inspect_schedule: 5.0e+5
+vis_inspect_schedule: 5.0e+5
+
+gens:
+  hard:
+    n_keys: 5
+    n_vals: 10
+    T: 10
+    p_store: 0.35
+    p_query: 0.35
+    count_stored: true
+    count_queried: true
+  fixed:
+    n_keys: 5
+    n_vals: 10
+    T: 500
+    p_store: 0.1
+    p_query: 0.25
+    count_stored: true
+    count_queried: true
+
+token_wrapper: {}
+communication:
+  loss_weight: 2.0e-2
+  entropy_weight: 2.0e-3
+
+# ======> Models (~10M parameters including embedding and head)
+rnn_L1:
+  hidden_size: 1296
+  n_layers: 1
+  use_bias: true
+  dropout: 0.0
+
+rnn_L2:
+  hidden_size: 912
+  n_layers: 2
+  use_bias: true
+  dropout: 0.0
+
+rnn_L3:
+  hidden_size: 752
+  n_layers: 3
+  use_bias: true
+  dropout: 0.0
+
+grnn_L1C8:
+  hidden_size: 440
+  n_layers: 1
+  n_columns: 8
+  n_attn_heads: 4
+  ln_msg: true
+  bank: 2
+  mha: 2
+  noise_std: 0.02
+
+grnn_L2C4:
+  hidden_size: 424
+  n_layers: 2
+  n_columns: 4
+  n_attn_heads: 4
+  ln_msg: true
+  bank: 2
+  mha: 2
+  noise_std: 0.02
+
+grnn_L2C8:
+  hidden_size: 312
+  n_layers: 2
+  n_columns: 8
+  n_attn_heads: 4
+  ln_msg: true
+  bank: 2
+  mha: 2
+  noise_std: 0.02
+
+grnn_L2C16:
+  hidden_size: 224
+  n_layers: 2
+  n_columns: 16
+  n_attn_heads: 4
+  ln_msg: true
+  bank: 2
+  mha: 2
+  noise_std: 0.02
+
+grnn_L3C4:
+  hidden_size: 344
+  n_layers: 3
+  n_columns: 4
+  n_attn_heads: 4
+  ln_msg: true
+  bank: 2
+  mha: 2
+  noise_std: 0.02
+
+# --- external baselines ---
+delta_net:
+  hidden_size: 692
+  n_layers: 3
+
+hgrn2:
+  hidden_size: 490
+  n_layers: 3
+  expand: 4
+
+mlstm:
+  hidden_size: 692
+  n_layers: 3
+
+# base LR config
+lr:
+  val: 5.0e-4
+  tar: 5.0e-5
+  lr: 0.01
+  schedule: 250
+  warmup:
+    val: 1.0e-9
+    n_linear_steps: 50
+    schedule: 24
+
+curriculum:
+  schedule: 2.0e+5
+  max_T: 500
+  key: Loss
+
+trackers:
+  slow: 5.0e-3
+  fast: 2.0e-2
+  list: null
+  eval: null

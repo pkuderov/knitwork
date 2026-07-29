@@ -1,19 +1,24 @@
 seed: null
+name: null
 log:
-  enabled: true
-  logger: aim
-  project: grid-rnn-sdq
-  schedule: 1e+6
-  print_schedule: 5e+6
+  logger: comet
+  project: knitwork-sdq
+  schedule: 5.0e+5
 
-device: cpu
+device: null
 dtype: float32
 
+exp: sdq
 gen: hard
-model: rnn
-rollout_len: 8
+wrapper_model: token
+model: rnn.L1
+
 n_envs: 64
-n_steps: 1e+9
+rollout_len: 8
+n_steps: 4.0e+6
+
+inspect_schedule: 1.0e+5
+vis_inspect_schedule: 1.0e+5
 
 gens:
   easy:
@@ -24,7 +29,6 @@ gens:
     p_query: 0.35
     count_stored: false
     count_queried: false
-  
   hard:
     n_keys: 5
     n_vals: 10
@@ -33,37 +37,94 @@ gens:
     p_query: 0.35
     count_stored: true
     count_queried: true
+  fixed:
+    n_keys: 5
+    n_vals: 10
+    T: 500
+    p_store: 0.1
+    p_query: 0.25
+    count_stored: true
+    count_queried: true
 
+token_wrapper: {}
+communication:
+  loss_weight: 5.0e-2
+  entropy_weight: 5.0e-3
 
-models:
-  rnn:
-    embedding_size: 64
-    base_hidden_size: 128
-    n_layers: 1
-    use_bias: true
-    dropout: 0.0
-  
-  grnn:
-    embedding_size: 64
-    base_hidden_size: 128
-    col_identities: true
-    n_layers: 1
-    n_columns: 2
-    n_attn_heads: 4
-    messaging: post
-    use_bias: true
-    dropout: 0.0
+# ======> Models (~110K parameters including embedding and head)
+rnn_L1:
+  hidden_size: 128
+  n_layers: 1
+  use_bias: true
+  dropout: 0.0
+
+grnn_L1C2:
+  hidden_size: 80
+  n_layers: 1
+  n_columns: 2
+  n_attn_heads: 4
+  ln_msg: true
+  bank: 2
+  mha: 2
+  noise_std: 0.1
+
+grnn_L2C2:
+  hidden_size: 56
+  n_layers: 2
+  n_columns: 2
+  n_attn_heads: 4
+  ln_msg: true
+  bank: 2
+  mha: 2
+  noise_std: 0.1
+
+grnn_L2C4:
+  hidden_size: 44
+  n_layers: 2
+  n_columns: 4
+  n_attn_heads: 4
+  ln_msg: true
+  bank: 2
+  mha: 2
+  noise_std: 0.1
+
+delta_net:
+  hidden_size: 86
+  n_layers: 2
+
+hgrn2:
+  hidden_size: 60
+  n_layers: 2
+  expand: 4
+
+mlstm:
+  hidden_size: 86
+  n_layers: 2
+
+transformer:
+  hidden_size: 80
+  n_layers: 2
+  n_heads: 4
+  d_ff: 160
+  mem_len: 64
+  dropout: 0.0
 
 lr:
-  val: 8e-4
-  rel: 0.02
+  val: 8.0e-4
+  tar: 8.0e-5
   lr: 0.005
   schedule: 2000
   warmup:
-    val: 1e-9
+    val: 1.0e-9
     n_linear_steps: 50
     schedule: 100
 
 curriculum:
-  schedule: 2e+5
+  schedule: 2.0e+4
+  max_T: 500
   key: Loss
+
+trackers:
+  slow: 2.0e-4
+  fast: 2.0e-2
+  list: null

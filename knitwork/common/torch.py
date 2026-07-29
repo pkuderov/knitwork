@@ -150,6 +150,7 @@ def init_layer(
         )
 
     if isinstance(layer, (nn.GRUCell, nn.LSTMCell)):
+        assert False, 'Better re-check if this initialization is correct'
         for name, param in layer.named_parameters():
             if "bias" in name:
                 nn.init.constant_(param, bias)

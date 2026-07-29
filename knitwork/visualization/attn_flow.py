@@ -135,10 +135,7 @@ class AttnFlowVisualizerNew:
     _fig_id = "Attn Flow Layer {layer_idx}"
 
     def __init__(self, n_layers: int, n_columns: int, *, lr):
-        self.n_layers = n_layers
-        self.n_columns = n_columns
         self.tracker = EmaTracker(lr)
-        # +1 is just a habit to avoid accidental "default" id=0
 
     def update(self, attn_weights: list):
         self.tracker.put({
@@ -147,11 +144,12 @@ class AttnFlowVisualizerNew:
         })
 
     def get_figures(self):
-        col_labels = [f"C{j}" for j in range(self.n_columns)]
         figures = {}
         
         for layer_idx, w in self.tracker.get().items():
             w = to_numpy(w, copy=False)
+            Cq, Ckv = w.shape[:2]
+
             fig_id = self._fig_id.format(layer_idx=layer_idx)
             fig = plt.figure(num=fig_id, clear=True)
             ax = fig.subplots()
@@ -161,18 +159,21 @@ class AttnFlowVisualizerNew:
             ax.set_title(f"Attn Flow Layer {layer_idx}")
             ax.set_xlabel("Key col (source)")
             ax.set_ylabel("Query col (receiver)")
-            ax.set_xticks(range(self.n_columns))
-            ax.set_yticks(range(self.n_columns))
-            ax.set_xticklabels(col_labels)
-            ax.set_yticklabels(col_labels)
+            ax.set_xticks(range(Ckv))
+            ax.set_yticks(range(Cq))
+            ax.set_xticklabels([f"C{j}" for j in range(Ckv)])
+            ax.set_yticklabels([f"C{j}" for j in range(Cq)])
 
-            for i in range(self.n_columns):
-                for j in range(self.n_columns):
-                    ax.text(
-                        j, i, f"{w[i,j]:.2f}",
-                        ha="center", va="center", fontsize=9,
-                        color="white" if w[i, j] < 0.5 else "black"
-                    )
+            mxC = max(Cq, Ckv)
+            if mxC <= 8:
+                fsz = 9 if mxC <= 5 else 6
+                for i in range(Cq):
+                    for j in range(Ckv):
+                        ax.text(
+                            j, i, f"{w[i,j]:.2f}",
+                            ha="center", va="center", fontsize=fsz,
+                            color="white" if w[i, j] < 0.5 else "black"
+                        )
 
             plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
             fig.tight_layout()

@@ -171,9 +171,10 @@ class CKAVisualizerNew:
         self.n_columns = n_columns
         self.tracker = EmaTracker(lr)
 
+    @torch.no_grad()
     def update(self, h: torch.Tensor):
         # (n_layers, n_cols, batch, hidden_size)
-        h = to_numpy(h)
+        h = h.detach()
         cka = {}
         for layer_idx in range(self.n_layers):
             # [cols, batch, hidden]
@@ -181,7 +182,7 @@ class CKAVisualizerNew:
             layer_cka = np.zeros((self.n_columns, self.n_columns))
             for i in range(self.n_columns):
                 for j in range(self.n_columns):
-                    layer_cka[i, j] = linear_cka(layer_h[i], layer_h[j])
+                    layer_cka[i, j] = linear_cka_torch(layer_h[i], layer_h[j])
             cka[layer_idx] = layer_cka
         self.tracker.put(cka)
 
@@ -217,3 +218,28 @@ class CKAVisualizerNew:
             figures[f'cka_layer_{layer_idx}'] = fig
 
         return figures
+
+
+def _centering_torch(K: torch.Tensor) -> torch.Tensor:
+    """Центрирование ядерной матрицы."""
+    n = K.shape[0]
+    H = torch.eye(n, dtype=K.dtype, device=K.device) - torch.ones((n, n), dtype=K.dtype, device=K.device) / n
+    return H @ K @ H
+
+
+def linear_cka_torch(X: torch.Tensor, Y: torch.Tensor) -> float:
+    """
+    Линейная CKA между двумя матрицами [n_samples, d].
+    Возвращает скаляр в [0, 1].
+    """
+    K = X @ X.T
+    L = Y @ Y.T
+    Kc = _centering_torch(K)
+    Lc = _centering_torch(L)
+    hsic_kl = torch.sum(Kc * Lc).cpu().item()
+    hsic_kk = torch.sum(Kc * Kc).cpu().item()
+    hsic_ll = torch.sum(Lc * Lc).cpu().item()
+    denom = np.sqrt(hsic_kk * hsic_ll)
+    if denom < 1e-10:
+        return 0.0
+    return float(hsic_kl / denom)
