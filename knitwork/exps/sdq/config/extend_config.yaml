@@ -666,8 +666,10 @@ models:
   #                      in grnn_route.py, but unvalidated, so it stays out of the
   #                      flagship)
   #
-  # Scale and budget follow the knitwork-sdq reference grnn.L2C16_10.09M: L2, C16,
-  # n_envs 512, rollout_len 32, n_steps 1e9. hidden 244 -> 9.93M active parameters.
+  # Budget follows the knitwork-sdq reference grnn.L2C16_10.09M: n_envs 512,
+  # rollout_len 32, n_steps 1e9. Geometry is L2 x C10 at hidden 308 -> 9.99M active
+  # parameters. head_share_target defaults to 2/C, so it moves 0.125 -> 0.2 at C=10,
+  # and the routing balance spreads over 10 slots instead of 16.
   # The 1e9 budget is not optional: the curriculum raises T by 1/K = 0.1 per accepted
   # tick and ticks about every 200K env-steps, so T: 10 -> 500 needs ~4900 accepted
   # ticks. 388K models stalled near T=20.
@@ -677,9 +679,9 @@ models:
   # steps, so capacity is handed back to the task once the structure is set.
   grnn_x:
     embedding_size: 64
-    hidden_size: 244
+    hidden_size: 308
     n_layers: 2
-    n_columns: 16
+    n_columns: 10
     n_attn_heads: 4
     beta_scale: 3.0
     beta_floor: 0.2
