@@ -16,11 +16,18 @@ from comet_ml.api import API
 
 WORKSPACE = "team-rl-exp"
 PROJECTS = ("knitwork-text", "knitwork-sdq")
+PROJECT_LABELS = {
+    "knitwork-text": "text8",
+    "knitwork-sdq": "SDQ",
+}
 TEXT_STEP_LIMIT = 1e9
 REDUCED_BUDGET_BASELINES = {
     "delta_net_10.10M",
     "hgrn2_10.13M",
     "mlstm_10.11M",
+}
+MODEL_CFG_ALIASES = {
+    ("rnn_2L", None): ("rnn", "rnn_L2"),
 }
 
 
@@ -49,11 +56,24 @@ def format_step(value):
     return f"{value / 1e6:.1f}M"
 
 
+def format_int(value):
+    if value is None:
+        return "—"
+    return f"{int(float(value)):,}"
+
+
 def metric(summary, name, field):
     item = summary.get(name)
     if item is None:
         return None
     return number(item.get(field))
+
+
+def parameter_map(experiment):
+    return {
+        item["name"]: item.get("valueCurrent")
+        for item in experiment.get_parameters_summary()
+    }
 
 
 def collect_project(api, project):
@@ -67,22 +87,64 @@ def collect_project(api, project):
             "experiment": experiment,
             "id": experiment.id,
             "name": experiment.get_name().strip(),
+            "project": project,
+            "state": experiment.get_state(),
             "summary": summary_map(experiment),
+            "parameters": parameter_map(experiment),
         })
+        runs[-1]["model"] = runs[-1]["parameters"].get("model")
+        runs[-1]["model_cfg"] = runs[-1]["parameters"].get("model_cfg")
+        runs[-1]["group_model"], runs[-1]["group_model_cfg"] = MODEL_CFG_ALIASES.get(
+            (runs[-1]["model"], runs[-1]["model_cfg"]),
+            (runs[-1]["model"], runs[-1]["model_cfg"]),
+        )
     return sorted(runs, key=lambda run: (run["name"], run["id"]))
 
 
 def group_runs(runs):
     grouped = defaultdict(list)
     for run in runs:
-        grouped[run["name"]].append(run)
+        grouped[(run["group_model"], run["group_model_cfg"])].append(run)
     return [
         {
-            "name": name,
+            "name": model_label(model, model_cfg),
             "runs": sorted(group, key=lambda run: run["id"]),
         }
-        for name, group in sorted(grouped.items())
+        for (model, model_cfg), group in sorted(grouped.items())
     ]
+
+
+def model_label(model, model_cfg):
+    return f"{model or '—'} / {model_cfg or '—'}"
+
+
+def main_text_groups(groups):
+    result = []
+    for group in groups:
+        runs = [
+            run for run in group["runs"]
+            if run["state"] == "finished" and run["group_model"] in {"rnn", "grnn"}
+        ]
+        if runs:
+            result.append({"name": group["name"], "runs": runs})
+    return result
+
+
+def fixed_horizon_result(group):
+    return aggregate_curve(
+        group,
+        "val/BPC",
+        step_limit=TEXT_STEP_LIMIT,
+    )
+
+
+def best_checkpoint_result(group):
+    values = [
+        metric(run["summary"], "val/BPC", "valueMin")
+        for run in group["runs"]
+    ]
+    mean, std = mean_std(values)
+    return {"mean": mean, "std": std}
 
 
 def mean_std(values):
@@ -96,6 +158,80 @@ def format_mean_std(mean, std):
     return f"{mean:.4f} ± {std:.4f}"
 
 
+def status_metric(run):
+    if run["project"] == "knitwork-text":
+        metric_name = "val/BPC"
+        best = metric(run["summary"], metric_name, "valueMin")
+        current = metric(run["summary"], metric_name, "valueCurrent")
+        return metric_name, best, current
+    metric_name = "Acc++"
+    best = metric(run["summary"], metric_name, "valueMax")
+    current = metric(run["summary"], metric_name, "valueCurrent")
+    return metric_name, best, current
+
+
+def budget_label(run):
+    parameters = run["parameters"]
+    return "{envs} envs × {steps}".format(
+        envs=format_int(parameters.get("n_envs")),
+        steps=format_step(number(parameters.get("n_steps"))),
+    )
+
+
+def comparability_label(run):
+    parameters = run["parameters"]
+    n_envs = number(parameters.get("n_envs"))
+    n_steps = number(parameters.get("n_steps"))
+    if run["name"] in REDUCED_BUDGET_BASELINES:
+        budget = "reduced budget"
+    elif n_envs == 512 and n_steps >= TEXT_STEP_LIMIT:
+        budget = "standard budget"
+    else:
+        budget = "nonstandard budget"
+    original = (run["model"], run["model_cfg"])
+    grouped = (run["group_model"], run["group_model_cfg"])
+    if original != grouped:
+        config = f"legacy alias to {model_label(*grouped)} (user-confirmed)"
+    else:
+        config = "same model/model_cfg (Comet)"
+    return f"{config}; {budget}"
+
+
+def anomaly_label(run):
+    metric_name, best, current = status_metric(run)
+    notes = []
+    if run["state"] != "finished":
+        notes.append(f"state: {run['state']}")
+    if best is None or current is None:
+        notes.append(f"missing {metric_name}")
+    elif metric_name == "val/BPC" and current - best > 0.01:
+        notes.append(f"current BPC is {current - best:.3f} above best")
+    elif metric_name == "Acc++" and best - current > 0.05:
+        notes.append(f"current Acc++ is {best - current:.3f} below best")
+    return "; ".join(notes) if notes else "—"
+
+
+def status_row(run, seed_index):
+    metric_name, best, current = status_metric(run)
+    final_step = metric(run["summary"], "global_step", "valueCurrent")
+    target_step = number(run["parameters"].get("n_steps"))
+    return "| {experiment} | {model} | {seed} | {state} | {progress} | {metrics} | {budget} | {comparability} | {anomaly} |".format(
+        experiment=PROJECT_LABELS[run["project"]],
+        model=f"{run['name']} ({model_label(run['model'], run['model_cfg'])})",
+        seed=f"replicate {seed_index} (`{run['id'][:8]}`)",
+        state=run["state"],
+        progress=f"{format_step(final_step)} / {format_step(target_step)}",
+        metrics="{name}: best {best}; current {current}".format(
+            name=metric_name,
+            best=format_number(best),
+            current=format_number(current),
+        ),
+        budget=budget_label(run),
+        comparability=comparability_label(run),
+        anomaly=anomaly_label(run),
+    )
+
+
 def write_report(path, text_groups, sdq_groups):
     retrieved_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     lines = [
@@ -103,31 +239,63 @@ def write_report(path, text_groups, sdq_groups):
         "",
         f"Retrieved read-only from Comet workspace `{WORKSPACE}` at {retrieved_at}.",
         "This is an exploratory tracker snapshot, not a selected paper result set.",
-        "Runs with the same displayed name are treated as seeds of a frozen configuration.",
+        "Runs are grouped by the Comet `model` and `model_cfg` parameters, with the user-confirmed legacy `rnn_2L` alias merged into `rnn / rnn_L2`.",
         "",
-        "## text8 (`knitwork-text`)",
+        "## Per-seed status",
         "",
-        "Text8 curves are truncated at 1B training steps. Means and standard deviations are computed over seeds at each shared curve position; a one-seed group has zero plotted uncertainty.",
+        "`same model/model_cfg` is verified from Comet. `replicate N` is an analysis label: intentional null seeds mean the Comet ID is the stable run identifier.",
         "",
-        "| Model config | Seeds | Shared horizon | Final mean val BPC ↓ | Seed IDs |",
+        "| Experiment | Model config | Seed | State | Progress | Metrics | Logged budget | Configuration comparability | Obvious anomaly |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+        *(
+            status_row(run, seed_index)
+            for groups in (text_groups, sdq_groups)
+            for group in groups
+            for seed_index, run in enumerate(group["runs"], start=1)
+        ),
+        "",
+        "## Text8: completed-seed results at the comparable horizon",
+        "",
+        "RNN and GRNN/MoSAIC only. Each run is truncated at 1B tokens; runs with a final logged validation point slightly below 1B are retained under the logging-loss convention. Unfinished runs and reduced-budget baselines are excluded.",
+        "",
+        "| Model config | Completed replicates | Common logged horizon | Val BPC ↓ | Comet IDs |",
         "| --- | ---: | ---: | ---: | --- |",
         *(
             "| {name} | {seeds} | {horizon} | {bpc} | {ids} |".format(
                 name=group["name"],
                 seeds=len(group["runs"]),
-                horizon=format_step(group["curve"]["x"][-1]),
+                horizon=format_step(fixed_horizon_result(group)["x"][-1]),
                 bpc=format_mean_std(
-                    group["curve"]["mean"][-1],
-                    group["curve"]["std"][-1],
+                    fixed_horizon_result(group)["mean"][-1],
+                    fixed_horizon_result(group)["std"][-1],
                 ),
                 ids=", ".join(f"`{run['id'][:8]}`" for run in group["runs"]),
             )
-            for group in text_groups
+            for group in main_text_groups(text_groups)
+        ),
+        "",
+        "## Text8: completed-seed best validation checkpoints",
+        "",
+        "This is a separate checkpoint-selection view, not a fixed-horizon comparison. It includes only completed RNN and GRNN/MoSAIC runs; best checkpoints may occur before or after 1B tokens.",
+        "",
+        "| Model config | Completed replicates | Best val BPC ↓ | Comet IDs |",
+        "| --- | ---: | ---: | --- |",
+        *(
+            "| {name} | {seeds} | {bpc} | {ids} |".format(
+                name=group["name"],
+                seeds=len(group["runs"]),
+                bpc=format_mean_std(
+                    best_checkpoint_result(group)["mean"],
+                    best_checkpoint_result(group)["std"],
+                ),
+                ids=", ".join(f"`{run['id'][:8]}`" for run in group["runs"]),
+            )
+            for group in main_text_groups(text_groups)
         ),
         "",
         "## Store--Distract--Query (`knitwork-sdq`)",
         "",
-        "`Acc++` is reported exactly as logged by the tracker. Curves aggregate seeds with the same model name; the table uses the peak of the group mean curve.",
+        "`Acc++` is the logged online-generator evaluation metric. Curves aggregate runs with the same `model` and `model_cfg`; the table uses the peak of the group mean curve.",
         "",
         "| Model config | Seeds | Shared horizon | Peak mean Acc++ ↑ | Seed IDs |",
         "| --- | ---: | ---: | ---: | --- |",
@@ -148,7 +316,7 @@ def write_report(path, text_groups, sdq_groups):
         "## Exploratory reading",
         "",
         "- The three non-RNN baselines (DeltaNet, HGRN2, and mLSTM) use reduced `n_envs` and `n_steps` because of their memory requirements. The update-indexed text8 panel is the appropriate relative-efficiency view for those baselines.",
-        "- SDQ completion ranges from 140M to 1B steps. These runs expose training metrics but no separately named validation metrics in Comet.",
+        "- SDQ completion ranges from 140M to 1B steps. Its online generator supplies the reported evaluation metrics, so no separate validation split is expected.",
         "",
         "The companion figure is `figures/aaai_comet_snapshot.png`.",
         "",
