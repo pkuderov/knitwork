@@ -6,6 +6,7 @@ summary and plots its logged training curve without choosing a paper cohort.
 
 import argparse
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -86,13 +87,14 @@ def normalized_parameter(value):
 
 
 def collect_project(api, project):
-    runs = []
-    for experiment in api.get_experiments(
+    experiments = api.get_experiments(
         WORKSPACE,
         project,
         page_size=1000,
-    ):
-        runs.append({
+    )
+
+    def collect_experiment(experiment):
+        run = {
             "experiment": experiment,
             "id": experiment.id,
             "name": experiment.get_name().strip(),
@@ -100,17 +102,21 @@ def collect_project(api, project):
             "state": experiment.get_state(),
             "summary": summary_map(experiment),
             "parameters": parameter_map(experiment),
-        })
-        runs[-1]["model"] = normalized_parameter(
-            runs[-1]["parameters"].get("model"),
+        }
+        run["model"] = normalized_parameter(
+            run["parameters"].get("model"),
         )
-        runs[-1]["model_cfg"] = normalized_parameter(
-            runs[-1]["parameters"].get("model_cfg"),
+        run["model_cfg"] = normalized_parameter(
+            run["parameters"].get("model_cfg"),
         )
-        runs[-1]["group_model"], runs[-1]["group_model_cfg"] = MODEL_CFG_ALIASES.get(
-            (runs[-1]["model"], runs[-1]["model_cfg"]),
-            (runs[-1]["model"], runs[-1]["model_cfg"]),
+        run["group_model"], run["group_model_cfg"] = MODEL_CFG_ALIASES.get(
+            (run["model"], run["model_cfg"]),
+            (run["model"], run["model_cfg"]),
         )
+        return run
+
+    with ThreadPoolExecutor(max_workers=12) as executor:
+        runs = list(executor.map(collect_experiment, experiments))
     return sorted(runs, key=lambda run: (run["name"], run["id"]))
 
 
@@ -211,6 +217,71 @@ def reduced_sdq_groups(groups):
         if runs:
             result.append({"name": group["name"], "runs": runs})
     return result
+
+
+def mikasa_run_counts(group):
+    completed = 0
+    early_ended = 0
+    running = 0
+    for run in group["runs"]:
+        final_step = metric(run["summary"], "global_step", "valueCurrent")
+        target_step = number(run["parameters"].get("n_steps"))
+        if run["state"] == "running":
+            running += 1
+        elif (
+            run["state"] == "finished"
+            and final_step is not None
+            and target_step is not None
+            and final_step >= NEAR_HORIZON_FRACTION * target_step
+        ):
+            completed += 1
+        elif run["state"] == "finished":
+            early_ended += 1
+    return completed, early_ended, running
+
+
+def completed_mikasa_runs(group):
+    runs = []
+    for run in group["runs"]:
+        final_step = metric(run["summary"], "global_step", "valueCurrent")
+        target_step = number(run["parameters"].get("n_steps"))
+        if (
+            run["state"] == "finished"
+            and final_step is not None
+            and target_step is not None
+            and final_step >= NEAR_HORIZON_FRACTION * target_step
+        ):
+            runs.append(run)
+    return runs
+
+
+def mikasa_completed_result(group):
+    runs = completed_mikasa_runs(group)
+    final_window = []
+    endpoints = []
+    for run in runs:
+        points = curve(run, "env/EpRet")
+        values = [value for _, value in points[-5:]]
+        final_window.append(np.mean(values))
+        endpoints.append(points[-1][0])
+    best = [metric(run["summary"], "env/EpRet", "valueMax") for run in runs]
+    return {
+        "runs": runs,
+        "final_window": mean_std(final_window),
+        "best": mean_std(best),
+        "min_endpoint": min(endpoints),
+    }
+
+
+def presentation_model_label(run):
+    labels = {
+        ("rnn", "rnn_L2"): "GRU-L2",
+        ("grnn", "grnn_L2C4"): "MoSAIC-L2C4",
+    }
+    return labels.get(
+        (run["group_model"], run["group_model_cfg"]),
+        model_label(run["group_model"], run["group_model_cfg"]),
+    )
 
 
 def sdq_final_window_result(group, step_limit=TEXT_STEP_LIMIT):
@@ -417,7 +488,26 @@ def status_row(run, seed_index):
     )
 
 
+def prefetch_report_curves(text_groups, sdq_groups, mikasa_groups):
+    tasks = [
+        (run, "val/BPC")
+        for group in text_groups
+        for run in group["runs"]
+    ] + [
+        (run, "Acc++")
+        for group in sdq_groups
+        for run in group["runs"]
+    ] + [
+        (run, "env/EpRet")
+        for group in mikasa_groups
+        for run in completed_mikasa_runs(group)
+    ]
+    with ThreadPoolExecutor(max_workers=12) as executor:
+        list(executor.map(lambda task: curve(*task), tasks))
+
+
 def write_report(path, text_groups, sdq_groups, mikasa_groups):
+    prefetch_report_curves(text_groups, sdq_groups, mikasa_groups)
     retrieved_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     lines = [
         "# AAAI Comet Snapshot",
@@ -552,28 +642,47 @@ def write_report(path, text_groups, sdq_groups, mikasa_groups):
             for group in reduced_sdq_groups(sdq_groups)
         ),
         "",
-        "## Launch priority: configurations below three replicates",
+        "## Mikasa RL: task-matched run coverage",
         "",
-        "This is an operational coverage ranking, not a performance ranking. Completed and running runs both count toward the three-replicate target. Standard-protocol configurations rank ahead of nonstandard or reduced-budget configurations; within each tier, fewer required launches rank first and SDQ precedes Text8 under the current critical path. Mikasa RL is intentionally excluded because its task-matched two-replicate matrix has a different coverage target.",
+        "This is operational evidence, not a paper-result table. RL remains exploratory and is omitted from this submission. A completed run reaches at least 95% of its configured step budget. Early-ended runs and running runs remain visible so coverage is not mistaken for a final comparison.",
         "",
-        "| Rank | Priority | Experiment | Model config | Completed | Running | Counted | New launches to reach 3 | Protocol |",
-        "| ---: | --- | --- | --- | ---: | ---: | ---: | ---: | --- |",
+        "| Task | Model | Completed | Early-ended | Running | Total tracked |",
+        "| --- | --- | ---: | ---: | ---: | ---: |",
         *(
-            "| {rank} | {priority} | {experiment} | {name} | {completed} | {running} | {counted} | {needed} | {protocol} |".format(
-                rank=index,
-                priority=launch_priority_label(group),
-                experiment=group["experiment"],
-                name=group["name"],
-                completed=group["completed"],
-                running=group["running"],
-                counted=group["counted"],
-                needed=group["launches_needed"],
-                protocol="standard" if group["standard"] else "nonstandard/reduced",
+            "| {task} | {model} | {completed} | {early_ended} | {running} | {total} |".format(
+                task=run_task(group["runs"][0]).removeprefix("popgym-").removesuffix("-v0"),
+                model=presentation_model_label(group["runs"][0]),
+                completed=mikasa_run_counts(group)[0],
+                early_ended=mikasa_run_counts(group)[1],
+                running=mikasa_run_counts(group)[2],
+                total=len(group["runs"]),
             )
-            for index, group in enumerate(
-                launch_priority_groups(text_groups, sdq_groups),
-                start=1,
+            for group in mikasa_groups
+        ),
+        "",
+        "## Mikasa RL: completed-run final-window return summary",
+        "",
+        "`env/EpRet` is the online mean completed-episode return. For each completed run, the primary statistic is the mean of its final five logged values; the table then reports mean ± sample standard deviation across runs. Peak return is diagnostic only, because some runs later collapse. Aggregate only within the same POPGym task and model configuration.",
+        "",
+        "| Task | Model | Completed runs | Final logged point | Final-five EpRet | Peak EpRet (diagnostic) | Comet IDs |",
+        "| --- | --- | ---: | ---: | ---: | ---: | --- |",
+        *(
+            "| {task} | {model} | {count} | {horizon} | {final_window} | {best} | {ids} |".format(
+                task=run_task(group["runs"][0]).removeprefix("popgym-").removesuffix("-v0"),
+                model=presentation_model_label(group["runs"][0]),
+                count=len(mikasa_completed_result(group)["runs"]),
+                horizon=format_step(mikasa_completed_result(group)["min_endpoint"]),
+                final_window=format_mean_std(
+                    *mikasa_completed_result(group)["final_window"],
+                ),
+                best=format_mean_std(*mikasa_completed_result(group)["best"]),
+                ids=", ".join(
+                    f"`{run['id'][:8]}`"
+                    for run in mikasa_completed_result(group)["runs"]
+                ),
             )
+            for group in mikasa_groups
+            if mikasa_completed_result(group)["runs"]
         ),
         "",
         "## Per-seed status",

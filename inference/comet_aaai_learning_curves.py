@@ -36,6 +36,14 @@ SDQ_SERIES = (
     ("grnn", "grnn_L2C4", "MoSAIC-L2C4", "MoSAIC", "--"),
     ("grnn", "grnn_L3C4", "MoSAIC-L3C4", "MoSAIC", "-"),
 )
+LEGEND_ORDER = (
+    "GRU-L1",
+    "GRU-L2",
+    "GRU-L3",
+    "MoSAIC-L2C4",
+    "MoSAIC-L3C4",
+    "Transformer-256",
+)
 
 
 def selected_runs(groups, model, model_cfg):
@@ -78,7 +86,7 @@ def common_grid_summary(runs, metric_name):
     }
 
 
-def plot_series(axis, groups, spec, metric_name):
+def plot_series(axis, groups, spec, metric_name, task):
     model, model_cfg, label, family, linestyle = spec
     runs = selected_runs(groups, model, model_cfg)
     result = common_grid_summary(runs, metric_name)
@@ -99,7 +107,33 @@ def plot_series(axis, groups, spec, metric_name):
         alpha=0.15,
         linewidth=0,
     )
-    return handle
+    return {
+        "handle": handle,
+        "label": label,
+        "task": task,
+        "n": len(runs),
+    }
+
+
+def deduplicated_legend(records):
+    by_label = {}
+    for record in records:
+        by_label.setdefault(record["label"], []).append(record)
+
+    handles = []
+    labels = []
+    for label in LEGEND_ORDER:
+        entries = by_label[label]
+        handles.append(entries[0]["handle"])
+        counts = {entry["n"] for entry in entries}
+        if len(counts) == 1:
+            labels.append(f"{label} (n={counts.pop()})")
+        else:
+            task_counts = "; ".join(
+                f"{entry['task']} n={entry['n']}" for entry in entries
+            )
+            labels.append(f"{label} ({task_counts})")
+    return handles, labels
 
 
 def configure_axis(axis, title, ylabel, ylimits, yticks):
@@ -127,16 +161,18 @@ def main():
 
     plt.rcParams.update({
         "font.size": 8,
+        "font.family": "sans-serif",
+        "font.sans-serif": ["DejaVu Sans"],
         "pdf.fonttype": 42,
         "ps.fonttype": 42,
     })
     figure, axes = plt.subplots(1, 2, figsize=(7.0, 2.95))
-    text_handles = [
-        plot_series(axes[0], text_groups, spec, "val/BPC")
+    text_records = [
+        plot_series(axes[0], text_groups, spec, "val/BPC", "text8")
         for spec in TEXT_SERIES
     ]
-    sdq_handles = [
-        plot_series(axes[1], sdq_groups, spec, "Acc++")
+    sdq_records = [
+        plot_series(axes[1], sdq_groups, spec, "Acc++", "SDQ")
         for spec in SDQ_SERIES
     ]
     configure_axis(
@@ -153,25 +189,13 @@ def main():
         (0.0, 1.0),
         np.arange(0.0, 1.01, 0.2),
     )
-    figure.suptitle(
-        "Learning dynamics under the standard 1B-token protocol.",
-        fontsize=9,
-        y=0.99,
-    )
-    handles = [
-        text_handles[0],
-        text_handles[1],
-        text_handles[2],
-        text_handles[3],
-        text_handles[4],
-        sdq_handles[0],
-    ]
+    handles, labels = deduplicated_legend(text_records + sdq_records)
     figure.legend(
         handles,
-        [handle.get_label() for handle in handles],
+        labels,
         loc="lower center",
         ncol=3,
-        fontsize=7.2,
+        fontsize=6.8,
         frameon=False,
         columnspacing=1.25,
         handlelength=2.5,
@@ -179,8 +203,8 @@ def main():
     )
     figure.subplots_adjust(
         left=0.085,
-        right=0.975,
-        top=0.83,
+        right=0.965,
+        top=0.92,
         bottom=0.28,
         wspace=0.28,
     )

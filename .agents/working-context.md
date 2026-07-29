@@ -1,6 +1,6 @@
 # Working context
 
-Last refreshed: 2026-07-29 13:34 Europe/Moscow, with about **1.5 hours
+Last refreshed: 2026-07-29 14:08 Europe/Moscow, with about **50 minutes
 remaining**.
 
 ## AAAI-27 deadline
@@ -25,15 +25,16 @@ remaining**.
 - `article/latex/fig_architecture.pdf` is included as a full-width mechanism
   diagram.
 - `article/latex/fig_learning_curves.pdf` has been generated as a 7.0 by 2.95
-  inch vector figure and its curves match the current results snapshot. Before
-  inclusion, add a little right margin so the final `1.0` tick cannot clip and
-  resolve the ambiguous duplicated shared-legend entries. Prefer a deduplicated
-  legend with task-specific replicate counts stated in the caption. The figure
-  is not yet included in `paper.tex`.
-- A separate agent is filling
-  `article/latex/ReproducibilityChecklist.tex`. Do not duplicate that task;
-  review its conservative answer choices and unresolved author-only facts when
-  it returns.
+  inch vector figure and its curves match the current results snapshot. The
+  right-edge and shared-legend problems have been fixed. It is ready for the
+  active writing agent to include in the next manuscript iteration.
+- A draft now exists at `article/latex/ReproducibilityChecklist.tex`. Treat it
+  as an important review target, not a finalized submission artifact: check
+  conservative answer choices, unresolved author-only facts, successful
+  standalone compilation, and absence of response placeholders.
+- A writing agent is actively producing the next `paper.tex` iteration,
+  including the learning curves. Avoid concurrent manuscript edits until that
+  agent hands off.
 - The dirty draft may contain reusable material, especially related work, but
   every claim and citation must be checked. Do not inherit obsolete
   Grid-RNN/Harmonic-GRNN framing or quantitative claims.
@@ -272,7 +273,7 @@ model on the same plot.
   remembered numbers.
 - Only the explicitly designated Comet-results task may access Comet and
   refresh the snapshot at the user’s request.
-- Current snapshot retrieval time: **2026-07-29 10:06 UTC**.
+- Current snapshot retrieval time: **2026-07-29 11:12 UTC**.
 - Comet can transiently label healthy jobs `finished` when server connectivity
   fails. Direct user-confirmed `tmux` observation overrides Comet only for live
   process state; the snapshot remains the authority for logged evidence.
@@ -338,13 +339,16 @@ The submitted experiment scale/protocol is defined by each experiment's
 ### Mikasa RL
 
 - **Decision: omit Mikasa from the current paper.**
-- `RepeatFirstEasy` now has three stable GRU-L2 completions near `1.0`.
-  MoSAIC-L2C4 repeatedly reaches about `0.995`--`0.997`, but several completed
-  runs later collapse to substantially lower returns. Treat this as genuine
-  instability; do not select peak return post hoc.
-- `HigherLowerMedium` has several completed runs for both families, but results
-  are variable, one MoSAIC run ended early, and one longer GRU run remained in
-  progress at the snapshot.
+- The final snapshot uses the mean of each run's last five `env/EpRet` values,
+  then mean ± sample standard deviation across completed task-matched runs.
+- `HigherLowerMedium` has three full 30M-step runs per family:
+  MoSAIC-L2C4 `0.3577 ± 0.0718`, GRU-L2 `0.2968 ± 0.0363`. This is a small,
+  uncertain final-window difference with only three runs; GRU reached the
+  higher diagnostic peak (`0.4898` versus `0.3969`).
+- `RepeatFirstEasy` has four MoSAIC and three GRU runs:
+  MoSAIC-L2C4 `0.6921 ± 0.2428`, GRU-L2 `0.9962 ± 0.0037`. Every MoSAIC run
+  reached a diagnostic peak near `0.996`, but several later collapsed. Treat
+  this as genuine instability; do not select peak return post hoc.
 - No completed `RepeatFirstMedium` comparison is in the snapshot.
 - These runs remain exploratory status evidence only. Do not claim RL
   superiority or add an RL table/curve during the submission critical path.
@@ -367,8 +371,8 @@ The submitted experiment scale/protocol is defined by each experiment's
 
 ## Open decisions
 
-- Final placement and caption of the learning-curve figure after its two small
-  layout fixes.
+- Final placement and caption of the corrected learning-curve figure in the
+  writer's next manuscript iteration.
 - Whether there is enough page budget for any supplementary reduced-budget
   baseline material; it is nonessential and must not displace the main story.
 - Final checklist review and submission mechanics.
