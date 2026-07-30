@@ -5,6 +5,8 @@ tmp/
 server/
 agent.md
 /article/latex/paper.pdf
+/article/latex/ReproducibilityChecklist.tex
+
 /article/typst/paper_en.pdf
 /article/typst/paper_ru.pdf
 /docs/experiments/figures/
@@ -18,6 +20,7 @@ agent.md
 /article/**/*.blg
 /article/**/*.log
 /article/**/*.out
+/article/**/*.synctex.gz
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

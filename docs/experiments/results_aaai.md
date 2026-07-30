@@ -1,6 +1,6 @@
 # AAAI Comet Snapshot
 
-Retrieved read-only from Comet workspace `team-rl-exp` at 2026-07-29 11:12 UTC.
+Retrieved read-only from Comet workspace `team-rl-exp` at 2026-07-29 11:45 UTC.
 This is an exploratory tracker snapshot, not a selected paper result set.
 Runs are grouped by the Comet `model` and `model_cfg` parameters, with the user-confirmed legacy `rnn_2L` alias merged into `rnn / rnn_L2`. Mikasa RL groups additionally require the same Comet `env`.
 
@@ -68,8 +68,8 @@ This separate table is not part of the 1B-token RNN/GRNN comparison. Updates equ
 | grnn / grnn_L2C8 | 3 | 1B tokens | 1000.0M | 0.8664 ± 0.0099 | `295cb9db`, `a9e72f09`, `df1a63f2` |
 | grnn / grnn_L3C4 | 3 | 1B tokens | 1000.0M | 0.9204 ± 0.0128 | `014edb68`, `4f55585a`, `bd180492` |
 | rnn / rnn_L1 | 3 | 1B tokens | 970.0M | 0.6177 ± 0.0052 | `45901ecb`, `6ce37058`, `91ca2493` |
-| rnn / rnn_L2 | 2 | 1B tokens | 980.0M | 0.5322 ± 0.1027 | `69d27694`, `6dfc8619` |
-| rnn / rnn_L3 | 3 | 1B tokens | 645.0M | 0.2975 ± 0.0595 | `150aa3b6`, `1a3f9c8d`, `8db8399c` |
+| rnn / rnn_L2 | 3 | 1B tokens | 980.0M | 0.5465 ± 0.0768 | `442850b9`, `69d27694`, `6dfc8619` |
+| rnn / rnn_L3 | 3 | 1B tokens | 990.0M | 0.3241 ± 0.0862 | `150aa3b6`, `8db8399c`, `f90b4373` |
 
 ## Store--Distract--Query: reduced-budget baseline results
 
@@ -168,12 +168,12 @@ This is operational evidence, not a paper-result table. RL remains exploratory a
 | SDQ | rnn.L1_10.18M (rnn / rnn_L1) | replicate 1 (`45901ecb`) | finished | 970.0M / 1000.0M | Acc++: best 0.7067; current 0.6094 | 512 envs × 1000.0M | same model/model_cfg (Comet); standard budget | current Acc++ is 0.097 below best |
 | SDQ | rnn.L1_10.18M (rnn / rnn_L1) | replicate 2 (`6ce37058`) | finished | 1000.0M / 1000.0M | Acc++: best 0.7104; current 0.6264 | 512 envs × 1000.0M | same model/model_cfg (Comet); standard budget | current Acc++ is 0.084 below best |
 | SDQ | rnn.L1_10.18M (rnn / rnn_L1) | replicate 3 (`91ca2493`) | finished | 1000.0M / 1000.0M | Acc++: best 0.7627; current 0.6126 | 512 envs × 1000.0M | same model/model_cfg (Comet); standard budget | current Acc++ is 0.150 below best |
-| SDQ | rnn.L2_10.06M (rnn / rnn_L2) | replicate 1 (`442850b9`) | running | 515.0M / 1000.0M | Acc++: best 0.6150; current 0.5663 | 512 envs × 1000.0M | same model/model_cfg (Comet); standard budget | state: running |
+| SDQ | rnn.L2_10.06M (rnn / rnn_L2) | replicate 1 (`442850b9`) | finished | 1000.0M / 1000.0M | Acc++: best 0.6150; current 0.5781 | 512 envs × 1000.0M | same model/model_cfg (Comet); standard budget | — |
 | SDQ | rnn.L2_10.06M (rnn / rnn_L2) | replicate 2 (`69d27694`) | finished | 980.0M / 1000.0M | Acc++: best 0.4643; current 0.4643 | 512 envs × 1000.0M | same model/model_cfg (Comet); standard budget | — |
 | SDQ | rnn.L2_10.06M (rnn / rnn_L2) | replicate 3 (`6dfc8619`) | finished | 990.0M / 1000.0M | Acc++: best 0.6105; current 0.6105 | 512 envs × 1000.0M | same model/model_cfg (Comet); standard budget | — |
 | SDQ | rnn.L3_10.25M (rnn / rnn_L3) | replicate 1 (`150aa3b6`) | finished | 990.0M / 1000.0M | Acc++: best 0.3454; current 0.3445 | 512 envs × 1000.0M | same model/model_cfg (Comet); standard budget | — |
-| SDQ | rnn.L3_10.25M (rnn / rnn_L3) | replicate 2 (`1a3f9c8d`) | finished | 570.0M / 1000.0M | Acc++: best 0.3113; current 0.3060 | 512 envs × 1000.0M | same model/model_cfg (Comet); standard budget | finished below 95% of configured steps |
-| SDQ | rnn.L3_10.25M (rnn / rnn_L3) | replicate 3 (`8db8399c`) | finished | 1000.0M / 1000.0M | Acc++: best 0.3003; current 0.2284 | 512 envs × 1000.0M | same model/model_cfg (Comet); standard budget | current Acc++ is 0.072 below best |
+| SDQ | rnn.L3_10.25M (rnn / rnn_L3) | replicate 2 (`8db8399c`) | finished | 1000.0M / 1000.0M | Acc++: best 0.3003; current 0.2284 | 512 envs × 1000.0M | same model/model_cfg (Comet); standard budget | current Acc++ is 0.072 below best |
+| SDQ | rnn.L3_10.25M (rnn / rnn_L3) | replicate 3 (`f90b4373`) | finished | 1000.0M / 1000.0M | Acc++: best 0.4029; current 0.4008 | 512 envs × 1000.0M | same model/model_cfg (Comet); standard budget | — |
 
 ## Mikasa RL: live per-seed status
 

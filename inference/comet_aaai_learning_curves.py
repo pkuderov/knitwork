@@ -148,10 +148,10 @@ def configure_axis(axis, title, ylabel, ylimits, yticks):
     )
     axis.grid(color="#B8B8B8", alpha=0.35, linewidth=0.55)
     axis.spines[["top", "right"]].set_visible(False)
-    axis.tick_params(labelsize=8)
-    axis.title.set_fontsize(9)
-    axis.xaxis.label.set_size(8)
-    axis.yaxis.label.set_size(8)
+    axis.tick_params(labelsize=9.5)
+    axis.title.set_fontsize(9.5)
+    axis.xaxis.label.set_size(9.5)
+    axis.yaxis.label.set_size(9.5)
 
 
 def main():
@@ -160,13 +160,13 @@ def main():
     sdq_groups = group_runs(collect_project(api, PROJECTS[1]))
 
     plt.rcParams.update({
-        "font.size": 8,
+        "font.size": 9.5,
         "font.family": "sans-serif",
         "font.sans-serif": ["DejaVu Sans"],
         "pdf.fonttype": 42,
         "ps.fonttype": 42,
     })
-    figure, axes = plt.subplots(1, 2, figsize=(7.0, 2.95))
+    figure, axes = plt.subplots(1, 2, figsize=(7.0, 3.15))
     text_records = [
         plot_series(axes[0], text_groups, spec, "val/BPC", "text8")
         for spec in TEXT_SERIES
@@ -195,7 +195,7 @@ def main():
         labels,
         loc="lower center",
         ncol=3,
-        fontsize=6.8,
+        fontsize=9.5,
         frameon=False,
         columnspacing=1.25,
         handlelength=2.5,
@@ -205,7 +205,7 @@ def main():
         left=0.085,
         right=0.965,
         top=0.92,
-        bottom=0.28,
+        bottom=0.31,
         wspace=0.28,
     )
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)

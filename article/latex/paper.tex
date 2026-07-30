@@ -26,7 +26,7 @@
 \maketitle
 
 \begin{abstract}
-Recurrent models preserve a fixed-size state, but conventionally organize it as one monolithic stream per layer. MoSAIC (Modular Self-Attentive Interacting Columns) instead factorizes state into persistent GRU columns and routes information among them with attention. Under approximately parameter-matched, one-billion-token training, this bias improves associative memory and character-level prediction. On Store--Distract--Query, L2C4 obtains $0.843 \pm 0.006$ long-gap final-window accuracy versus $0.532 \pm 0.103$ for a two-layer GRU, while L3C4 obtains $0.920 \pm 0.013$. On text8, L2C4 and L3C4 obtain $1.437 \pm 0.003$ and $1.435 \pm 0.002$ validation BPC, versus $1.483 \pm 0.006$ for the strongest GRU and $1.449 \pm 0.012$ for a similarly sized finite-context Transformer. These results support modular state organization as an inductive bias for recurrent computation at this scale.
+Recurrent models preserve a fixed-size state, but conventionally organize it as one monolithic stream per layer. MoSAIC (Modular Self-Attentive Interacting Columns) instead factorizes state into persistent GRU columns and routes information among them with attention. Under approximately parameter-matched, one-billion-token training, this bias improves associative memory and character-level prediction. On Store--Distract--Query, L2C4 obtains $0.843 \pm 0.006$ long-gap final-window accuracy versus $0.547 \pm 0.077$ for a two-layer GRU, while L3C4 obtains $0.920 \pm 0.013$. On text8, L2C4 and L3C4 obtain $1.437 \pm 0.003$ and $1.435 \pm 0.002$ validation BPC, versus $1.483 \pm 0.006$ for the strongest GRU and $1.449 \pm 0.012$ for a similarly sized finite-context Transformer. These results support modular state organization as an inductive bias for recurrent computation at this scale.
 \end{abstract}
 
 \section{Introduction}
@@ -175,8 +175,8 @@ Ignoring embeddings and biases, the independent GRUs contribute approximately $6
 Family & Shape & Params & $n$ & Endpoint & Final-five \texttt{Acc++} $\uparrow$ \\
 \midrule
 GRU & L1 & 10.18M & 3 & 970M & $0.6177 \pm 0.0052$ \\
-GRU & L2 & 10.06M & 2 & 980M & $0.5322 \pm 0.1027$ \\
-GRU & L3 & 10.25M & 2 & 990M & $0.2865 \pm 0.0798$ \\
+GRU & L2 & 10.06M & 3 & 980M & $0.5465 \pm 0.0768$ \\
+GRU & L3 & 10.25M & 3 & 990M & $0.3241 \pm 0.0862$ \\
 \midrule
 MoSAIC & L1C8 & 10.12M & 3 & 1000M & $0.7051 \pm 0.0163$ \\
 MoSAIC & L2C4 & 10.12M & 3 & 985M & $0.8433 \pm 0.0055$ \\
@@ -208,14 +208,7 @@ Episode lengths are geometrically distributed. During training, their mean incre
 The code logs \texttt{Acc++} as query accuracy on examples whose valid store--query gaps are above the current batch mean. This emphasizes the longer-gap half of non-missing queries. For each completed replicate, we average the final five logged \texttt{Acc++} values through the one-billion-token horizon and then aggregate those replicate-level averages.
 
 \paragraph{Results.}
-Table~\ref{tab:sdq} shows a consistent family-level advantage for MoSAIC: every evaluated shape has a higher central \texttt{Acc++} value than every GRU depth. In the replicated two-layer comparison, L2C4 reaches $0.8433 \pm 0.0055$, while GRU-L2 reaches $0.5322 \pm 0.1027$. L2C16 reaches $0.8911 \pm 0.0049$, and L3C4 is the best observed configuration at $0.9204 \pm 0.0128$.
-
-\begin{figure*}[t]
-\centering
-\includegraphics[width=0.96\textwidth]{fig_learning_curves.pdf}
-\caption{Learning dynamics under the standard 1B-token protocol. Lines show the mean across completed replicates and shading shows $\pm 1$ standard deviation. Text8 curves use three replicates; SDQ curves use three except GRU-L2, which uses two. (a) Validation BPC on text8. (b) Online long-gap query accuracy on SDQ. Final SDQ values in Table~\ref{tab:sdq} use the mean of each replicate's last five logged values.}
-\label{fig:learning-curves}
-\end{figure*}
+Table~\ref{tab:sdq} shows a consistent family-level advantage for MoSAIC: every evaluated shape has a higher central \texttt{Acc++} value than every GRU depth. In the replicated two-layer comparison, L2C4 reaches $0.8433 \pm 0.0055$, while GRU-L2 reaches $0.5465 \pm 0.0768$. L2C16 reaches $0.8911 \pm 0.0049$, and L3C4 is the best observed configuration at $0.9204 \pm 0.0128$.
 
 \begin{table*}[t]
 \centering
@@ -290,7 +283,7 @@ These results support a narrow conclusion. They do not show that columns acquire
 
 Parameter matching also leaves important resources unmatched. MoSAIC exposes more persistent state coordinates than the GRUs and performs routing computation at every layer and timestep. We have not completed controlled throughput, peak-memory, or inference-latency measurements, so the results should be interpreted as evidence about an architectural inductive bias rather than resource efficiency. Likewise, the reduced-token recurrent baselines use different token and update budgets and are not direct quality comparisons.
 
-The empirical scope is limited. Text8 is a small character-level corpus, its validation split received limited manual tuning, and the study operates at roughly ten million parameters. SDQ is synthetic and uses a curriculum-controlled online generator. Text8 L2C16 and the current SDQ GRU-L2/L3 aggregates use two runs; we make no statistical-significance claims. Training-only routing regularizers add hyperparameters whose individual effects have not been isolated. Preliminary task-matched RL runs were excluded because final performance was unstable and did not provide a reliable comparison.
+The empirical scope is limited. Text8 is a small character-level corpus, its validation split received limited manual tuning, and the study operates at roughly ten million parameters. SDQ is synthetic and uses a curriculum-controlled online generator. Text8 L2C16 uses two runs; we make no statistical-significance claims. Training-only routing regularizers add hyperparameters whose individual effects have not been isolated. Preliminary task-matched RL runs were excluded because final performance was unstable and did not provide a reliable comparison.
 
 \section{Conclusion}
 
