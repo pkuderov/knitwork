@@ -31,3 +31,4 @@ Ask when the desired autonomy or scope is genuinely ambiguous. Do not launch lon
 - Documentation is a useful explanation layer, but it can lag behind the code. Update directly affected, high-value context when confident; otherwise flag the discrepancy and suggest a follow-up.
 - Treat `_supp/` as exploratory research material, not a complete or necessarily current specification.
 - Do not add to `.agents/research-context.md` automatically. Update it only when asked to preserve or summarize research discussion.
+- In Markdown/Typst prose and documentation, do not add artificial hard line breaks at a fixed column width merely to simulate editor wrapping. Keep logical paragraphs and list items on continuous lines while preserving meaningful structure such as headings, lists, blockquotes, code blocks, tables, and paragraph breaks.
