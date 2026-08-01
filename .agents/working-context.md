@@ -1,132 +1,56 @@
 # Working context
 
-Last refreshed: 2026-08-01. The AAAI-27 main-paper deadline has passed; the project is in post-submission cleanup and supplementary preparation.
+Last refreshed: 2026-08-01. This file describes frontier work on `main`; AAAI-27 rebuttal and submission follow-up belong on the `aaai-27` branch.
 
-## Current stage
+## Branch ownership and current stage
 
-- The AAAI-27 main paper and reproducibility checklist were submitted. Repository references to “AAAI 2026” are a known stale year-labeling error; the target is AAAI-27.
-- Commit `f483f16` is the repository's recorded “final submitted version.” Later commits currently contain shared cleanup and bibliography formatting rather than a substantive paper rewrite. Preserve the exact uploaded PDF, checklist, source archive if available, and submission receipt separately from future revisions.
-- The immediate submission-related follow-up is an anonymized source-code supplement. It must be prepared and inspected before upload; do not expose author names, institutional/lab details, local paths, tracker credentials, private URLs, experiment logs with identifying metadata, or repository history.
-- The user plans to tag the AAAI-27 state and then split development: a dedicated branch for rebuttal and subsequent AAAI-related revisions, while `main` continues frontier project work. Common post-submission cleanup may happen before the split. Do not create the tag or branches until the user chooses the exact boundary and names.
-- Multimodal SDQ remains deferred. RL and reduced-budget baselines are useful follow-up evidence but were not part of the main matched-budget claim.
+- The current branch is `main`, based on commit `047c7d2`. The working tree was clean before this context refresh.
+- Use `main` for further architecture, research, and infrastructure development that is not driven by the AAAI submission. Use `aaai-27` for rebuttal, paper revisions, supplementary follow-up, and other submission-specific changes. Do not make rebuttal edits on `main` merely because the paper files remain present here.
+- Repository references to “AAAI 2026” are a known stale year-labeling error; the submitted target is AAAI-27.
 
-## Paper artifacts and submitted scope
+## Frontier research direction
 
-- Editable paper authority: `article/latex/paper.tex`. The Typst draft is historical and should not be treated as the current manuscript.
-- The paper uses the official AAAI-27 LaTeX author kit and compiles to `article/latex/paper.pdf`. The reproducibility checklist is `article/latex/ReproducibilityChecklist.tex` and compiles separately to `article/latex/ReproducibilityChecklist.pdf`.
-- `article/latex/fig_architecture.pdf` is the mechanism diagram used in the paper. It explains the time/depth grid, per-column recurrent update, and router; it is not evidence of functional specialization.
-- `article/latex/fig_learning_curves.pdf` remains a useful revision/supplement artifact but was removed from the submitted main paper because its text did not satisfy AAAI's 9-point minimum at final rendered scale. Before reuse, regenerate it from the current evidence snapshot with every label, tick, title, and legend entry at least 9 pt after LaTeX scaling, then render and inspect the paper PDF.
-- The submitted empirical scope is SDQ and Text8 under the standard protocol, with GRU and finite-context Transformer references. HGRN2, DeltaNet, and mLSTM were described only as memory-constrained, non-comparable implementation references. Mikasa RL results were omitted because completed runs showed unstable final performance.
-- The checklist commits to making all required experimental code publicly available upon publication under a research-compatible license. Supplement preparation and eventual release planning must remain consistent with that commitment.
+Knitwork studies modular recurrent architectures, especially MoSAIC/Grid RNN variants, and how explicit organization of persistent state and communication can change learning and computation. The frontier agenda is broader than the submitted paper and may include heterogeneous modules, structured recurrent loops, multimodal systems, reinforcement learning, adaptive routing, different state geometries and timescales, local learning signals, and agent-oriented architectures.
 
-## Positioning brief
+The newest conceptual starting point is `_supp/neuro_bias.typ`, “Weak Neuroanatomical Biases for Modular Recurrent Systems.” It is an early design-space document, not a selected architecture, implementation plan, or experimental program. Follow its interpretive rules: biological names are handles rather than contracts; mention is not commitment; functions may arise from multi-area loops; mechanisms should remain multiply realizable; and ambiguity should be explored before forcing implementation decisions.
 
-### High-level motivation
+Other relevant starting points are `_supp/high_level_directions.typ`, `_supp/rnn_attn.typ`, and `_supp/fund_agents_proposal.typ`. `.agents/research-context.md` is opt-in and currently contains pointers rather than curated conclusions; update it only when the user explicitly asks to preserve research discussion.
 
-The motivating problem is how recurrent computation is organized, not primarily how to extend nominal context length. A conventional RNN compresses memory and computation into a monolithic hidden-state stream. Increasing width or depth adds capacity but does not create an explicit topology in which persistent state-bearing components interact.
+No single frontier implementation or experiment is currently selected as the next priority. Ask the user before converting the conceptual design space into an architecture, implementation sequence, or expensive experiment program.
 
-MoSAIC introduces modularity as an architectural inductive bias. It factorizes hidden state into persistent recurrent columns and lets information move among them through learned attention-mediated routing: divide state and computation, then learn how the parts communicate.
-
-The original research vision was broader and agent-centric: bound and free columns, multimodal inputs and outputs, emergent functional specialization, perception/planning/control subsystems, auxiliary objectives, feedback paths, and lifelong or multitask agents. This may motivate future work, but the submitted experiments do not demonstrate it.
-
-### Paper-scoped thesis
-
-> MoSAIC treats modular state organization as an inductive bias for recurrent computation. It factorizes a monolithic hidden state into persistent columns and learns how information is routed among them. Under controlled, approximately parameter-matched training, this structural bias consistently improves associative memory and character-level modeling over monolithic recurrent baselines.
-
-The Text8 Transformer result is supporting context: MoSAIC retains recurrent fixed-state operation while achieving lower mean Text8 BPC than a similarly sized finite-context Transformer under the matched token budget. This observation does not establish general Transformer replacement or superior long-context scaling.
-
-### Supported contributions
-
-1. A layered grid of persistent recurrent columns with content-dependent, attention-mediated inter-column communication.
-2. Column count and depth as explicit axes for organizing recurrent state and computation at roughly fixed parameter scale.
-3. Matched GRU/MoSAIC evidence on SDQ and Text8, plus a matched-token Text8 Transformer reference.
-
-### Architectural property versus demonstrated advantage
-
-Attention operates over a fixed collection of recurrent columns rather than an ever-growing token history. The model therefore carries a fixed-size recurrent state as sequence length grows and supports incremental inference. This is an architectural property. The current experiments do not establish superior long-context scaling or long-horizon retention against all alternatives.
-
-### Explicit non-claims
-
-Do not claim emergent column specialization, bound/free-column behavior, multimodal fusion, sparse or mixture-of-experts computation, state of the art, general Transformer replacement, resource efficiency, robust RL superiority, superiority over the reduced-budget external baselines under equal budgets, or empirically demonstrated long-context scaling. Use “attention-mediated communication” or “learned routing” for the implemented dense mechanism. Treat `_supp/` hypotheses as exploratory motivation or future work, not evidence.
-
-### Relation to prior work
-
-Do not claim to invent modular recurrence in general. Relevant neighbors include Recurrent Independent Mechanisms, BRIMs/shared workspaces, Relational Memory Core, Grid LSTM and multidimensional recurrence, and parallel-cell RNNs. MoSAIC's intended distinction is a regular layered topology of persistent recurrent columns with learned inter-column communication. Verify exact comparisons and publication metadata before future revisions.
-
-## Evidence authority and reporting conventions
-
-- `docs/experiments/results_aaai.md` is the shared quantitative evidence snapshot for the submission experiments. Its current retrieval time is 2026-07-29 11:45 UTC. Ordinary agents should use it rather than querying Comet or copying remembered values.
-- Only a task explicitly designated by the user may query Comet and refresh the snapshot. Code/configuration is authoritative for implementation and protocol details.
-- Standard GRU/MoSAIC comparisons use a 1B-token horizon. Truncate longer runs at 1B. Runs slightly short of 1B may count under the documented network-logging-loss convention, using their final logged point.
-- Text8 fixed-horizon values and best-validation checkpoints are distinct views and must be labeled separately.
-- SDQ is generated online and has no held-out validation split. For each run, average the final five logged `Acc++` values at the reporting horizon, then compute the mean and sample standard deviation across run-level averages. Do not use peak `Acc++` as the primary result.
-- Mikasa RL uses the analogous final-five `env/EpRet` aggregation. Peak return is diagnostic only because several policies later collapsed.
-- Reduced-budget HGRN2, DeltaNet, and mLSTM runs use different token, batch, and update budgets. Keep them separate and state all three quantities; do not make direct quality or efficiency claims from them.
-- In public-facing paper text and plots, use “MoSAIC” rather than internal `GRNN/grnn` names and “GRU” rather than `rnn`.
-
-## Authoritative implementation and protocol map
+## Established architecture baseline
 
 - Unified model registry: `knitwork/models/utils.py`.
-- MoSAIC: `knitwork/models/grnn_core.py`, class `GridRnn`. Do not use legacy `knitwork/models/grnn.py` to describe the submitted architecture.
-- GRU: `knitwork/models/gru.py`, class `GruCore`.
-- DeltaNet: `knitwork/models/baseline/delta_net.py`, class `DeltaNetCore`.
-- HGRN2: `knitwork/models/baseline/hgrn2.py`, class `HGRN2Core`.
-- mLSTM: `knitwork/models/baseline/mlstm.py`, class `mLSTMCore`.
-- Transformer: `knitwork/models/baseline/transformer.py`, class `TransformerCore`.
-- Submitted Text8 protocol: `knitwork/exps/text/config/large.yaml` with `knitwork/exps/text/run.py`; Transformer uses `knitwork/exps/text/run_offline.py` with the same large configuration.
-- Submitted SDQ protocol: `knitwork/exps/sdq/config/large.yaml` with `knitwork/exps/sdq/run.py`.
-- Exploratory Mikasa protocol: `knitwork/exps/mikasa/config/large.yaml` with `knitwork/exps/mikasa/run.py`.
+- Current MoSAIC implementation: `knitwork/models/grnn_core.py`, class `GridRnn`. Legacy `knitwork/models/grnn.py` is not authoritative for the submitted or current core architecture.
+- Monolithic GRU: `knitwork/models/gru.py`, class `GruCore`.
+- Implemented comparison cores: `knitwork/models/baseline/delta_net.py`, `knitwork/models/baseline/hgrn2.py`, `knitwork/models/baseline/mlstm.py`, and `knitwork/models/baseline/transformer.py`.
+- Established experiment protocols use `knitwork/exps/text/config/large.yaml`, `knitwork/exps/sdq/config/large.yaml`, and `knitwork/exps/mikasa/config/large.yaml` with their adjacent runners. Code and configuration are authoritative for exact behavior.
 
-## Final experiment snapshot
+The established MoSAIC mechanism factorizes recurrent state into persistent columns and uses dense attention-mediated routing among a fixed set of messages before independent recurrent updates. Attention is not applied over the growing token history, so the carried recurrent state remains fixed in size as a sequence grows. This is an architectural property, not established evidence of superior long-context scaling.
 
-### Text8
+## Historical AAAI evidence
 
-- MoSAIC-L2C4: `1.4367 ± 0.0026` validation BPC, `n=3`.
-- MoSAIC-L3C4: `1.4345 ± 0.0017`, `n=3`.
-- GRU-L2: `1.5004 ± 0.0119`, `n=3`.
-- GRU-L3: `1.4828 ± 0.0062`, `n=3`.
-- Transformer cache 256: `1.4492 ± 0.0120`, `n=3`.
-- Transformer cache 64: `1.4826 ± 0.0057`, `n=3`; this is a separate context variant, not a replicate of cache 256.
-- MoSAIC-L2C16 has `n=2`; the other principal recurrent topology groups have three runs. See the snapshot for the full sweep.
+`docs/experiments/results_aaai.md` is the frozen shared snapshot for the AAAI experiments, retrieved from Comet on 2026-07-29 at 11:45 UTC. Use it when discussing or reproducing those experiments; do not query Comet or reinterpret tracker state without explicit user authorization. New frontier experiments should get their own purpose, protocol, and evidence records rather than silently extending the AAAI snapshot.
 
-### Store–Distract–Query
+The AAAI evidence supports a narrow historical conclusion: under approximately parameter-matched 1B-token training, the tested MoSAIC topologies improved SDQ associative-memory accuracy and Text8 BPC over monolithic GRUs, while the best observed MoSAIC means were also lower than the matched finite-context Text8 Transformer mean. The evidence does not establish state of the art, specialization, sparse/MoE behavior, resource efficiency, general Transformer replacement, long-context superiority, or robust RL superiority.
 
-- MoSAIC-L2C4: `0.8433 ± 0.0055` final-five `Acc++`, `n=3`.
-- MoSAIC-L3C4: `0.9204 ± 0.0128`, `n=3`.
-- MoSAIC-L2C16: `0.8911 ± 0.0049`, `n=3`.
-- GRU-L2: `0.5465 ± 0.0768`, `n=3`.
-- GRU-L3: `0.3241 ± 0.0862`, `n=3`.
-- All standard SDQ topology groups in the final snapshot have three completed runs.
+Key historical values:
 
-### Reduced-budget baselines
+- Text8: MoSAIC-L2C4 `1.4367 ± 0.0026`, MoSAIC-L3C4 `1.4345 ± 0.0017`, GRU-L2 `1.5004 ± 0.0119`, GRU-L3 `1.4828 ± 0.0062`, and Transformer cache-256 `1.4492 ± 0.0120` validation BPC.
+- SDQ: MoSAIC-L2C4 `0.8433 ± 0.0055`, MoSAIC-L3C4 `0.9204 ± 0.0128`, GRU-L2 `0.5465 ± 0.0768`, and GRU-L3 `0.3241 ± 0.0862` final-five `Acc++`; all listed groups have three completed runs.
+- Reduced-budget HGRN2, DeltaNet, and mLSTM runs used different token, batch, and update budgets and are not direct quality or efficiency comparisons.
+- Completed Mikasa runs were mixed: HigherLowerMedium showed a small uncertain final-window difference, while RepeatFirstEasy exposed MoSAIC policy collapse after near-perfect peaks. Treat RL stability as an open problem, not supporting evidence of superiority.
 
-- Text8: DeltaNet `1.8280 ± 0.0231` at 200M tokens, HGRN2 `1.6675 ± 0.0076` at 100M, and mLSTM `1.6797 ± 0.0084` at 200M; each has `n=2` and 48.8k planned updates.
-- SDQ: DeltaNet `0.1529 ± 0.0317` at 250M tokens, HGRN2 `0.1095 ± 0.0004` at 125M, and mLSTM `0.1239 ± 0.0037` at 250M; each has `n=2` and 61.0k planned updates.
-- These are not directly comparable with the standard 1B-token runs because batch sizes, token budgets, and update counts differ.
+For the historical reporting conventions, aggregation rules, per-run identifiers, reduced-budget accounting, and full topology sweep, use `docs/experiments/results_aaai.md` rather than expanding this short context.
 
-### Mikasa RL
+## Frontier research principles and open directions
 
-- HigherLowerMedium, three 30M-step runs per family: MoSAIC-L2C4 `0.3577 ± 0.0718`, GRU-L2 `0.2968 ± 0.0363`. The difference is uncertain; GRU reached the higher diagnostic peak.
-- RepeatFirstEasy: MoSAIC-L2C4 `0.6921 ± 0.2428`, `n=4`; GRU-L2 `0.9962 ± 0.0037`, `n=3`. Every MoSAIC run reached a diagnostic peak near `0.996`, but several later collapsed, indicating training instability.
-- No completed RepeatFirstMedium comparison is in the snapshot. Do not claim RL superiority from this evidence.
-
-## Near-term post-submission work
-
-1. Preserve and identify the exact submitted artifacts, then choose the commit/tag boundary for AAAI-27 before branching.
-2. Prepare the anonymized source supplement from the active implementations, `large.yaml` protocols, generators/runners, and essential analysis/reproduction instructions. Exclude `.git`, credentials, private tracker configuration, logs, checkpoints, machine-specific files, unrelated exploratory material, and identifying metadata. Inspect both filenames and file contents after archiving.
-3. Ensure the supplementary package has an anonymous, research-compatible license or licensing note consistent with the checklist commitment, without the repository's identifying copyright line.
-4. Verify the supplement builds or runs from a clean environment as far as practical and that all paper-facing model/config names map to the included files.
-5. After common cleanup, create the user-approved AAAI tag and dedicated rebuttal/submission branch; keep frontier research changes on `main`.
-
-## Rebuttal and revision backlog
-
-- Regenerate the learning-curve figure with final three-run groups and AAAI-compliant text size before reintroducing it.
-- Decide whether the reduced-budget table and an update-indexed diagnostic plot belong in supplementary material; retain explicit non-comparability language.
-- Improve reproducibility coverage for random seeds, hardware/software environment, hyperparameter search history, final configuration tables, and clean standalone checklist compilation.
-- Update published-venue metadata for references still listed as arXiv preprints, including Mamba-2, DeltaNet, and xLSTM.
-- In future paper revisions, describe the Mikasa runs as completed but unstable rather than incomplete or merely preliminary.
-- Investigate MoSAIC's RL collapse before presenting RL as supporting breadth. Multimodal SDQ, component ablations, specialization analysis, throughput/memory measurements, and long-context tests remain future work rather than submitted evidence.
+- Treat the AAAI paper's contribution boundaries as evidence boundaries, not prohibitions on future research. Specialization, multimodal fusion, sparse communication, long-context behavior, efficiency, and agent-oriented modularity are open hypotheses that require new evidence.
+- Preserve the distinction between architectural organization and semantic assignment. A weak bias may constrain connectivity, state geometry, timescale, update dynamics, learning signals, or control without preassigning a module's learned meaning.
+- Consider loops and channels, not only named modules, as possible units of organization. Content, routing, prediction error, value, salience, modulation, and write permission may require distinct signal types and timescales.
+- Avoid collapsing rapid adaptation into fast weights by default; persistent activation, writable state, external memory, temporary plasticity, ordinary parameters, and hybrid mechanisms remain alternatives.
+- Future empirical candidates include component ablations, column specialization analysis, multimodal SDQ, controlled long-context tests, throughput/memory/latency measurement, RL-stability investigation, and broader agent tasks. These are candidates, not an approved queue.
 
 ## Project pointer
 
-Knitwork studies MoSAIC (Modular Self-Attentive Interacting Columns for Recurrent Memory): recurrent columns maintain local state and communicate through learned attention routing. Use code/configuration for exact behavior, `docs/methods/` for model summaries, `docs/experiments/` for experiment context, and `_supp/` only as exploratory research material.
+Use code/configuration for exact behavior, `docs/methods/` for model summaries, `docs/experiments/` for experiment context, `_supp/` for exploratory design-space material, and `.agents/research-context.md` only for research discussion the user explicitly asks to preserve.
