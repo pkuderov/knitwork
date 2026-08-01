@@ -4,7 +4,7 @@ Knitwork is a private research codebase for modular recurrent architectures, esp
 
 ## Start here
 
-Read `.agents/working-context.md` at the start of any task. It is the short current snapshot of the project.
+Read `.agents/working-context.md` (aka wc) at the start of any task. It is the short current snapshot of the project.
 
 For code changes, read `.agents/code-conventions.md`.
 
