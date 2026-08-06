@@ -210,6 +210,13 @@ The code logs \texttt{Acc++} as query accuracy on examples whose valid store--qu
 \paragraph{Results.}
 Table~\ref{tab:sdq} shows a consistent family-level advantage for MoSAIC: every evaluated shape has a higher central \texttt{Acc++} value than every GRU depth. In the replicated two-layer comparison, L2C4 reaches $0.8433 \pm 0.0055$, while GRU-L2 reaches $0.5465 \pm 0.0768$. L2C16 reaches $0.8911 \pm 0.0049$, and L3C4 is the best observed configuration at $0.9204 \pm 0.0128$.
 
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.96\textwidth]{fig_learning_curves.pdf}
+\caption{Learning dynamics under the standard 1B-token protocol. Lines show the mean across completed replicates and shading shows $\pm 1$ standard deviation. All displayed text8 and SDQ curves use three replicates. (a) Validation BPC on text8. (b) Online long-gap query accuracy on SDQ. Final SDQ values in Table~\ref{tab:sdq} use the mean of each replicate's last five logged values.}
+\label{fig:learning-curves}
+\end{figure*}
+
 \begin{table*}[t]
 \centering
 \begin{tabular}{llrcrr}
@@ -288,6 +295,9 @@ The empirical scope is limited. Text8 is a small character-level corpus, its val
 \section{Conclusion}
 
 MoSAIC factorizes a monolithic recurrent state into persistent columns and learns how information is routed among them before independent recurrent updates. Under controlled, approximately parameter-matched one-billion-token training, this structural bias consistently improves associative memory and character-level modeling over monolithic GRUs. A similarly sized finite-context Transformer provides a matched text8 reference, while memory-limited recurrent baselines were run separately under non-comparable budgets. The evidence supports modular state organization as a useful inductive bias for recurrent computation at this scale; broader claims about specialization, long-context scaling, and resource efficiency remain open.
+
+\paragraph{Generative AI assistance.}
+Anthropic Claude and OpenAI Codex were used to assist with manuscript drafting, editing, and consistency checking. The authors reviewed all generated material and take responsibility for the paper's content.
 
 \bibliography{refs}
 
