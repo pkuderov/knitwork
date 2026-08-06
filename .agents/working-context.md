@@ -1,14 +1,13 @@
 # Working context
 
-Last refreshed: 2026-08-01. The AAAI-27 main-paper deadline has passed; the project is in post-submission cleanup and supplementary preparation.
+Last refreshed: 2026-08-06. This branch is dedicated to the AAAI-27 paper, rebuttal preparation, paper-facing experiments, and subsequent submission revisions.
 
-## Current stage
+## Branch scope and current stage
 
-- The AAAI-27 main paper and reproducibility checklist were submitted. Repository references to “AAAI 2026” are a known stale year-labeling error; the target is AAAI-27.
-- Commit `f483f16` is the repository's recorded “final submitted version.” Later commits currently contain shared cleanup and bibliography formatting rather than a substantive paper rewrite. Preserve the exact uploaded PDF, checklist, source archive if available, and submission receipt separately from future revisions.
-- The immediate submission-related follow-up is an anonymized source-code supplement. It must be prepared and inspected before upload; do not expose author names, institutional/lab details, local paths, tracker credentials, private URLs, experiment logs with identifying metadata, or repository history.
-- The user plans to tag the AAAI-27 state and then split development: a dedicated branch for rebuttal and subsequent AAAI-related revisions, while `main` continues frontier project work. Common post-submission cleanup may happen before the split. Do not create the tag or branches until the user chooses the exact boundary and names.
-- Multimodal SDQ remains deferred. RL and reduced-budget baselines are useful follow-up evidence but were not part of the main matched-budget claim.
+- The AAAI-27 main paper, reproducibility checklist, and source-code supplement were submitted. Repository references to “AAAI 2026” are a known stale year-labeling error; the target is AAAI-27.
+- Commit `86990dd` is the repository's recorded “final submitted version.” Treat the uploaded artifacts as the historical submission baseline and make later paper changes explicitly rather than silently rewriting that record.
+- Use this branch for rebuttal analysis, paper corrections, improved presentation, additional experiments that could materially support the paper, and later AAAI revisions.
+- Large architectural departures and open-ended conceptual work around weak neuroanatomical biases belong on `main`, not here, unless the user explicitly decides that a specific result is needed for the paper.
 
 ## Paper artifacts and submitted scope
 
@@ -17,7 +16,6 @@ Last refreshed: 2026-08-01. The AAAI-27 main-paper deadline has passed; the proj
 - `article/latex/fig_architecture.pdf` is the mechanism diagram used in the paper. It explains the time/depth grid, per-column recurrent update, and router; it is not evidence of functional specialization.
 - `article/latex/fig_learning_curves.pdf` remains a useful revision/supplement artifact but was removed from the submitted main paper because its text did not satisfy AAAI's 9-point minimum at final rendered scale. Before reuse, regenerate it from the current evidence snapshot with every label, tick, title, and legend entry at least 9 pt after LaTeX scaling, then render and inspect the paper PDF.
 - The submitted empirical scope is SDQ and Text8 under the standard protocol, with GRU and finite-context Transformer references. HGRN2, DeltaNet, and mLSTM were described only as memory-constrained, non-comparable implementation references. Mikasa RL results were omitted because completed runs showed unstable final performance.
-- The checklist commits to making all required experimental code publicly available upon publication under a research-compatible license. Supplement preparation and eventual release planning must remain consistent with that commitment.
 
 ## Positioning brief
 
@@ -27,7 +25,7 @@ The motivating problem is how recurrent computation is organized, not primarily 
 
 MoSAIC introduces modularity as an architectural inductive bias. It factorizes hidden state into persistent recurrent columns and lets information move among them through learned attention-mediated routing: divide state and computation, then learn how the parts communicate.
 
-The original research vision was broader and agent-centric: bound and free columns, multimodal inputs and outputs, emergent functional specialization, perception/planning/control subsystems, auxiliary objectives, feedback paths, and lifelong or multitask agents. This may motivate future work, but the submitted experiments do not demonstrate it.
+MoSAIC arose within a broader agent-centric research motivation involving multimodality, specialization, perception/planning/control subsystems, and lifelong or multitask agents. On this branch, that background is only a claim boundary: the submitted paper does not demonstrate those capabilities, and the broader architecture program is not an active AAAI workstream.
 
 ### Paper-scoped thesis
 
@@ -110,22 +108,18 @@ Do not claim to invent modular recurrence in general. Relevant neighbors include
 - RepeatFirstEasy: MoSAIC-L2C4 `0.6921 ± 0.2428`, `n=4`; GRU-L2 `0.9962 ± 0.0037`, `n=3`. Every MoSAIC run reached a diagnostic peak near `0.996`, but several later collapsed, indicating training instability.
 - No completed RepeatFirstMedium comparison is in the snapshot. Do not claim RL superiority from this evidence.
 
-## Near-term post-submission work
+## Possible paper improvements and supporting experiments
 
-1. Preserve and identify the exact submitted artifacts, then choose the commit/tag boundary for AAAI-27 before branching.
-2. Prepare the anonymized source supplement from the active implementations, `large.yaml` protocols, generators/runners, and essential analysis/reproduction instructions. Exclude `.git`, credentials, private tracker configuration, logs, checkpoints, machine-specific files, unrelated exploratory material, and identifying metadata. Inspect both filenames and file contents after archiving.
-3. Ensure the supplementary package has an anonymous, research-compatible license or licensing note consistent with the checklist commitment, without the repository's identifying copyright line.
-4. Verify the supplement builds or runs from a clean environment as far as practical and that all paper-facing model/config names map to the included files.
-5. After common cleanup, create the user-approved AAAI tag and dedicated rebuttal/submission branch; keep frontier research changes on `main`.
-
-## Rebuttal and revision backlog
+These are candidates for rebuttal preparation or later paper revisions, not a committed work queue. Prioritize them only after considering likely reviewer questions, evidential value, runtime, and risk.
 
 - Regenerate the learning-curve figure with final three-run groups and AAAI-compliant text size before reintroducing it.
 - Decide whether the reduced-budget table and an update-indexed diagnostic plot belong in supplementary material; retain explicit non-comparability language.
 - Improve reproducibility coverage for random seeds, hardware/software environment, hyperparameter search history, final configuration tables, and clean standalone checklist compilation.
 - Update published-venue metadata for references still listed as arXiv preprints, including Mamba-2, DeltaNet, and xLSTM.
 - In future paper revisions, describe the Mikasa runs as completed but unstable rather than incomplete or merely preliminary.
-- Investigate MoSAIC's RL collapse before presenting RL as supporting breadth. Multimodal SDQ, component ablations, specialization analysis, throughput/memory measurements, and long-context tests remain future work rather than submitted evidence.
+- Investigate MoSAIC's RL collapse and complete stronger task-matched comparisons before presenting RL as supporting breadth.
+- Consider multimodal SDQ, routing/regularizer component ablations, measurable column-specialization analysis, throughput and memory measurements, controlled long-context tests, and better-matched modern recurrent baselines as possible additions to the paper's evidence.
+- Do not use this branch for the larger neuroanatomical-bias architecture program or unrelated frontier redesigns; those belong on `main` unless explicitly pulled into the paper's scope.
 
 ## Project pointer
 
