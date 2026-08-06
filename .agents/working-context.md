@@ -5,7 +5,7 @@ Last refreshed: 2026-08-06. This branch is dedicated to the AAAI-27 paper, rebut
 ## Branch scope and current stage
 
 - The AAAI-27 main paper, reproducibility checklist, and source-code supplement were submitted. Repository references to “AAAI 2026” are a known stale year-labeling error; the target is AAAI-27.
-- Commit `86990dd` is the repository's recorded “final submitted version.” Treat the uploaded artifacts as the historical submission baseline and make later paper changes explicitly rather than silently rewriting that record.
+- Commit `3c2fbf3` contains the source corresponding to the submitted paper. Treat it as the historical submission baseline and make subsequent paper changes explicitly.
 - Use this branch for rebuttal analysis, paper corrections, improved presentation, additional experiments that could materially support the paper, and later AAAI revisions.
 - Large architectural departures and open-ended conceptual work around weak neuroanatomical biases belong on `main`, not here, unless the user explicitly decides that a specific result is needed for the paper.
 
@@ -14,7 +14,7 @@ Last refreshed: 2026-08-06. This branch is dedicated to the AAAI-27 paper, rebut
 - Editable paper authority: `article/latex/paper.tex`. The Typst draft is historical and should not be treated as the current manuscript.
 - The paper uses the official AAAI-27 LaTeX author kit and compiles to `article/latex/paper.pdf`. The reproducibility checklist is `article/latex/ReproducibilityChecklist.tex` and compiles separately to `article/latex/ReproducibilityChecklist.pdf`.
 - `article/latex/fig_architecture.pdf` is the mechanism diagram used in the paper. It explains the time/depth grid, per-column recurrent update, and router; it is not evidence of functional specialization.
-- `article/latex/fig_learning_curves.pdf` remains a useful revision/supplement artifact but was removed from the submitted main paper because its text did not satisfy AAAI's 9-point minimum at final rendered scale. Before reuse, regenerate it from the current evidence snapshot with every label, tick, title, and legend entry at least 9 pt after LaTeX scaling, then render and inspect the paper PDF.
+- `article/latex/fig_learning_curves.pdf` is the full-width two-panel learning-dynamics figure used in the paper. It shows the standard 1B-token Text8 and SDQ curves as replicate means with standard-deviation bands; every displayed group uses `n=3`.
 - The submitted empirical scope is SDQ and Text8 under the standard protocol, with GRU and finite-context Transformer references. HGRN2, DeltaNet, and mLSTM were described only as memory-constrained, non-comparable implementation references. Mikasa RL results were omitted because completed runs showed unstable final performance.
 
 ## Positioning brief
@@ -112,7 +112,6 @@ Do not claim to invent modular recurrence in general. Relevant neighbors include
 
 These are candidates for rebuttal preparation or later paper revisions, not a committed work queue. Prioritize them only after considering likely reviewer questions, evidential value, runtime, and risk.
 
-- Regenerate the learning-curve figure with final three-run groups and AAAI-compliant text size before reintroducing it.
 - Decide whether the reduced-budget table and an update-indexed diagnostic plot belong in supplementary material; retain explicit non-comparability language.
 - Improve reproducibility coverage for random seeds, hardware/software environment, hyperparameter search history, final configuration tables, and clean standalone checklist compilation.
 - Update published-venue metadata for references still listed as arXiv preprints, including Mamba-2, DeltaNet, and xLSTM.
