@@ -17,7 +17,14 @@
 \setlength{\pdfpageheight}{11in}
 \frenchspacing
 
+\fi
+\ifreproStandalone
 \begin{document}
+\fi
+\ifreproStandalone
+\def\reproStandaloneEnd{\end{document}}
+\else
+\def\reproStandaloneEnd{}
 \fi
 \setlength{\leftmargini}{20pt}
 \makeatletter\def\@listi{\leftmargin\leftmargini \topsep .5em \parsep .5em \itemsep .5em}
@@ -217,6 +224,4 @@ yes
 
 \end{itemize}
 \end{itemize}
-\ifreproStandalone
-\end{document}
-\fi
+\reproStandaloneEnd
