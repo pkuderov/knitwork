@@ -52,6 +52,8 @@
   - minimize the computations/activity, i.e. dynamic computation path and/or force sparse weights/activations
   - but do not forget about noise to keep some duplication
 
++ evolutionary selection of connectivity (short genes)
+
 *Richness*: how expressive the representations and computations are
 + temporal basis / memory parameterization mechanisms
   - fast weights -like attention
