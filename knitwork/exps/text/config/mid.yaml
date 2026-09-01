@@ -1,0 +1,284 @@
+seed: null
+name: null
+log:
+  logger: comet
+  project: knitwork-text-debug
+  dump_status: false
+  schedule: 5.0e+6
+  # schedule: 1.0e+6
+
+device: null
+dtype: float32
+
+exp: text
+gen: text8
+wrapper_model: token
+model: rnn.L1
+
+n_envs: 512
+rollout_len: 64
+n_steps: 1.0e+9
+# n_steps: 0.4e+7
+
+compile: true
+
+inspect_schedule: 5.0e+5
+vis_inspect_schedule: 5.0e+5
+inspect_n_in_word_acc: 5
+
+eval:
+  enabled: true
+  on_start: false
+  split: 0.1
+  schedule: 2.0e+7
+  max_rollout: 2.0e+4
+
+gens:
+  text8:
+    path: $MY_HOME/data/text/text8_100M.txt
+    reset_prob:
+      val: 0.2
+      tar: 0.001
+      lr: 0.04
+      schedule: 100
+  tinysh:
+    path: $MY_HOME/data/text/tinyshakespeare_1.1M.txt
+    reset_prob:
+      val: 0.2
+      tar: 0.001
+      lr: 0.04
+      schedule: 100
+
+token_wrapper: {}
+communication:
+  loss_weight: 5.0e-2
+  entropy_weight: 5.0e-3
+
+# ======> Models
+rnn_L1:
+  hidden_size: 404
+  n_layers: 1
+  use_bias: true
+  dropout: 0.0
+
+rnn_L2:
+  hidden_size: 288
+  n_layers: 2
+  use_bias: true
+  dropout: 0.0
+
+rnn_L3:
+  hidden_size: 232
+  n_layers: 3
+  use_bias: true
+  dropout: 0.0
+
+grnn_L1C8:
+  hidden_size: 140
+  n_layers: 1
+  n_columns: 8
+  n_attn_heads: 4
+  ln_msg: true
+  bank: 2
+  mha: 2
+  noise_std: 0.05
+
+grnn_L2C4:
+  hidden_size: 136
+  n_layers: 2
+  n_columns: 4
+  n_attn_heads: 4
+  ln_msg: true
+  bank: 2
+  mha: 2
+  noise_std: 0.05
+
+grnn_L2C8:
+  hidden_size: 96
+  n_layers: 2
+  n_columns: 8
+  n_attn_heads: 4
+  ln_msg: true
+  bank: 2
+  mha: 2
+  noise_std: 0.05
+
+grnn_L2C16:
+  hidden_size: 224
+  n_layers: 2
+  n_columns: 16
+  n_attn_heads: 4
+  ln_msg: true
+  bank: 2
+  mha: 2
+  noise_std: 0.05
+
+grnn_L3C4:
+  hidden_size: 344
+  n_layers: 3
+  n_columns: 4
+  n_attn_heads: 4
+  ln_msg: true
+  bank: 2
+  mha: 2
+  noise_std: 0.05
+
+grnn_L3C4_20M:
+  hidden_size: 488
+  n_layers: 3
+  n_columns: 4
+  n_attn_heads: 4
+  ln_msg: true
+  bank: 2
+  mha: 2
+  noise_std: 0.05
+
+grnn_fix:
+  embedding_size: 64
+  hidden_size: 464
+  n_layers: 2
+  n_columns: 4
+  n_attn_heads: 4
+  use_bias: true
+  dropout: 0.0
+
+grnn_fix_v4:
+  embedding_size: 64
+  hidden_size: 464
+  n_layers: 2
+  n_columns: 4
+  n_attn_heads: 4
+  beta_scale: 3.0
+  beta_floor: 0.2
+  timescale_spread: 1.0
+  aux_div_weight: 0.05
+  aux_div_max_weight: 0.1
+  aux_div_ramp_steps: 3e+7
+  aux_gate_weight: 0.1
+  aux_act_weight: 0.02
+  aux_sat_weight: 0.02
+  aux_every: 64
+  gate_std_target: 0.15
+  sat_target: 0.8
+  optim: true
+  div_latent_dim: 32
+  aux_batch_frac: 0.25
+  use_bias: true
+  dropout: 0.1
+
+grnn_fix_v4_L2C8:
+  embedding_size: 64
+  hidden_size: 344
+  n_layers: 2
+  n_columns: 8
+  n_attn_heads: 4
+  beta_scale: 3.0
+  beta_floor: 0.2
+  timescale_spread: 1.0
+  aux_div_weight: 0.05
+  aux_div_max_weight: 0.1
+  aux_div_ramp_steps: 3e+7
+  aux_gate_weight: 0.1
+  aux_act_weight: 0.02
+  aux_sat_weight: 0.02
+  aux_every: 64
+  gate_std_target: 0.15
+  sat_target: 0.8
+  optim: true
+  div_latent_dim: 32
+  aux_batch_frac: 0.25
+  use_bias: true
+  dropout: 0.1
+
+grnn_feedback:
+  embedding_size: 64
+  base_hidden_size: 1800
+  n_layers: 2
+  n_columns: 4
+  n_attn_heads: 4
+  col_identities: true
+  seed_scale: 1.0
+  fb_init: 0.1
+  use_bias: true
+  dropout: 0.0
+
+# --- external baselines ---
+delta_net:
+  hidden_size: 692
+  n_layers: 3
+
+hgrn2:
+  hidden_size: 490
+  n_layers: 3
+  expand: 4
+
+mlstm:
+  hidden_size: 692
+  n_layers: 3
+
+grnn_base:
+  embedding_size: 64
+  hidden_size: 90
+  n_layers: 1
+  n_columns: 4
+  use_bias: true
+  dropout: 0.0
+
+# Transformer configs at different scales
+transformer:
+  hidden_size: 560
+  n_layers: 4
+  n_heads: 4
+  d_ff: 1120
+  mem_len: 256
+  dropout: 0.0
+
+transformer_64:
+  hidden_size: 560
+  n_layers: 4
+  n_heads: 4
+  d_ff: 1120
+  mem_len: 64
+  dropout: 0.0
+
+transformer_1m:
+  hidden_size: 160    # ~840K params: 4L, 4H, ff=320, mem=256
+  n_layers: 4
+  n_heads: 4
+  d_ff: 320
+  mem_len: 256
+  dropout: 0.0
+
+transformer_2m:
+  hidden_size: 256    # ~2.1M params: 4L, 4H, ff=512, mem=512
+  n_layers: 4
+  n_heads: 4
+  d_ff: 512
+  mem_len: 512
+  dropout: 0.1
+
+mamba:
+  embedding_size: 64
+  hidden_size: 128
+  n_layers: 3
+  d_state: 16
+  d_conv: 4
+  expand: 2
+# <====== Models
+
+# base LR config
+lr:
+  val: 5.0e-4
+  tar: 5.0e-5
+  lr: 0.01
+  schedule: 250
+  warmup:
+    val: 1.0e-9
+    n_linear_steps: 50
+    schedule: 24
+
+trackers:
+  slow: 5.0e-3
+  fast: 2.0e-2
+  list: null
+  eval: null
