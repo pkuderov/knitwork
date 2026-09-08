@@ -48,17 +48,24 @@ class GridRnn(nn.Module):
         banks = [GruBank, GruBank1, GruBank2]
         self.cells = banks[bank](self.n_layers, self.n_columns, self.hidden_size, bias=use_bias)
 
-        mhas = [MessagePassingLayer, MessagePassingLayer1, StochasticMessagePassingLayer]
+        mhas = [
+            MessagePassingLayer,
+            MessagePassingLayer1,
+            StochasticMessagePassingLayer,
+            StaticMessagePassingLayer,
+        ]
         mha = mhas[mha]
         mha_kwargs = {}
-        if mha == StochasticMessagePassingLayer:
+        if mha in (StochasticMessagePassingLayer, StaticMessagePassingLayer):
             mha_kwargs |= {'noise_std': noise_std}
 
         self.attn = nn.ModuleList()
         for layer in range(self.n_layers):
+            n_kv = self.n_columns + self.n_inputs if layer == 0 else self.n_columns
             self.attn.append(mha(
                 self.hidden_size, num_heads=self.n_attn_heads, ln_msg=ln_msg, 
-                n_q=self.n_columns, n_kv=self.n_columns+self.n_inputs,
+                n_q=self.n_columns,
+                n_kv=n_kv,
                 **mha_kwargs,
             ))
 
@@ -141,6 +148,106 @@ class GridRnn(nn.Module):
         return {'h': h, 'out': h[-1]}
 
 
+class StaticMessagePassingLayer(nn.Module):
+    """Message passing with learned, query-independent per-head routing."""
+    def __init__(
+            self, dim, num_heads, ln_msg=True, n_q=None, n_kv=None,
+            noise_std=0.0,
+    ):
+        super().__init__()
+        assert dim % num_heads == 0
+        assert n_q is not None and n_kv is not None
+
+        self.dim = dim
+        self.num_heads = num_heads
+        self.head_dim = dim // num_heads
+        self.noise_std = noise_std
+        self.value_proj = nn.Linear(dim, dim)
+        self.out_proj = nn.Linear(dim, dim)
+        self.ln_msg = nn.LayerNorm(dim) if ln_msg else None
+
+        # Store one Cq->Ckv routing table per head.
+        self.pi_route_logits = nn.Parameter(torch.empty(num_heads, n_q, n_kv))
+        self.pi_logtemp = nn.Parameter(torch.empty(1, 1, n_q, 1))
+
+        self.reset_parameters()
+
+    def forward(self, q, k, v, return_weights: bool = False):
+        Cq = q.shape[0]
+        Ckv, B, D = v.shape
+
+        # (Ckv, B, D)
+        v = self.value_proj(v)
+        # value = F.silu(self.value_proj(v))
+
+        # (C, B, D) -> (B, heads, C, head_dim)
+        v = self.split_heads(v)
+
+        # broadcast batch dim
+        logits = self.pi_route_logits.unsqueeze(0).expand(B, -1, -1, -1)
+        if self.training and self.noise_std > 0.0:
+            logits = logits + self.noise_std * torch.randn_like(logits)
+        beta = F.softplus(self.pi_logtemp)
+        pi_route = torch.softmax(beta * logits, dim=-1)
+
+        # (B, heads, Cq, Ckv) * (B, heads, Ckv, head_dim) --> (B, heads, Cq, head_dim)
+        msg = torch.matmul(pi_route, v)
+        # back to (Cq, B, D)
+        msg = msg.permute(2, 0, 1, 3).reshape(Cq, B, D)
+        msg = self.out_proj(msg)
+        if self.ln_msg is not None:
+            msg = self.ln_msg(msg)
+
+        info = {}
+        if self.training:
+            prob_comm = 1.0 - pi_route.diagonal(dim1=-2, dim2=-1)
+            comm_loss = prob_comm
+            if Ckv > Cq:
+                # Add a weighted column-specific extra cost for external input.
+                extra_w = torch.arange(Cq, dtype=pi_route.dtype, device=pi_route.device).view(1, -1)
+                x_ext_prob_weighted = pi_route[..., -1] * (extra_w * 2 - 1)
+                comm_loss = comm_loss + x_ext_prob_weighted
+            entropy = -(pi_route * torch.log(pi_route.clamp_min(torch.finfo(pi_route.dtype).tiny))).sum(dim=-1)
+            info |= {
+                'comm_loss': comm_loss.mean(),
+                'comm_entropy': normalize_entropy(entropy.mean(), Ckv),
+            }
+        if return_weights:
+            info['attn_weights'] = pi_route.detach().mean(dim=(0, 1))
+
+        return msg, info
+
+    @torch.no_grad()
+    def reset_parameters(self):
+        small = 0.01 / math.sqrt(self.dim)
+        nn.init.eye_(self.value_proj.weight)
+        nn.init.zeros_(self.value_proj.bias)
+
+        nn.init.eye_(self.out_proj.weight)
+        self.out_proj.weight.add_(torch.randn_like(self.out_proj.weight) * small)
+
+        nn.init.zeros_(self.out_proj.bias)
+        self.init_logits_near_zero()
+        nn.init.constant_(self.pi_logtemp, math.log(math.expm1(1.0)))
+
+    @torch.no_grad()
+    def init_logits_near_zero(self):
+        nn.init.normal_(self.pi_route_logits, 0.0, 0.01 / math.sqrt(self.dim))
+
+    @torch.no_grad()
+    def init_logits_positive_diagonal(self):
+        nn.init.zeros_(self.pi_route_logits)
+        diagonal = torch.arange(
+            min(self.pi_route_logits.shape[1:]), device=self.pi_route_logits.device,
+        )
+        self.pi_route_logits[:, diagonal, diagonal] = 1.0
+
+    def split_heads(self, x):
+        # (C, B, D) -> (B, heads, C, head_dim)
+        C, B, _ = x.shape
+        return x.view(C, B, self.num_heads, self.head_dim).permute(1, 2, 0, 3)
+
+
 class StochasticMessagePassingLayer(nn.Module):
     """MHA-1 with stochastic routing and a free-cost diagonal route."""
     def __init__(
@@ -158,22 +265,23 @@ class StochasticMessagePassingLayer(nn.Module):
         self.ln_msg = nn.LayerNorm(dim) if ln_msg else None
 
         # Learnable identities distinguish communication participants.
-        # (q/k, C, B, D)
+        # (q/k, Ckv, B, D)
         self.ids = nn.Parameter(torch.empty(2, n_kv, 1, dim)) if n_kv is not None else None
         self.pi_logtemp = nn.Parameter(torch.empty(1, 1, n_q, 1))
 
         self.reset_parameters()
 
     def forward(self, q, k, v, return_weights: bool = False):
-        # qkv: (C, B, D)
-        Cq, B, H = q.shape
+        # qkv: (Cq|Ckv, B, D)
+        Cq, B, D = q.shape
         Ckv = k.shape[0]
         if self.ids is not None:
             q = q + self.ids[0][:Cq]
             k = k + self.ids[1][:Ckv]
 
-        W_q, W_k, W_v = self.mha.in_proj_weight.split(H, dim=0)
-        b_q, b_k, b_v = self.mha.in_proj_bias.split(H, dim=0)
+        # (D, D)
+        W_q, W_k, W_v = self.mha.in_proj_weight.split(D, dim=0)
+        b_q, b_k, b_v = self.mha.in_proj_bias.split(D, dim=0)
 
         # q = F.linear(q, W_q, b_q)
         # k = F.linear(k, W_k, b_k)
@@ -182,9 +290,10 @@ class StochasticMessagePassingLayer(nn.Module):
         k = F.silu(F.linear(k, W_k, b_k))
         v = F.silu(F.linear(v, W_v, b_v))
 
-        # (C, B, H) -> (B, heads, C, head_dim)
+        # (C, B, D) -> (B, heads, C, head_dim)
         q, k, v = map(self.split_heads, (q, k, v))
 
+        # (B, heads, Cq, head_dim) * (B, heads, head_dim, Ckv) --> (B, heads, Cq, Ckv)
         logits = torch.matmul(q, k.transpose(-2, -1)) / math.sqrt(self.head_dim)
         if self.training and self.noise_std > 0.0:
             logits = logits + self.noise_std * torch.randn_like(logits)
@@ -192,9 +301,10 @@ class StochasticMessagePassingLayer(nn.Module):
         pi_route = torch.softmax(beta * logits, dim=-1)
         # pi_route = torch.softmax(logits, dim=-1)
 
+        # (B, heads, Cq, Ckv) * (B, heads, Ckv, head_dim) --> (B, heads, Cq, head_dim)
         msg = torch.matmul(pi_route, v)
-        # back to (C, B, H)
-        msg = msg.permute(2, 0, 1, 3).reshape(Cq, B, H)
+        # back to (Cq, B, D)
+        msg = msg.permute(2, 0, 1, 3).reshape(Cq, B, D)
         msg = F.linear(msg, self.mha.out_proj.weight, self.mha.out_proj.bias)
         if self.ln_msg is not None:
             msg = self.ln_msg(msg)
@@ -220,14 +330,13 @@ class StochasticMessagePassingLayer(nn.Module):
 
     @torch.no_grad()
     def reset_parameters(self):
-        H = self.dim
-        small = 0.01 / math.sqrt(H)
+        D = self.dim
+        small = 0.01 / math.sqrt(D)
 
-        W_q, W_k, W_v = self.mha.in_proj_weight.split(H, dim=0)
+        W_q, W_k, W_v = self.mha.in_proj_weight.split(D, dim=0)
 
         nn.init.xavier_uniform_(W_q)
         nn.init.xavier_uniform_(W_k)
-
         nn.init.eye_(W_v)
 
         nn.init.eye_(self.mha.out_proj.weight)
@@ -244,7 +353,7 @@ class StochasticMessagePassingLayer(nn.Module):
         nn.init.constant_(self.pi_logtemp, math.log(math.expm1(1.0)))
 
     def split_heads(self, x):
-        # (C, B, H) -> (B, heads, C, head_dim)
+        # (C, B, D) -> (B, heads, C, head_dim)
         C, B, _ = x.shape
         return x.view(C, B, self.num_heads, self.head_dim).permute(1, 2, 0, 3)
 
@@ -309,7 +418,7 @@ class GruBank2(nn.Module):
 
 class MessagePassingLayer1(nn.Module):
     """Compared to naive version, has an "self-to-self" bias for communication init."""
-    def __init__(self, dim, num_heads, ln_msg=True, n_participants=None):
+    def __init__(self, dim, num_heads, ln_msg=True, n_participants=None, n_q=None, n_kv=None):
         super().__init__()
         self.dim = dim
         self.mha = nn.MultiheadAttention(dim, num_heads=num_heads, batch_first=False)
@@ -367,7 +476,7 @@ class MessagePassingLayer1(nn.Module):
 
 class MessagePassingLayer(nn.Module):
     """Default MHA + layer norm."""
-    def __init__(self, dim, num_heads, ln_msg=True, n_participants=None):
+    def __init__(self, dim, num_heads, ln_msg=True, n_participants=None, n_q=None, n_kv=None):
         super().__init__()
         self.mha = nn.MultiheadAttention(dim, num_heads=num_heads, batch_first=False)
         self.ln_msg = nn.LayerNorm(dim) if ln_msg else None
