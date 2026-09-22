@@ -83,8 +83,8 @@ class GridRnn(nn.Module):
 
         for layer in range(self.n_layers):
             hl = h[layer]
-            x, comm_info = self.attn[layer](hl, msg, msg, return_weights=capture)
-            hln = self.cells(layer, x, hl)
+            u, comm_info = self.attn[layer](hl, msg, msg, return_weights=capture)
+            hln = self.cells(layer, u, hl)
             msg = hln
 
             for k, v in comm_info.items():
@@ -184,7 +184,7 @@ class StaticMessagePassingLayer(nn.Module):
         # (C, B, D) -> (B, C, D)
         v = v.permute(1, 0, 2)
 
-        # broadcast batch dim: (B, C, D)
+        # broadcast batch dim: (B, Cq, Ckv)
         logits = self.pi_route_logits.unsqueeze(0).expand(B, *self.pi_route_logits.shape)
         if self.training and self.noise_std > 0.0:
             logits = logits + self.noise_std * torch.randn_like(logits)
