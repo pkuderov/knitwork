@@ -149,13 +149,14 @@ class GridRnn(nn.Module):
 
 
 class StaticMessagePassingLayer(nn.Module):
-    """Message passing with learned, query-independent per-head routing."""
+    """Message passing with learned, query-independent routing."""
     def __init__(
             self, dim, num_heads, ln_msg=True, n_q=None, n_kv=None,
             noise_std=0.0,
     ):
         super().__init__()
         assert dim % num_heads == 0
+        assert num_heads == 1, "Such simplified message passing doesn't need multihead"
         assert n_q is not None and n_kv is not None
 
         self.dim = dim
@@ -167,8 +168,8 @@ class StaticMessagePassingLayer(nn.Module):
         self.ln_msg = nn.LayerNorm(dim) if ln_msg else None
 
         # Store one Cq->Ckv routing table per head.
-        self.pi_route_logits = nn.Parameter(torch.empty(num_heads, n_q, n_kv))
-        self.pi_logtemp = nn.Parameter(torch.empty(1, 1, n_q, 1))
+        self.pi_route_logits = nn.Parameter(torch.empty(n_q, n_kv))
+        self.pi_logtemp = nn.Parameter(torch.empty(1, n_q, 1))
 
         self.reset_parameters()
 
@@ -180,20 +181,20 @@ class StaticMessagePassingLayer(nn.Module):
         v = self.value_proj(v)
         # value = F.silu(self.value_proj(v))
 
-        # (C, B, D) -> (B, heads, C, head_dim)
-        v = self.split_heads(v)
+        # (C, B, D) -> (B, C, D)
+        v = v.permute(1, 0, 2)
 
-        # broadcast batch dim
-        logits = self.pi_route_logits.unsqueeze(0).expand(B, -1, -1, -1)
+        # broadcast batch dim: (B, C, D)
+        logits = self.pi_route_logits.unsqueeze(0).expand(B, *self.pi_route_logits.shape)
         if self.training and self.noise_std > 0.0:
             logits = logits + self.noise_std * torch.randn_like(logits)
         beta = F.softplus(self.pi_logtemp)
         pi_route = torch.softmax(beta * logits, dim=-1)
 
-        # (B, heads, Cq, Ckv) * (B, heads, Ckv, head_dim) --> (B, heads, Cq, head_dim)
+        # (B, Cq, Ckv) * (B, Ckv, D) --> (B, Cq, D)
         msg = torch.matmul(pi_route, v)
         # back to (Cq, B, D)
-        msg = msg.permute(2, 0, 1, 3).reshape(Cq, B, D)
+        msg = msg.permute(1, 0, 2)
         msg = self.out_proj(msg)
         if self.ln_msg is not None:
             msg = self.ln_msg(msg)
@@ -213,7 +214,7 @@ class StaticMessagePassingLayer(nn.Module):
                 'comm_entropy': normalize_entropy(entropy.mean(), Ckv),
             }
         if return_weights:
-            info['attn_weights'] = pi_route.detach().mean(dim=(0, 1))
+            info['attn_weights'] = pi_route.detach().mean(0)
 
         return msg, info
 
@@ -241,11 +242,6 @@ class StaticMessagePassingLayer(nn.Module):
             min(self.pi_route_logits.shape[1:]), device=self.pi_route_logits.device,
         )
         self.pi_route_logits[:, diagonal, diagonal] = 1.0
-
-    def split_heads(self, x):
-        # (C, B, D) -> (B, heads, C, head_dim)
-        C, B, _ = x.shape
-        return x.view(C, B, self.num_heads, self.head_dim).permute(1, 2, 0, 3)
 
 
 class StochasticMessagePassingLayer(nn.Module):
