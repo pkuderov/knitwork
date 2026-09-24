@@ -306,9 +306,10 @@ lr:
   lr: 0.01
   schedule: 250
   warmup:
-    val: 1.0e-12
-    n_linear_steps: 50
-    schedule: 50
+    val: 1.0e-8
+    tar: 1.0e-6
+    n_linear_steps: 100
+    schedule: 25
 
 trackers:
   slow: 5.0e-3
