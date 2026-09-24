@@ -16,9 +16,8 @@ class GridRnn(nn.Module):
     def __init__(
             self, *,
             hidden_size, n_layers, n_columns, n_inputs=1, n_outputs=1,
-            n_attn_heads=1, use_bias=True, ln_msg=True,
-            mha=0, noise_std=0.0,
-            horizon_min=1.0, horizon_max=1000.0,
+            mha, n_attn_heads=1, noise_std, horizon, 
+            use_bias=True, ln_msg=True,
             dtype, device,
     ):
         super().__init__()
@@ -40,8 +39,9 @@ class GridRnn(nn.Module):
             f'w/ {self.hidden_size} hidden units'
         )
         self.cells = LruBank(
-            n_layers, n_columns, self.hidden_size, bias=use_bias,
-            horizon_min=horizon_min, horizon_max=horizon_max,
+            n_layers=n_layers, n_columns=n_columns,
+            hidden_size=self.hidden_size, bias=use_bias,
+            horizon=horizon,
         )
         mhas = [
             None, None, None,
@@ -87,16 +87,16 @@ class GridRnn(nn.Module):
     
         hn = torch.stack(hn, dim=0)
         hn_proj = torch.stack(hn_proj, dim=0)
-        y = hn_proj[-1][0]
+        y = hn_proj[-1][:, 0]
         state = {'h': hn, 'outs': hn_proj, 'out': hn_proj[-1]}
         return y, state, info
 
     def init_state(self, bsz):
-        parameter = self.cells.weight_re
-        h = parameter.new_zeros(
+        h = torch.zeros(
             self.n_layers, bsz, self.n_columns, 2 * self.hidden_size,
+            device=self.device, dtype=self.dtype
         )
-        outs = parameter.new_zeros(
+        outs = h.new_zeros(
             self.n_layers, bsz, self.n_columns, self.hidden_size,
         )
         return {'h': h, 'outs': outs, 'out': outs[-1]}
@@ -157,7 +157,7 @@ class StaticMessagePassingLayer(nn.Module):
         beta = F.softplus(self.pi_logtemp)
         pi_route = torch.softmax(beta * logits, dim=-1)
 
-        # (B, Cq, Ckv) * (B, Ckv, D) --> (B, Cq, D)
+        # (B, Cq, Ckv) * (B, Ckv, D) --> (B, Cq, D)... BMM?
         msg = torch.matmul(pi_route, v)
         msg = self.out_proj(msg)
         if self.ln_msg is not None:
@@ -202,10 +202,11 @@ class StaticMessagePassingLayer(nn.Module):
     @torch.no_grad()
     def init_logits_positive_diagonal(self):
         nn.init.zeros_(self.pi_route_logits)
-        diagonal = torch.arange(
-            min(self.pi_route_logits.shape[1:]), device=self.pi_route_logits.device,
-        )
-        self.pi_route_logits[:, diagonal, diagonal] = 1.0
+        n_q, n_kv = self.pi_route_logits.shape
+        n = min(n_q, n_kv)
+        ixs = torch.arange(n, device=self.pi_route_logits.device)
+        # set diag elems
+        self.pi_route_logits[ixs, ixs] = 1.0
 
 
 class LruBank(nn.Module):
@@ -228,26 +229,25 @@ class LruBank(nn.Module):
         self.log_r = nn.Parameter(torch.empty(L, C, H))
         self.theta = nn.Parameter(torch.empty(L, C, H))
 
-        self.weights = nn.Parameter(torch.empty(L, C, 2*H, H))
+        self.weight_in = nn.Parameter(torch.empty(L, C, H, 2*H))
         self.weight_out = nn.Parameter(torch.empty(L, C, 2*H, H))
         if bias:
-            self.bias_re = nn.Parameter(torch.empty(n_layers, n_columns, 1, hidden_size))
-            self.bias_im = nn.Parameter(torch.empty(n_layers, n_columns, 1, hidden_size))
-            self.bias_out = nn.Parameter(torch.empty(n_layers, n_columns, 1, hidden_size))
+            self.bias_in = nn.Parameter(torch.empty(L, C, 1, 2*H))
+            self.bias_out = nn.Parameter(torch.empty(L, C, 1, H))
         else:
-            self.register_parameter('bias_re', None)
-            self.register_parameter('bias_im', None)
+            self.register_parameter('bias_in', None)
             self.register_parameter('bias_out', None)
         self.reset_parameters()
 
     def reset_parameters(self):
         bound = 1.0 / math.sqrt(self.hidden_size)
         # radius = exp(-1 / horizon) = exp(-exp(log_r)).
-        nn.init.uniform_(self.log_r, -math.log(self.horizon_max), -math.log(self.horizon_min))
+        nn.init.uniform_(self.log_r, -math.log(self.hz_max), -math.log(self.hz_min))
         nn.init.uniform_(self.theta, 0.0, 2.0 * math.pi)
-        for parameter in (self.weight_re, self.weight_im, self.weight_out):
+
+        for parameter in (self.weight_in, self.weight_out):
             nn.init.uniform_(parameter, -bound, bound)
-        for parameter in (self.bias_re, self.bias_im, self.bias_out):
+        for parameter in (self.bias_in, self.bias_out):
             if parameter is not None:
                 nn.init.uniform_(parameter, -bound, bound)
 
@@ -263,24 +263,34 @@ class LruBank(nn.Module):
 
     def forward(self, layer, x, h):
         # x: [B, C, H]
+        # w_in: [C, H, 2H]
+        B, C, H = x.shape
+
+        # [C, B, H] x [C, H, 2H] -> [C, B, 2H] -> [B, C, 2H]
+        drive = torch.bmm(x.transpose(0, 1), self.weight_in[layer])
+        if self.use_bias:
+            drive = drive + self.bias_in[layer]
+        b_re, b_im = drive.transpose(0, 1).chunk(2, dim=-1)
+        # b_re, b_im = drive.chunk(2, dim=-1)
+
         # h: [B, C, 2H] with real then imaginary components.
         h_re, h_im = h.chunk(2, dim=-1)
         lam_re, lam_im, gamma = self._lambda_gamma(layer)
-        if self.use_bias:
-            b_re = torch.bmm(x, self.weight_re[layer]) + self.bias_re[layer]
-            b_im = torch.bmm(x, self.weight_im[layer]) + self.bias_im[layer]
-        else:
-            b_re = torch.bmm(x, self.weight_re[layer])
-            b_im = torch.bmm(x, self.weight_im[layer])
-        lam_re = lam_re[:, None, :]
-        lam_im = lam_im[:, None, :]
-        gamma = gamma[:, None, :]
+        lam_re = lam_re.unsqueeze(0)
+        lam_im = lam_im.unsqueeze(0)
+        gamma = gamma.unsqueeze(0)
+
         new_re = lam_re * h_re - lam_im * h_im + gamma * b_re
         new_im = lam_re * h_im + lam_im * h_re + gamma * b_im
         h_n = torch.cat((new_re, new_im), dim=-1)
+
         # A real projection of packed state implements real(C h).
+        y = torch.bmm(h_n.transpose(0, 1), self.weight_out[layer])
         if self.use_bias:
-            y = torch.bmm(h_n, self.weight_out[layer]) + self.bias_out[layer]
-        else:
-            y = torch.bmm(h_n, self.weight_out[layer])
-        return F.silu(y) + x, h_n
+            y = y + self.bias_out[layer]
+        y = y.transpose(0, 1)
+        out = F.silu(y) + x
+        print(x.shape, out.shape, y.shape, h_n.shape)
+
+        assert False
+        return out, h_n

@@ -102,7 +102,7 @@ grnn_lru_L2C4:
   mha: 3
   noise_std: 0.1
   # Initial e-folding horizons in recurrent steps, sampled log-uniformly.
-  horizon: (1.0, 1000.0)
+  horizon: [1.0, 1000.0]
 
 grnn_err:
   embedding_size: 64
