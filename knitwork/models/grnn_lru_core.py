@@ -49,12 +49,12 @@ class GridRnn(nn.Module):
         ]
         if not 0 <= mha < len(mhas):
             raise ValueError('mha must be between 0 and 3')
-        self.attn = nn.ModuleList()
+        self.comm = self.attn = nn.ModuleList()
         mha_cls = mhas[mha]
         mha_kwargs = {'noise_std': noise_std} if mha in (2, 3) else {}
         for layer in range(n_layers):
             n_kv = self.n_columns + self.n_inputs if layer == 0 else self.n_columns
-            self.attn.append(mha_cls(
+            self.comm.append(mha_cls(
                 self.hidden_size, num_heads=n_attn_heads, ln_msg=ln_msg,
                 n_q=self.n_columns, n_kv=n_kv,
                 **mha_kwargs,
@@ -63,32 +63,36 @@ class GridRnn(nn.Module):
     def forward(self, x, state, *, capture=False, **_):
         # x shape: (In, B, H)
         assert x.shape[0] == self.n_inputs
-        # h shape: (L, B, C, H)
-        h, h_proj = state['h'], state['outs']
+        # h shape: (L, B, C, H); 
+        # tp == t prev == t-1
+        h_tp, outs_tp = state['h'], state['outs']
 
         # (B, C, H)
         # extend prev state and internal input w/ ext input
         x_int, x_ext = state['out'], x.transpose(0, 1)
-        msg = torch.cat([x_int, x_ext], dim=1)
+        out = torch.cat([x_int, x_ext], dim=1)
 
-        hn, hn_proj = [], []
+        h_t, outs_t = [], []
         info = defaultdict(list)
 
         for layer in range(self.n_layers):
-            hl, hl_proj = h[layer], h_proj[layer]
-            u, comm_info = self.attn[layer](hl_proj, msg, msg, return_weights=capture)
-            hln_proj, hln = self.cells(layer, u, hl)
-            msg = hln_proj
+            msg_in = out
+            msg_out, comm_info = self.comm[layer](outs_tp[layer], msg_in, msg_in, return_weights=capture)
+
+            cell_in = msg_out
+            hl_tp = h_tp[layer]
+            cell_out, hl_t = self.cells(layer, cell_in, hl_tp)
+            out = cell_out
 
             for k, v in comm_info.items():
                 info[k].append(v)
-            hn.append(hln)
-            hn_proj.append(hln_proj)
+            h_t.append(hl_t)
+            outs_t.append(out)
     
-        hn = torch.stack(hn, dim=0)
-        hn_proj = torch.stack(hn_proj, dim=0)
-        y = hn_proj[-1][:, 0]
-        state = {'h': hn, 'outs': hn_proj, 'out': hn_proj[-1]}
+        h_t = torch.stack(h_t, dim=0)
+        outs_t = torch.stack(outs_t, dim=0)
+        y = outs_t[-1][:, 0]
+        state = {'h': h_t, 'outs': outs_t, 'out': outs_t[-1]}
         return y, state, info
 
     def init_state(self, bsz):
@@ -133,9 +137,9 @@ class StaticMessagePassingLayer(nn.Module):
         self.num_heads = num_heads
         self.head_dim = dim // num_heads
         self.noise_std = noise_std
-        self.value_proj = nn.Linear(dim, dim)
-        self.out_proj = nn.Linear(dim, dim)
-        self.ln_msg = nn.LayerNorm(dim) if ln_msg else None
+        # self.value_proj = nn.Linear(dim, dim)
+        # self.out_proj = nn.Linear(dim, dim)
+        # self.ln_msg = nn.LayerNorm(dim) if ln_msg else None
 
         # Store one Cq->Ckv routing table per head.
         self.pi_route_logits = nn.Parameter(torch.empty(n_q, n_kv))
@@ -144,6 +148,27 @@ class StaticMessagePassingLayer(nn.Module):
         self.reset_parameters()
 
     def forward(self, q, k, v, return_weights: bool = False):
+        Cq, Ckv = self.pi_route_logits.shape
+        # (B, Ckv, D)
+        B, _, D = v.shape
+
+        # broadcast batch dim: (B, Cq, Ckv)
+        logits = self.pi_route_logits.unsqueeze(0).expand(B, Cq, Ckv)
+        beta = F.softplus(self.pi_logtemp)
+        pi_route = torch.softmax(beta * logits, dim=-1)
+
+        # (B, Cq, Ckv) x (B, Ckv, D) --> (B, Cq, D)
+        msg = torch.bmm(pi_route, v)
+        # if self.ln_msg is not None:
+        #     msg = self.ln_msg(msg)
+
+        info = {}
+        if return_weights:
+            info['attn_weights'] = pi_route.detach().mean(0)
+
+        return msg, info
+
+    def forward_old(self, q, k, v, return_weights: bool = False):
         Cq, Ckv = self.pi_route_logits.shape
         B, _, D = v.shape
 
@@ -185,13 +210,13 @@ class StaticMessagePassingLayer(nn.Module):
     @torch.no_grad()
     def reset_parameters(self):
         small = 0.01 / math.sqrt(self.dim)
-        nn.init.eye_(self.value_proj.weight)
-        nn.init.zeros_(self.value_proj.bias)
+        # nn.init.eye_(self.value_proj.weight)
+        # nn.init.zeros_(self.value_proj.bias)
 
-        nn.init.eye_(self.out_proj.weight)
-        self.out_proj.weight.add_(torch.randn_like(self.out_proj.weight) * small)
+        # nn.init.eye_(self.out_proj.weight)
+        # self.out_proj.weight.add_(torch.randn_like(self.out_proj.weight) * small)
 
-        nn.init.zeros_(self.out_proj.bias)
+        # nn.init.zeros_(self.out_proj.bias)
         self.init_logits_near_zero()
         nn.init.constant_(self.pi_logtemp, math.log(math.expm1(1.0)))
 
@@ -232,10 +257,8 @@ class LruBank(nn.Module):
         self.weight_in = nn.Parameter(torch.empty(L, C, H, 2*H))
         self.weight_out = nn.Parameter(torch.empty(L, C, 2*H, H))
         if bias:
-            self.bias_in = nn.Parameter(torch.empty(L, C, 1, 2*H))
             self.bias_out = nn.Parameter(torch.empty(L, C, 1, H))
         else:
-            self.register_parameter('bias_in', None)
             self.register_parameter('bias_out', None)
         self.reset_parameters()
 
@@ -247,7 +270,7 @@ class LruBank(nn.Module):
 
         for parameter in (self.weight_in, self.weight_out):
             nn.init.uniform_(parameter, -bound, bound)
-        for parameter in (self.bias_in, self.bias_out):
+        for parameter in (self.bias_out,):
             if parameter is not None:
                 nn.init.uniform_(parameter, -bound, bound)
 
@@ -261,6 +284,21 @@ class LruBank(nn.Module):
             torch.sqrt(-torch.expm1(-2.0 * decay)),
         )
 
+    def forward_new(self, layer, x, h):
+        # x: [B, C, H]
+        # w_in: [C, H, 2H]
+        B, C, H = x.shape
+
+        beta = 0.1
+        re = beta * x + (1-beta)*h[..., :H]
+        im = beta * x - (1-beta)*h[..., H:]
+        h_n = torch.cat([re, im], -1)
+        y = re
+        out = F.silu(y) + x
+        # print(x.shape, out.shape, y.shape, h_n.shape)
+        # assert False
+        return out, h_n
+
     def forward(self, layer, x, h):
         # x: [B, C, H]
         # w_in: [C, H, 2H]
@@ -268,8 +306,6 @@ class LruBank(nn.Module):
 
         # [C, B, H] x [C, H, 2H] -> [C, B, 2H] -> [B, C, 2H]
         drive = torch.bmm(x.transpose(0, 1), self.weight_in[layer])
-        if self.use_bias:
-            drive = drive + self.bias_in[layer]
         b_re, b_im = drive.transpose(0, 1).chunk(2, dim=-1)
         # b_re, b_im = drive.chunk(2, dim=-1)
 
@@ -290,7 +326,6 @@ class LruBank(nn.Module):
             y = y + self.bias_out[layer]
         y = y.transpose(0, 1)
         out = F.silu(y) + x
-        print(x.shape, out.shape, y.shape, h_n.shape)
-
-        assert False
+        # print(x.shape, out.shape, y.shape, h_n.shape)
+        # assert False
         return out, h_n
