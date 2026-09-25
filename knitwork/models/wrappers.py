@@ -32,9 +32,8 @@ class TokenModel(nn.Module):
         print(f'Param count: {count_learnable_params(self, as_str=True)}')
 
     def forward(self, tokens: torch.Tensor, state: dict, *, capture=False, **kwargs):
-        # (B, 1) -> (B, 1, E) -> (1, B, E)
+        # (B, 1) -> (B, 1, E)
         x = self.embedding(tokens)
-        x = x.transpose(0, 1)
 
         z, state, info = self.rnn(x, state, capture=capture, **kwargs)
         y = self.head(z)

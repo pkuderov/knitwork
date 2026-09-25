@@ -43,15 +43,17 @@ class GridRnn(nn.Module):
             )
 
     def forward(self, x, state, *, capture=False, **_):
-        # x shape: (In, B, H)
-        assert x.shape[0] == self.n_inputs
-        # h shape: (L, B, C, H); 
+        # x: (B, In, H)
+        assert x.shape[1] == self.n_inputs
         # tp == t prev == t-1
-        h_tp, outs_tp = state['h'], state['outs']
+        # outs: (L, B, C, H)
+        outs_tp = state['outs']
+        # h: (L, C, B, 2H)
+        h_tp = state['h']
 
         # (B, C, H)
-        # extend prev state and internal input w/ ext input
-        x_int, x_ext = state['out'], x.transpose(0, 1)
+        # extend prev output (as internal input) with external input
+        x_int, x_ext = state['out'], x
         out = torch.cat([x_int, x_ext], dim=1)
 
         h_t, outs_t = [], []
@@ -59,10 +61,12 @@ class GridRnn(nn.Module):
 
         for layer in range(self.n_layers):
             msg_in = out
+            # in: (B, C, H), out: (C, B, H)
             msg_out, comm_info = self.comm[layer](outs_tp[layer], msg_in, msg_in, return_weights=capture)
 
             cell_in = msg_out
             hl_tp = h_tp[layer]
+            # in: (C, B, H), out: (B, C, H)
             cell_out, hl_t = self.cells(layer, cell_in, hl_tp)
             out = cell_out
 
@@ -70,7 +74,7 @@ class GridRnn(nn.Module):
                 info[k].append(v)
             h_t.append(hl_t)
             outs_t.append(out)
-    
+
         h_t = torch.stack(h_t, dim=0)
         outs_t = torch.stack(outs_t, dim=0)
         y = outs_t[-1][:, 0]
@@ -78,14 +82,12 @@ class GridRnn(nn.Module):
         return y, state, info
 
     def init_state(self, bsz):
+        L, B, C, H = self.n_layers, bsz, self.n_columns, self.hidden_size
         small = 0.01 / math.sqrt(self.hidden_size)
-        h = small * torch.randn(
-            self.n_layers, bsz, self.n_columns, 2 * self.hidden_size,
-            device=self.device, dtype=self.dtype
-        )
-        outs = small * h.new_zeros(
-            self.n_layers, bsz, self.n_columns, self.hidden_size,
-        )
+
+        h = torch.empty(L, C, B, 2*H, device=self.device, dtype=self.dtype).normal_(0.0, small)
+        outs = h.new_empty(L, B, C, H).normal_(0.0, small)
+
         return {'h': h, 'outs': outs, 'out': outs[-1]}
 
     def reset_state(self, state=None, reset_mask=None, *, bsz=None):
@@ -93,10 +95,11 @@ class GridRnn(nn.Module):
             bsz = reset_mask.shape[0] if reset_mask is not None else bsz
             return self.init_state(bsz)
 
-        # (L, B, C, H)
+        # (B,) -> 4D tensor
         keep = ~reset_mask.flatten()
-        keep_ = keep[None, :, None, None]
-        h, outs = state['h'] * keep_, state['outs'] * keep_
+        keep_h = keep[None, None, :, None]
+        keep_outs = keep[None, :, None, None]
+        h, outs = state['h'] * keep_h, state['outs'] * keep_outs
         return {'h': h, 'outs': outs, 'out': outs[-1]}
 
     def detach_state(self, state):
@@ -133,6 +136,8 @@ class StaticMessagePassingLayer(nn.Module):
         if return_weights:
             info['attn_weights'] = pi_route.detach().mean(0)
 
+        # to (C, B, D)
+        msg = torch.transpose_copy(msg, 0, 1)
         return msg, info
 
     @torch.no_grad()
@@ -197,12 +202,9 @@ class LruBank(nn.Module):
         )
 
     def forward(self, layer, x, h):
-        # x: [B, C, H]
-        # h: [B, C, 2H] with real then imaginary components.
-        B, C, H = x.shape
-        x = x.transpose(0, 1)
-        h = h.transpose(0, 1)
         # x: [C, B, H]
+        # h: [C, B, 2H] with real then imaginary components.
+        C, B, H = x.shape
         # w_in: [C, H, 2H]
 
         # C, 1, H
@@ -220,7 +222,6 @@ class LruBank(nn.Module):
         y = torch.bmm(h_n, self.weight_out[layer])
         out = F.silu(y) + x
 
-        out = out.transpose(0, 1)
-        h_n = h_n.transpose(0, 1)
-        # assert False
+        # to (B, C, H)
+        out = torch.transpose_copy(out, 0, 1)
         return out, h_n
