@@ -462,7 +462,7 @@ def print_short_summary(step, *, scalars, figures, max_steps, use_vae, lr):
         print(
             f'[{format_readable_num(step)}/{format_readable_num(max_steps, frac=0)}]'
             f' {format_readable_num(fps, frac=0)}fps |'
-            f' LR:{int(100*m["LR"]/lr.base_val)}%'
+            f' LR:{int(100*m["LR"]/lr.special_base_val)}%'
             f' T:{int(m["T"])} |{kl_s}'
             f' L:{m["Loss"]:.3f}'
             f' BPC:{m["BPC"]:.3f}'

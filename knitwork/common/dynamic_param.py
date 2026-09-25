@@ -1,8 +1,13 @@
+import math
+
 from knitwork.common.scheduler import Scheduler, create_scheduler
 from knitwork.common.utils import to_readable_num
 
 
 class DynamicParameter:
+    param: "DynamicParameterBase"
+    warmup: "DynamicParameterBase"
+
     def __init__(
             self, val: float, *, name: str = '',
 
@@ -17,7 +22,7 @@ class DynamicParameter:
             # const change by fraction of the full delta D = (target - initial)
             # i.e. val += fraction * D, 
             # or you can set the number of change events n_linear_steps to induce the fraction
-            fraction: float = None, n_linear_steps: int = None,
+            fraction: float = None, n_linear_steps: int = None, logspace: bool = False,
 
             # warmup for the parameter, can be set as a separate DynamicParameter, its config or just a scheduler
             warmup: dict | Scheduler = None,
@@ -26,7 +31,7 @@ class DynamicParameter:
     ):
         self.param = DynamicParameterBase(
             val=val, name=name, tar=tar, rel=rel, schedule=schedule, 
-            factor=factor, lr=lr, fraction=fraction, n_linear_steps=n_linear_steps,
+            factor=factor, lr=lr, fraction=fraction, n_linear_steps=n_linear_steps, logspace=logspace,
             print_debug=print_debug
         )
 
@@ -38,32 +43,45 @@ class DynamicParameter:
                 warmup = DynamicParameter(**(warmup_cfg | warmup))
             elif isinstance(warmup, Scheduler):
                 warmup = DynamicParameter(**warmup_cfg, schedule=warmup)
+            else:
+                raise ValueError(f'Warmup must be a dict or Scheduler, got {warmup}')
+
         self.warmup = warmup
-    
+
+    @property
+    def current_param(self):
+        return self.warmup if self.is_warmup_stage else self.param
+
     @property
     def val(self):
-        return self.warmup.val if self.is_warmup_stage() else self.param.val
+        return self.current_param.val
     
     @property
     def base_val(self):
-        return self.param.base_val
+        return self.current_param.base_val
+
+    @property
+    def tar(self):
+        return self.current_param.tar
+
+    @property
+    def special_base_val(self):
+        return self.warmup.tar if self.is_warmup_stage else self.param.base_val
 
     @property
     def name(self):
         return self.param.name
 
     def step(self, n_steps=1):
-        if self.is_warmup_stage():
-            return self.warmup.step(n_steps)
-        else:
-            return self.param.step(n_steps)
-    
-    def is_enough(self):
-        # don't need to check warmup separately, since param defines the final stage anyway
-        return self.param.is_enough()
+        return self.current_param.step(n_steps)
 
+    @property
+    def is_finished(self):
+        return self.current_param.is_finished
+
+    @property
     def is_warmup_stage(self):
-        return self.warmup is not None and not self.warmup.is_enough()
+        return self.warmup is not None and not self.warmup.is_finished
 
 
 class DynamicParameterBase:
@@ -79,6 +97,7 @@ class DynamicParameterBase:
     fraction: float
     delta: float
 
+    is_finished: bool
 
     def __init__(
             self, val: float, *, name: str = '',
@@ -94,7 +113,7 @@ class DynamicParameterBase:
             # const change by fraction of the full delta D = (target - initial)
             # i.e. val += fraction * D, 
             # or you can set the number of change events n_linear_steps to induce the fraction
-            fraction: float = None, n_linear_steps: int = None,
+            fraction: float = None, n_linear_steps: int = None, logspace: bool = False,
 
             print_debug: bool = False
     ):
@@ -105,6 +124,7 @@ class DynamicParameterBase:
             self.scheduler.is_infinite
             or factor is not None or lr is not None 
             or fraction is not None or n_linear_steps is not None
+            or n_log_linear_steps is not None
         )
 
         self.name = name
@@ -117,25 +137,36 @@ class DynamicParameterBase:
             self.lr = 1 - factor if factor is not None else lr
 
         self.fraction = 0.0
-        self.delta = self.tar - self.val
+        self.logspace = logspace
+        if not self.logspace:
+            self.delta = self.tar - self.val
+        else:
+            assert self.val > 1e-50 and self.tar > 1e-50, f"Val: {self.val}, Tar: {self.tar}"
+            self.logval = math.log(self.val)
+            self.delta = math.log(self.tar) - self.logval
+
         if fraction is not None or n_linear_steps is not None:
             self.fraction = fraction if fraction is not None else 1.0 / n_linear_steps
             self.is_lr_based = False
+
+        self.is_finished = False
+        self.finish_if_ready()
 
         self._print_debug = print_debug
         if self._print_debug:
             self.print_state("Init")
 
     def step(self, n_steps=1):
+        if self.is_finished:
+            return False
+
         n_changes = self.scheduler.tick(n_steps)
         if n_changes == 0:
             return False
 
         for _ in range(n_changes):
             self.apply_change()
-            if self.is_enough():
-                # turn off scheduling at all
-                self.scheduler.set_new(0)
+            if self.finish_if_ready():
                 break
 
         if self._print_debug:
@@ -146,12 +177,30 @@ class DynamicParameterBase:
         if self.is_lr_based:
             # mismatch-based change
             self.val += self.lr * (self.tar - self.val)
-        else:
+        elif not self.logspace:
             # constant change
             self.val += self.fraction * self.delta
-    
-    def is_enough(self):
+        else:
+            # constant change in log space
+            self.logval += self.fraction * self.delta
+            self.val = math.exp(self.logval)
+
+    def ready_to_finish(self):
+        return self.scheduler.is_infinite or self.is_converged()
+
+    def is_converged(self):
         return abs(self.val - self.tar) <= 1e-4 * (abs(self.val) + abs(self.tar))
+
+    def finish_if_ready(self):
+        # ready is stopped or converged
+        if not self.ready_to_finish():
+            return False
+
+        # set finished == both stopped and converged
+        self.is_finished = True
+        self.val = self.tar
+        self.scheduler.set_new(0)
+        return True
 
     def print_state(self, prefix):
         v, sfx = to_readable_num(self.scheduler.schedule)
