@@ -14,49 +14,33 @@ class GridRnn(nn.Module):
     def __init__(
             self, *,
             hidden_size, n_layers, n_columns, n_inputs=1, n_outputs=1,
-            mha, n_attn_heads=1, noise_std, horizon, 
-            use_bias=False, ln_msg=False,
+            horizon, 
             dtype, device,
     ):
         super().__init__()
         assert n_columns > 1
         assert 0 < n_inputs <= n_columns
         assert 0 < n_outputs <= n_columns
-        assert n_attn_heads == 1
 
         self.n_inputs = n_inputs
         self.n_outputs = n_outputs
-        self.hidden_size = hidden_size - hidden_size % n_attn_heads
+        self.hidden_size = hidden_size
         self.n_layers = n_layers
         self.n_columns = n_columns
-        self.n_attn_heads = n_attn_heads
         self.dtype = dtype
         self.device = device
         print(
             f'GridRNN-LRU of {n_layers}L x {n_columns}C '
             f'w/ {self.hidden_size} hidden units'
         )
-        self.cells = LruBank(
-            n_layers=n_layers, n_columns=n_columns,
-            hidden_size=self.hidden_size, bias=use_bias,
-            horizon=horizon,
-        )
-        mhas = [
-            None, None, None,
-            StaticMessagePassingLayer,
-        ]
-        if not 0 <= mha < len(mhas):
-            raise ValueError('mha must be between 0 and 3')
+
+        self.cells = LruBank(n_layers=n_layers, n_columns=n_columns, hidden_size=self.hidden_size, horizon=horizon)
         self.comm = self.attn = nn.ModuleList()
-        mha_cls = mhas[mha]
-        mha_kwargs = {'noise_std': noise_std} if mha in (2, 3) else {}
         for layer in range(n_layers):
             n_kv = self.n_columns + self.n_inputs if layer == 0 else self.n_columns
-            self.comm.append(mha_cls(
-                self.hidden_size, num_heads=n_attn_heads, ln_msg=ln_msg,
-                n_q=self.n_columns, n_kv=n_kv,
-                **mha_kwargs,
-            ))
+            self.comm.append(
+                StaticMessagePassingLayer(self.hidden_size, n_q=self.n_columns, n_kv=n_kv)
+            )
 
     def forward(self, x, state, *, capture=False, **_):
         # x shape: (In, B, H)
@@ -124,18 +108,11 @@ class GridRnn(nn.Module):
 class StaticMessagePassingLayer(nn.Module):
     """Message passing with learned, query-independent routing."""
     def __init__(
-            self, dim, num_heads, ln_msg=True, n_q=None, n_kv=None,
-            noise_std=0.0,
+            self, dim, n_q=None, n_kv=None,
     ):
         super().__init__()
-        assert dim % num_heads == 0
-        assert num_heads == 1, "Such simplified message passing doesn't need multihead"
         assert n_q is not None and n_kv is not None
-
         self.dim = dim
-        self.num_heads = num_heads
-        self.head_dim = dim // num_heads
-        self.noise_std = noise_std
 
         # Store one Cq->Ckv routing table per head.
         self.pi_route_logits = nn.Parameter(torch.empty(n_q, n_kv))
@@ -179,17 +156,15 @@ class StaticMessagePassingLayer(nn.Module):
 class LruBank(nn.Module):
     """LxC independent complex LRUs with real-packed state and residual output."""
 
-    def __init__(self, *, n_layers, n_columns, hidden_size, horizon, bias=False):
+    def __init__(self, *, n_layers, n_columns, hidden_size, horizon):
         super().__init__()
         hz_min, hz_max = horizon
         if hz_min <= 0 or hz_max <= 0 or hz_min > hz_max:
             raise ValueError('horizon bounds must be positive and ordered')
-        assert bias == False
 
         self.n_layers = n_layers
         self.n_columns = n_columns
         self.hidden_size = hidden_size
-        self.use_bias = bias
         self.horizon = horizon
         self.hz_min, self.hz_max = hz_min, hz_max
 
