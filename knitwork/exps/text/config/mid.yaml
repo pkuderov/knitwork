@@ -102,10 +102,6 @@ grnn_lru_L2C4:
   hidden_size: 180
   n_layers: 2
   n_columns: 4
-  n_attn_heads: 1
-  ln_msg: false
-  mha: 3
-  noise_std: 0.05
   # Initial e-folding horizons in recurrent steps, sampled log-uniformly.
   horizon: [1.0, 1000.0]
 
@@ -123,10 +119,6 @@ grnn_lru_L2C8:
   hidden_size: 128
   n_layers: 2
   n_columns: 8
-  n_attn_heads: 1
-  ln_msg: false
-  mha: 3
-  noise_std: 0.05
   # Initial e-folding horizons in recurrent steps, sampled log-uniformly.
   horizon: [1.0, 1000.0]
 
@@ -144,10 +136,6 @@ grnn_lru_L2C16:
   hidden_size: 88
   n_layers: 2
   n_columns: 16
-  n_attn_heads: 1
-  ln_msg: false
-  mha: 3
-  noise_std: 0.05
   # Initial e-folding horizons in recurrent steps, sampled log-uniformly.
   horizon: [1.0, 1000.0]
 
@@ -165,10 +153,6 @@ grnn_lru_L3C4:
   hidden_size: 148
   n_layers: 3
   n_columns: 4
-  n_attn_heads: 1
-  ln_msg: false
-  mha: 3
-  noise_std: 0.05
   # Initial e-folding horizons in recurrent steps, sampled log-uniformly.
   horizon: [1.0, 1000.0]
 
