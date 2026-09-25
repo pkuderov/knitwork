@@ -43,8 +43,9 @@ gens:
       schedule: 100
       warmup:
         val: 0.1
-        n_linear_steps: 20
-        schedule: 10
+        n_linear_steps: 100
+        schedule: 15
+        logspace: true
   tinysh:
     path: $MY_HOME/data/text/tinyshakespeare_1.1M.txt
     reset_prob:
@@ -138,6 +139,17 @@ grnn_L2C16:
   bank: 2
   mha: 2
   noise_std: 0.05
+
+grnn_lru_L2C16:
+  hidden_size: 88
+  n_layers: 2
+  n_columns: 16
+  n_attn_heads: 1
+  ln_msg: false
+  mha: 3
+  noise_std: 0.05
+  # Initial e-folding horizons in recurrent steps, sampled log-uniformly.
+  horizon: [1.0, 1000.0]
 
 grnn_L3C4:
   hidden_size: 112
@@ -310,9 +322,9 @@ lr:
   lr: 0.01
   schedule: 250
   warmup:
-    val: 1.0e-7
-    n_linear_steps: 100
-    schedule: 25
+    val: 1.0e-6
+    n_linear_steps: 50
+    schedule: 12
     logspace: true
 
 trackers:

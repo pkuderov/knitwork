@@ -7,7 +7,7 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-from knitwork.common.torch import normalize_entropy, print_max_norm
+from knitwork.common.torch import normalize_entropy
 
 
 class GridRnn(nn.Module):
@@ -83,8 +83,6 @@ class GridRnn(nn.Module):
             hl_tp = h_tp[layer]
             cell_out, hl_t = self.cells(layer, cell_in, hl_tp)
             out = cell_out
-
-            print_max_norm(f'[l{layer}]', out, mx=1.0e+2)
 
             for k, v in comm_info.items():
                 info[k].append(v)

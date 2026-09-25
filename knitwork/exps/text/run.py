@@ -122,14 +122,14 @@ def main(config):
     kl_max = float(kl_cfg.get('max_weight', 1.0))
     kl_anneal = lambda step: kl_max if kl_steps == 0 else kl_max * min(1.0, step / kl_steps)
 
-    lr = DynamicLearningRate(name=f'LR', **config['lr'])
+    lr = DynamicLearningRate(name='LR', **config['lr'])
     optim = torch.optim.RMSprop(model.parameters(), lr=lr.val)
     lr.connect_to_optimiser(optim)
 
     # p_reset schedule
     gen_cfg['reset_prob']['val'] /= rollout_len
     gen_cfg['reset_prob']['tar'] /= rollout_len
-    p_reset = DynamicParameter(**gen_cfg['reset_prob'])
+    p_reset = DynamicParameter(name='1/T', **gen_cfg['reset_prob'])
 
     loss_fn = nn.CrossEntropyLoss(reduction='mean', ignore_index=CE_ignore_index)
 

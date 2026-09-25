@@ -37,12 +37,12 @@ class DynamicParameter:
 
         if warmup is not None:
             warmup_cfg = dict(
-                val=0.0, tar=self.param.val, name=f'{self.param.name}_warmup', warmup=None
+                val=0.0, tar=self.param.val, name=f'{self.param.name}_warmup'
             )
             if isinstance(warmup, dict):
-                warmup = DynamicParameter(**(warmup_cfg | warmup))
+                warmup = DynamicParameterBase(**(warmup_cfg | warmup))
             elif isinstance(warmup, Scheduler):
-                warmup = DynamicParameter(**warmup_cfg, schedule=warmup)
+                warmup = DynamicParameterBase(**warmup_cfg, schedule=warmup)
             else:
                 raise ValueError(f'Warmup must be a dict or Scheduler, got {warmup}')
 
@@ -73,6 +73,9 @@ class DynamicParameter:
         return self.param.name
 
     def step(self, n_steps=1):
+        if self.warmup is not None and self.warmup.is_finished:
+            self.warmup = None
+            print(f'[{self.name}] warmup ended')
         return self.current_param.step(n_steps)
 
     @property
