@@ -221,7 +221,7 @@ class StaticMessagePassingLayer(nn.Module):
         # self.out_proj.weight.add_(torch.randn_like(self.out_proj.weight) * small)
 
         # nn.init.zeros_(self.out_proj.bias)
-        self.init_logits_near_zero()
+        self.init_logits_positive_diagonal()
         # nn.init.constant_(self.pi_logtemp, math.log(math.expm1(1.0)))
 
     @torch.no_grad()
