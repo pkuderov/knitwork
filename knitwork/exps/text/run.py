@@ -150,7 +150,7 @@ def main(config):
     in_word_acc.ixs = torch.zeros(step_size, dtype=torch.int64, device=device)
 
     ln_2 = np.log(2.0)
-    step, i_update = 0, 0
+    iter, step, i_update = 0, 0, 0
     state = None
     batch_y, batch_y_gt = [], []
     batch_kl, batch_comm_loss, batch_comm_entropy = 0.0, 0.0, 0.0
@@ -207,6 +207,7 @@ def main(config):
             batch_comm_loss += torch.stack(info['comm_loss']).mean()
             batch_comm_entropy += torch.stack(info['comm_entropy']).mean()
 
+        iter += 1
         step += step_size
         in_word_acc.ixs = torch.where(x.view(-1) == space_token, 0, in_word_acc.ixs + 1)
 

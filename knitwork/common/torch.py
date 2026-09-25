@@ -274,3 +274,12 @@ def huber_from_diff(diff, delta=1.0, reduction='mean'):
     elif reduction == 'sum':
         return loss.sum()
     return loss
+
+
+def print_max_norm(s, x, *, p=2, dim=-1, mx=None):
+    x_norm = torch.norm(x, p=p, dim=dim)
+    x_max_norm = to_numpy(x_norm.max())
+
+    if mx is None or x_max_norm > mx:
+        print(s, x_max_norm)
+

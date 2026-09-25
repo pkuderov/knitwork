@@ -41,6 +41,10 @@ gens:
       tar: 0.001
       lr: 0.04
       schedule: 100
+      warmup:
+        val: 0.1
+        n_linear_steps: 20
+        schedule: 10
   tinysh:
     path: $MY_HOME/data/text/tinyshakespeare_1.1M.txt
     reset_prob:
@@ -306,7 +310,7 @@ lr:
   lr: 0.01
   schedule: 250
   warmup:
-    val: 1.0e-9
+    val: 1.0e-7
     n_linear_steps: 100
     schedule: 25
     logspace: true

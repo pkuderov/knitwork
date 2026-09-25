@@ -7,7 +7,7 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-from knitwork.common.torch import normalize_entropy
+from knitwork.common.torch import normalize_entropy, print_max_norm
 
 
 class GridRnn(nn.Module):
@@ -84,6 +84,8 @@ class GridRnn(nn.Module):
             cell_out, hl_t = self.cells(layer, cell_in, hl_tp)
             out = cell_out
 
+            print_max_norm(f'[l{layer}]', out, mx=1.0e+2)
+
             for k, v in comm_info.items():
                 info[k].append(v)
             h_t.append(hl_t)
@@ -96,11 +98,12 @@ class GridRnn(nn.Module):
         return y, state, info
 
     def init_state(self, bsz):
-        h = torch.zeros(
+        small = 0.01 / math.sqrt(self.hidden_size)
+        h = small * torch.randn(
             self.n_layers, bsz, self.n_columns, 2 * self.hidden_size,
             device=self.device, dtype=self.dtype
         )
-        outs = h.new_zeros(
+        outs = small * h.new_zeros(
             self.n_layers, bsz, self.n_columns, self.hidden_size,
         )
         return {'h': h, 'outs': outs, 'out': outs[-1]}
@@ -143,7 +146,7 @@ class StaticMessagePassingLayer(nn.Module):
 
         # Store one Cq->Ckv routing table per head.
         self.pi_route_logits = nn.Parameter(torch.empty(n_q, n_kv))
-        self.pi_logtemp = nn.Parameter(torch.empty(1, n_q, 1))
+        # self.pi_logtemp = nn.Parameter(torch.empty(1, n_q, 1))
 
         self.reset_parameters()
 
@@ -154,8 +157,9 @@ class StaticMessagePassingLayer(nn.Module):
 
         # broadcast batch dim: (B, Cq, Ckv)
         logits = self.pi_route_logits.unsqueeze(0).expand(B, Cq, Ckv)
-        beta = F.softplus(self.pi_logtemp)
-        pi_route = torch.softmax(beta * logits, dim=-1)
+        # beta = F.softplus(self.pi_logtemp)
+        # pi_route = torch.softmax(beta * logits, dim=-1)
+        pi_route = torch.softmax(logits, dim=-1)
 
         # (B, Cq, Ckv) x (B, Ckv, D) --> (B, Cq, D)
         msg = torch.bmm(pi_route, v)
@@ -218,7 +222,7 @@ class StaticMessagePassingLayer(nn.Module):
 
         # nn.init.zeros_(self.out_proj.bias)
         self.init_logits_near_zero()
-        nn.init.constant_(self.pi_logtemp, math.log(math.expm1(1.0)))
+        # nn.init.constant_(self.pi_logtemp, math.log(math.expm1(1.0)))
 
     @torch.no_grad()
     def init_logits_near_zero(self):
