@@ -32,6 +32,8 @@ def _leaves(x, key=None):
 
 def state_floats(rnn) -> int:
     """Floats carried between time steps per sequence; views of already counted tensors are skipped."""
+    if hasattr(rnn, 'carried_state_floats'):
+        return rnn.carried_state_floats()
     ts = list(_leaves(rnn.init_state(1)))
     ids = {id(t) for t in ts}
     return sum(t.numel() for t in ts if t._base is None or id(t._base) not in ids)

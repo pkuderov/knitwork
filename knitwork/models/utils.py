@@ -8,6 +8,7 @@ REGISTRY = {
     'rnn': 'gru.GruCore',
     'grnn': 'grnn_core.GridRnn',
     'grnn_lru': 'grnn_lru_core.GridRnn',
+    'grnn_lru_sparse': 'grnn_lru_sparse.GridRnn',
     'delta_net': 'baseline.delta_net.DeltaNetCore',
     'hgrn2': 'baseline.hgrn2.HGRN2Core',
     'mlstm': 'baseline.mlstm.mLSTMCore',
