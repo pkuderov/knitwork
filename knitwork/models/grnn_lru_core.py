@@ -39,7 +39,7 @@ class GridRnn(nn.Module):
         for layer in range(n_layers):
             n_kv = self.n_columns + self.n_inputs if layer == 0 else self.n_columns
             self.comm.append(
-                StaticMessagePassingLayer(self.hidden_size, n_q=self.n_columns, n_kv=n_kv)
+                StaticCommunication(self.hidden_size, n_q=self.n_columns, n_kv=n_kv)
             )
 
     def forward(self, x, state, *, capture=False, **_):
@@ -108,8 +108,8 @@ class GridRnn(nn.Module):
         return {key: value.detach() for key, value in state.items()}
 
 
-class StaticMessagePassingLayer(nn.Module):
-    """Message passing with learned, query-independent routing."""
+class StaticCommunication(nn.Module):
+    """Communication with learned, query-independent (=static) routing."""
     def __init__(
             self, dim, n_q=None, n_kv=None,
     ):
