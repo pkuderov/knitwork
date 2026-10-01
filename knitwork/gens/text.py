@@ -49,6 +49,11 @@ class TextGenerator(torch.nn.Module):
 
         pos = torch.arange(n_envs, dtype=torch.int64) * self.data_len // n_envs
         self.register_buffer('pos', pos)
+        self.register_buffer('pos0', pos.clone())
+
+    def reset(self):
+        # rewind cursors so that every evaluation pass sees the same data
+        self.pos.copy_(self.pos0)
 
     def next(self):
         tokens = self.data[self.pos].clone()
@@ -85,6 +90,29 @@ def split_train_test(data: np.ndarray, train_frac: int | float = 0.95):
     train_data = data[:cut]
     eval_data = data[cut:]
     return train_data, eval_data
+
+
+def split_train_val_test(data: np.ndarray, val_size: int | float, test_size: int | float):
+    """Contiguous train|val|test split; sizes <= 1 are fractions, otherwise number of tokens."""
+    n = len(data)
+    n_val = int(val_size * n) if val_size <= 1.0 else int(val_size)
+    n_test = int(test_size * n) if test_size <= 1.0 else int(test_size)
+    n_train = n - n_val - n_test
+    assert n_train > 0 and n_val > 0 and n_test > 0, (n, n_val, n_test)
+    return data[:n_train], data[n_train:n_train + n_val], data[n_train + n_val:]
+
+
+def tokenize_splits(*splits):
+    """Vocabulary is built from the first (train) split only; others are mapped through it."""
+    chars = np.unique(splits[0])
+    lut = np.full(int(max(s.max() for s in splits)) + 1, -1, dtype=int)
+    lut[chars] = np.arange(len(chars))
+    out = []
+    for i, s in enumerate(splits):
+        t = lut[s]
+        assert (t >= 0).all(), f'split {i} has characters unseen in train'
+        out.append(t.copy())
+    return out, chars
 
 
 def tokenize(data):

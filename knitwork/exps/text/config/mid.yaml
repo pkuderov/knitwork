@@ -29,13 +29,16 @@ inspect_n_in_word_acc: 5
 eval:
   enabled: true
   on_start: false
-  split: 0.1
+  # contiguous train|val|test on the raw stream; vocab from train only; test is evaluated once at the end
+  val_size: 5.0e+6
+  test_size: 5.0e+6
   schedule: 2.0e+7
-  max_rollout: 2.0e+4
+  # also report (and select checkpoints on) eval with the state reset every `window` tokens
+  window: 1024
 
 gens:
   text8:
-    path: $MY_HOME/data/text/text8_100M.txt
+    path: $MY_HOME/data/text/text8.txt
     reset_prob:
       val: 0.2
       tar: 0.001
@@ -60,6 +63,8 @@ communication:
   entropy_weight: 5.0e-3
 
 # ======> Models
+# mid tier: ~1M params for every model (check: uv run python -m knitwork.common.state_size <this file>)
+# --- param-matched GRU ---
 rnn_L1:
   hidden_size: 404
   n_layers: 1
@@ -78,6 +83,7 @@ rnn_L3:
   use_bias: true
   dropout: 0.0
 
+# --- MoSAIC (grid RNN) ---
 grnn_L1C8:
   hidden_size: 140
   n_layers: 1
@@ -98,13 +104,6 @@ grnn_L2C4:
   mha: 2
   noise_std: 0.05
 
-grnn_lru_L2C4:
-  hidden_size: 180
-  n_layers: 2
-  n_columns: 4
-  # Initial e-folding horizons in recurrent steps, sampled log-uniformly.
-  horizon: [1.0, 1000.0]
-
 grnn_L2C8:
   hidden_size: 96
   n_layers: 2
@@ -114,30 +113,6 @@ grnn_L2C8:
   bank: 2
   mha: 2
   noise_std: 0.05
-
-grnn_lru_L2C8:
-  hidden_size: 128
-  n_layers: 2
-  n_columns: 8
-  # Initial e-folding horizons in recurrent steps, sampled log-uniformly.
-  horizon: [1.0, 1000.0]
-
-grnn_L2C16:
-  hidden_size: 224
-  n_layers: 2
-  n_columns: 16
-  n_attn_heads: 4
-  ln_msg: true
-  bank: 2
-  mha: 2
-  noise_std: 0.05
-
-grnn_lru_L2C16:
-  hidden_size: 88
-  n_layers: 2
-  n_columns: 16
-  # Initial e-folding horizons in recurrent steps, sampled log-uniformly.
-  horizon: [1.0, 1000.0]
 
 grnn_L3C4:
   hidden_size: 112
@@ -149,154 +124,107 @@ grnn_L3C4:
   mha: 2
   noise_std: 0.05
 
-grnn_lru_L3C4:
-  hidden_size: 148
-  n_layers: 3
-  n_columns: 4
-  # Initial e-folding horizons in recurrent steps, sampled log-uniformly.
-  horizon: [1.0, 1000.0]
-
-grnn_L3C4_20M:
-  hidden_size: 488
-  n_layers: 3
+# --- routing-sparsity ablation (E3): each column reads from its top-k sources only ---
+grnn_L2C4_topk1:
+  hidden_size: 136
+  n_layers: 2
   n_columns: 4
   n_attn_heads: 4
   ln_msg: true
   bank: 2
   mha: 2
   noise_std: 0.05
+  top_k: 1
 
-grnn_fix:
-  embedding_size: 64
-  hidden_size: 464
+grnn_L2C4_topk2:
+  hidden_size: 136
   n_layers: 2
   n_columns: 4
   n_attn_heads: 4
-  use_bias: true
-  dropout: 0.0
+  ln_msg: true
+  bank: 2
+  mha: 2
+  noise_std: 0.05
+  top_k: 2
 
-grnn_fix_v4:
-  embedding_size: 64
-  hidden_size: 464
+# --- MoSAIC + LRU ---
+grnn_lru_L1C8:
+  hidden_size: 176
+  n_layers: 1
+  n_columns: 8
+  # Initial e-folding horizons in recurrent steps, sampled log-uniformly.
+  horizon: [1.0, 1000.0]
+  # parameter-free RMS norm on the fed-back output; without it the residual loop overflows after ~1e3 steps
+  fb_norm: true
+
+grnn_lru_L2C4:
+  hidden_size: 180
   n_layers: 2
   n_columns: 4
-  n_attn_heads: 4
-  beta_scale: 3.0
-  beta_floor: 0.2
-  timescale_spread: 1.0
-  aux_div_weight: 0.05
-  aux_div_max_weight: 0.1
-  aux_div_ramp_steps: 3e+7
-  aux_gate_weight: 0.1
-  aux_act_weight: 0.02
-  aux_sat_weight: 0.02
-  aux_every: 64
-  gate_std_target: 0.15
-  sat_target: 0.8
-  optim: true
-  div_latent_dim: 32
-  aux_batch_frac: 0.25
-  use_bias: true
-  dropout: 0.1
+  # Initial e-folding horizons in recurrent steps, sampled log-uniformly.
+  horizon: [1.0, 1000.0]
+  # parameter-free RMS norm on the fed-back output; without it the residual loop overflows after ~1e3 steps
+  fb_norm: true
 
-grnn_fix_v4_L2C8:
-  embedding_size: 64
-  hidden_size: 344
+grnn_lru_L2C8:
+  hidden_size: 128
   n_layers: 2
   n_columns: 8
-  n_attn_heads: 4
-  beta_scale: 3.0
-  beta_floor: 0.2
-  timescale_spread: 1.0
-  aux_div_weight: 0.05
-  aux_div_max_weight: 0.1
-  aux_div_ramp_steps: 3e+7
-  aux_gate_weight: 0.1
-  aux_act_weight: 0.02
-  aux_sat_weight: 0.02
-  aux_every: 64
-  gate_std_target: 0.15
-  sat_target: 0.8
-  optim: true
-  div_latent_dim: 32
-  aux_batch_frac: 0.25
-  use_bias: true
-  dropout: 0.1
+  # Initial e-folding horizons in recurrent steps, sampled log-uniformly.
+  horizon: [1.0, 1000.0]
+  # parameter-free RMS norm on the fed-back output; without it the residual loop overflows after ~1e3 steps
+  fb_norm: true
 
-grnn_feedback:
-  embedding_size: 64
-  base_hidden_size: 1800
-  n_layers: 2
+grnn_lru_L3C4:
+  hidden_size: 148
+  n_layers: 3
   n_columns: 4
-  n_attn_heads: 4
-  col_identities: true
-  seed_scale: 1.0
-  fb_init: 0.1
-  use_bias: true
-  dropout: 0.0
+  # Initial e-folding horizons in recurrent steps, sampled log-uniformly.
+  horizon: [1.0, 1000.0]
+  # parameter-free RMS norm on the fed-back output; without it the residual loop overflows after ~1e3 steps
+  fb_norm: true
 
 # --- external baselines ---
 delta_net:
-  hidden_size: 692
+  hidden_size: 217
   n_layers: 3
 
 hgrn2:
-  hidden_size: 490
+  hidden_size: 153
   n_layers: 3
   expand: 4
 
 mlstm:
-  hidden_size: 692
+  hidden_size: 216
   n_layers: 3
 
-grnn_base:
-  embedding_size: 64
-  hidden_size: 90
-  n_layers: 1
-  n_columns: 4
-  use_bias: true
-  dropout: 0.0
-
-# Transformer configs at different scales
 transformer:
-  hidden_size: 560
+  hidden_size: 176
   n_layers: 4
   n_heads: 4
-  d_ff: 1120
+  d_ff: 352
   mem_len: 256
   dropout: 0.0
-
-transformer_64:
-  hidden_size: 560
-  n_layers: 4
-  n_heads: 4
-  d_ff: 1120
-  mem_len: 64
-  dropout: 0.0
-
-transformer_1m:
-  hidden_size: 160    # ~840K params: 4L, 4H, ff=320, mem=256
-  n_layers: 4
-  n_heads: 4
-  d_ff: 320
-  mem_len: 256
-  dropout: 0.0
-
-transformer_2m:
-  hidden_size: 256    # ~2.1M params: 4L, 4H, ff=512, mem=512
-  n_layers: 4
-  n_heads: 4
-  d_ff: 512
-  mem_len: 512
-  dropout: 0.1
 
 mamba:
-  embedding_size: 64
-  hidden_size: 128
-  n_layers: 3
+  hidden_size: 194
+  n_layers: 4
   d_state: 16
   d_conv: 4
   expand: 2
+
+# --- RIMs / BRIMs (6 modules, 3 active) ---
+rims:
+  n_modules: 6
+  module_size: 116
+  n_active: 3
+  n_layers: 1
+
+brims:
+  n_modules: 6
+  module_size: 80
+  n_active: 3
+  n_layers: 2
 # <====== Models
 
 # base LR config

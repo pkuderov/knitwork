@@ -117,7 +117,8 @@ def main(config):
             for key, value in gen.next().items()
         }
         state = rnn.reset_state(state, obs['reset_mask'])
-        x = obs['tokens'].view(-1, 1)
+        # cores take a step input as (B, 1) [batch-first, grnn_lru] or (1, B) [sequence dim first]
+        x = obs['tokens'].view(-1, 1) if getattr(rnn, 'batch_first', False) else obs['tokens'].view(1, -1)
 
         capture_details = inspect_scheduler.tick(step_size)
         capture_vis_data = vis_inspect_scheduler.tick(step_size)

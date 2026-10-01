@@ -12,6 +12,9 @@ REGISTRY = {
     'hgrn2': 'baseline.hgrn2.HGRN2Core',
     'mlstm': 'baseline.mlstm.mLSTMCore',
     'transformer': 'baseline.transformer.TransformerCore',
+    'mamba': 'baseline.mamba.MambaCore',
+    'rims': 'baseline.rims.RimsCore',
+    'brims': 'baseline.rims.BrimsCore',
     # 'grnn_err':       ('knitwork.models.grnn_err',       'GridRnn'),
     # 'grnn2':          ('knitwork.models.grnn2',          'GridRnn2'),
     # 'grnn_lru_wide':  ('knitwork.models.grnn_lru',       'GridLRU'),
@@ -39,8 +42,6 @@ REGISTRY = {
     # 'grnn_delta_wide':('knitwork.models.grnn_delta',    'GridDelta'),
     # 'grnn_harmonic':  ('knitwork.models.grnn_harmonic', 'HarmonicGridRNN'),
     # 'grnn_base':      ('knitwork.models.grnn_base',           'GridRnnBase'),
-    # # external baselines
-    # 'mamba':          ('knitwork.models.baseline.mamba',     'Mamba'),
 }
 
 WRAPPER_REGISTRY = {

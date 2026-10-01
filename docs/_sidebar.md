@@ -27,6 +27,16 @@
   - [GridLRU](methods/grnn_lru.md)
   - [HopfieldGridLRU](methods/hgrnn_lru.md)
 
+- **Baselines**
+  - [DeltaNet](methods/delta_net.md)
+  - [HGRN2](methods/hgrn2.md)
+  - [mLSTM](methods/mlstm.md)
+  - [Transformer](methods/transformer.md)
+  - [Mamba](methods/mamba.md)
+  - [RIMs](methods/rims.md)
+  - [BRIMs](methods/brims.md)
+  - [GridRnn-LRU core](methods/grnn_lru_core.md)
+
 - **Memory and Associations**
   - [DeltaGrid (NEW)](methods/grnn_delta.md)
   - [Engram](methods/engram_grnn.md)

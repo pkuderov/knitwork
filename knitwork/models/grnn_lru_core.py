@@ -10,11 +10,12 @@ from torch.nn import functional as F
 
 class GridRnn(nn.Module):
     has_attn = True
+    batch_first = True  # step input is (B, n_inputs, H)
 
     def __init__(
             self, *,
             hidden_size, n_layers, n_columns, n_inputs=1, n_outputs=1,
-            horizon, 
+            horizon, fb_norm=False,
             dtype, device,
     ):
         super().__init__()
@@ -23,6 +24,8 @@ class GridRnn(nn.Module):
         assert 0 < n_outputs <= n_columns
 
         self.n_inputs = n_inputs
+        # parameter-free RMS norm on the top-layer output fed back as the next step's message: bounds the residual loop
+        self.fb_norm = fb_norm
         self.n_outputs = n_outputs
         self.hidden_size = hidden_size
         self.n_layers = n_layers
@@ -78,7 +81,8 @@ class GridRnn(nn.Module):
         h_t = torch.stack(h_t, dim=0)
         outs_t = torch.stack(outs_t, dim=0)
         y = outs_t[-1][:, 0]
-        state = {'h': h_t, 'outs': outs_t, 'out': outs_t[-1]}
+        out = F.rms_norm(outs_t[-1], (self.hidden_size,)) if self.fb_norm else outs_t[-1]
+        state = {'h': h_t, 'outs': outs_t, 'out': out}
         return y, state, info
 
     def init_state(self, bsz):
@@ -100,7 +104,8 @@ class GridRnn(nn.Module):
         keep_h = keep[None, None, :, None]
         keep_outs = keep[None, :, None, None]
         h, outs = state['h'] * keep_h, state['outs'] * keep_outs
-        return {'h': h, 'outs': outs, 'out': outs[-1]}
+        out = F.rms_norm(outs[-1], (self.hidden_size,)) if self.fb_norm else outs[-1]
+        return {'h': h, 'outs': outs, 'out': out}
 
     def detach_state(self, state):
         if state is None:

@@ -19,7 +19,7 @@ class GridRnn(nn.Module):
             n_attn_heads, use_bias=True,
             ln_msg=True,
             bank=2, mha=0,
-            noise_std=0.0,
+            noise_std=0.0, top_k=None,
             dtype, device,
     ):
         super().__init__()
@@ -58,6 +58,8 @@ class GridRnn(nn.Module):
         mha_kwargs = {}
         if mha in (StochasticMessagePassingLayer, StaticMessagePassingLayer):
             mha_kwargs |= {'noise_std': noise_std}
+        if mha is StochasticMessagePassingLayer:
+            mha_kwargs |= {'top_k': top_k}
 
         self.attn = nn.ModuleList()
         for layer in range(self.n_layers):
@@ -248,7 +250,7 @@ class StochasticMessagePassingLayer(nn.Module):
     """MHA-1 with stochastic routing and a free-cost diagonal route."""
     def __init__(
             self, dim, num_heads, ln_msg=True, n_q=None, n_kv=None,
-            noise_std=0.0,
+            noise_std=0.0, top_k=None,
     ):
         super().__init__()
         assert dim % num_heads == 0
@@ -257,6 +259,7 @@ class StochasticMessagePassingLayer(nn.Module):
         self.num_heads = num_heads
         self.head_dim = dim // num_heads
         self.noise_std = noise_std
+        self.top_k = top_k  # route each query to its top-k sources only
         self.mha = nn.MultiheadAttention(dim, num_heads=num_heads, batch_first=False)
         self.ln_msg = nn.LayerNorm(dim) if ln_msg else None
 
@@ -294,7 +297,12 @@ class StochasticMessagePassingLayer(nn.Module):
         if self.training and self.noise_std > 0.0:
             logits = logits + self.noise_std * torch.randn_like(logits)
         beta = F.softplus(self.pi_logtemp)
-        pi_route = torch.softmax(beta * logits, dim=-1)
+        logits = beta * logits
+        if self.top_k is not None and self.top_k < Ckv:
+            # mask after scaling: -inf inside beta * logits would give NaN grads for beta
+            kth = logits.topk(self.top_k, dim=-1).values[..., -1:]
+            logits = logits.masked_fill(logits < kth, float('-inf'))
+        pi_route = torch.softmax(logits, dim=-1)
         # pi_route = torch.softmax(logits, dim=-1)
 
         # (B, heads, Cq, Ckv) * (B, heads, Ckv, head_dim) --> (B, heads, Cq, head_dim)

@@ -65,7 +65,7 @@ class _MambaLayer(nn.Module):
         bcdt = self.x_proj(xi_conv)             # [B, N+N+1]
         B_vec = bcdt[:, :N]                      # [B, N]
         C_vec = bcdt[:, N:2*N]                   # [B, N]
-        dt    = F.softplus(self.dt_proj(bcdt[:, 2:3]))  # [B, D]
+        dt    = F.softplus(self.dt_proj(bcdt[:, 2*N:2*N+1]))  # [B, D]
 
         # discretize: A_bar = exp(dt * A),  B_bar = dt * B
         A = -torch.exp(self.log_A)               # [D, N], negative
@@ -165,3 +165,57 @@ class Mamba(nn.Module):
         """Last-layer SSM hidden for critic: [B, H]."""
         ssm_h, _ = h[-1]
         return ssm_h.sum(-1)[:, :self.hidden_size]
+
+
+class MambaCore(nn.Module):
+    """Feature-level Mamba core for use with model wrappers."""
+    has_attn = False
+
+    def __init__(
+            self, *,
+            hidden_size, n_layers, d_state=16, d_conv=4, expand=2,
+            dtype, device,
+    ):
+        super().__init__()
+        self.hidden_size, self.n_layers = hidden_size, n_layers
+        self.d_state, self.d_conv, self.d_inner = d_state, d_conv, hidden_size * expand
+        self.dtype, self.device = dtype, device
+
+        self.layers = nn.ModuleList([
+            _MambaLayer(hidden_size, d_state, d_conv, expand) for _ in range(n_layers)
+        ])
+        self.norm_out = nn.RMSNorm(hidden_size)
+        print(f'Mamba core {n_layers}L w/ {hidden_size} hidden units, d_state={d_state}')
+
+    def forward(self, x: torch.Tensor, state: dict, **_):
+        assert x.shape[0] == 1
+        x = x.squeeze(0)  # [B, H]
+        if state is None:
+            state = self.init_state(x.shape[0])
+
+        new_h, new_conv = [], []
+        for layer, h, conv in zip(self.layers, state['h'], state['conv']):
+            x, (h, conv) = layer(x, (h, conv))
+            new_h.append(h)
+            new_conv.append(conv)
+        return self.norm_out(x), {'h': new_h, 'conv': new_conv}, {}
+
+    def reset_state(self, state=None, reset_mask=None, *, bsz=None):
+        if state is None:
+            bsz = reset_mask.shape[0] if reset_mask is not None else bsz
+            return self.init_state(bsz)
+
+        keep = (~reset_mask.flatten())[:, None, None]
+        return {k: [v * keep for v in vs] for k, vs in state.items()}
+
+    def detach_state(self, state):
+        if state is None:
+            return state
+        return {k: [v.detach() for v in vs] for k, vs in state.items()}
+
+    def init_state(self, bsz):
+        kw = dict(device=self.device, dtype=self.dtype)
+        return {
+            'h': [torch.zeros(bsz, self.d_inner, self.d_state, **kw) for _ in self.layers],
+            'conv': [torch.zeros(bsz, self.d_inner, self.d_conv - 1, **kw) for _ in self.layers],
+        }

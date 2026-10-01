@@ -29,13 +29,16 @@ inspect_n_in_word_acc: 5
 eval:
   enabled: true
   on_start: false
-  split: 0.1
+  # contiguous train|val|test on the raw stream; vocab from train only; test is evaluated once at the end
+  val_size: 5.0e+6
+  test_size: 5.0e+6
   schedule: 2.0e+7
-  max_rollout: 2.0e+4
+  # also report (and select checkpoints on) eval with the state reset every `window` tokens
+  window: 1024
 
 gens:
   text8:
-    path: $MY_HOME/data/text/text8_100M.txt
+    path: $MY_HOME/data/text/text8.txt
     reset_prob:
       val: 0.2
       tar: 0.001
@@ -258,12 +261,40 @@ transformer_2m:
   dropout: 0.1
 
 mamba:
-  embedding_size: 64
-  hidden_size: 128
-  n_layers: 3
+  hidden_size: 640
+  n_layers: 4
   d_state: 16
   d_conv: 4
   expand: 2
+
+grnn_lru_L2C4:
+  hidden_size: 561
+  n_layers: 2
+  n_columns: 4
+  # Initial e-folding horizons in recurrent steps, sampled log-uniformly.
+  horizon: [1.0, 1000.0]
+  # parameter-free RMS norm on the fed-back output; without it the residual loop overflows after ~1e3 steps
+  fb_norm: true
+
+grnn_lru_L3C4:
+  hidden_size: 458
+  n_layers: 3
+  n_columns: 4
+  horizon: [1.0, 1000.0]
+  # parameter-free RMS norm on the fed-back output; without it the residual loop overflows after ~1e3 steps
+  fb_norm: true
+
+rims:
+  n_modules: 6
+  module_size: 412
+  n_active: 3
+  n_layers: 1
+
+brims:
+  n_modules: 6
+  module_size: 292
+  n_active: 3
+  n_layers: 2
 # <====== Models
 
 # base LR config

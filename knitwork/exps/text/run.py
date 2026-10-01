@@ -4,6 +4,8 @@ from __future__ import annotations
 from functools import partial
 from pathlib import Path
 
+import copy
+
 import numpy as np
 import torch
 from torch import nn
@@ -20,7 +22,9 @@ from knitwork.common.utils import (
     CE_ignore_index, count_learnable_params, dont_throw, format_readable_num, get_device, 
     get_dtype,
 )
-from knitwork.gens.text import TextGenerator, load_dataset, tokenize
+from knitwork.gens.text import (
+    TextGenerator, load_dataset, split_train_val_test, tokenize, tokenize_splits,
+)
 from knitwork.models.utils import build_model
 
 
@@ -37,28 +41,30 @@ def main(config):
 
     gen_cfg   = config['gens'][config['gen']]
     data_path = Path(gen_cfg['path']).expanduser()
-    data, charset = tokenize(load_dataset(data_path))
-    n_chars = charset.size
-    # print(f"{charset.tobytes().decode('utf-8')!r}")
-    space_token = charset.tobytes().decode('utf-8').find(' ')
+    raw = load_dataset(data_path)
 
-    train_data = data
     eval_cfg = config.get('eval', {})
     do_eval = eval_cfg.get('enabled', False)
     do_eval_on_start = eval_cfg.get('on_start', False)
     if do_eval:
-        from knitwork.gens.text import split_train_test
+        # contiguous train|val|test; vocab from train only; test is touched once at the end
+        splits = split_train_val_test(raw, eval_cfg['val_size'], eval_cfg['test_size'])
+        (train_data, val_data, test_data), charset = tokenize_splits(*splits)
         eval_schedule = create_scheduler(eval_cfg['schedule'])
-        max_rollout = int(eval_cfg.get('max_rollout', 1e+8))
         context_window = eval_cfg.get('context_window', None)
-        train_frac = 1.0 - eval_cfg['split']
-        train_data, val_data = split_train_test(data, train_frac=train_frac)
-        val_gen = TextGenerator(val_data, n_envs=n_envs, ignore_index=CE_ignore_index, seed=get_seed(rng), device=device)
-        val_gen = torch.compile(val_gen.to(device))
-        max_rollout = min(
-            max_rollout, 
-            max(100*config['rollout_len'], round(len(val_data) / n_envs))
-        )
+
+        def _make_eval_gen(d):
+            g = TextGenerator(d, n_envs=n_envs, ignore_index=CE_ignore_index, seed=get_seed(rng), device=device)
+            return torch.compile(g.to(device))
+
+        val_gen, test_gen = _make_eval_gen(val_data), _make_eval_gen(test_data)
+        # one full pass over each eval split
+        max_rollout = {k: len(d) // n_envs for k, d in [('val', val_data), ('test', test_data)]}
+        print(f'Split (tokens): train {len(train_data):,} | val {len(val_data):,} | test {len(test_data):,}')
+    else:
+        train_data, charset = tokenize(raw)
+    n_chars = charset.size
+    space_token = charset.tobytes().decode('utf-8').find(' ')
 
     gen = TextGenerator(train_data, n_envs=n_envs, ignore_index=CE_ignore_index, seed=get_seed(rng), device=device)
     gen = torch.compile(gen.to(device))
@@ -156,11 +162,34 @@ def main(config):
     batch_kl, batch_comm_loss, batch_comm_entropy = 0.0, 0.0, 0.0
     batch_in_word_pos = []
 
+    best = dict(loss=float('inf'), step=0, state=None)
+
+    # full-continuity eval is the primary metric; the windowed one (state reset every `window` tokens)
+    # matches the training context regime and is what checkpoints are selected on (when enabled)
+    window = eval_cfg.get('window')
+
+    def _eval_pass(step, gen_, tag, n_roll):
+        kw = dict(model=model, gen=gen_, logger=logger, n_envs=n_envs, max_rollout=n_roll, device=device)
+        res = run_eval(step, prefix=tag, context_window=context_window if tag == 'val' else None, **kw)
+        if window:
+            res = run_eval(step, prefix=f'{tag}_w{int(window)}', context_window=int(window), **kw)
+        return res
+
     def _run_eval(step):
-        run_eval(
-            step, model=model, gen=val_gen, logger=logger, n_envs=n_envs, max_rollout=max_rollout,
-            device=device, context_window=context_window
-        )
+        res = _eval_pass(step, val_gen, 'val', max_rollout['val'])
+        if res is not None and res['Loss'] < best['loss']:
+            best.update(loss=res['Loss'], step=step, state=copy.deepcopy(model.state_dict()))
+
+    def _run_test():
+        # single test pass: best-val checkpoint (reported) and last weights (for reference)
+        last_state = copy.deepcopy(model.state_dict())
+        for tag, sd in [('test_last', last_state), ('test', best['state'])]:
+            if sd is None:
+                continue
+            model.load_state_dict(sd)
+            _eval_pass(step, test_gen, tag, max_rollout['test'])
+        model.load_state_dict(last_state)
+        print(f'Test done: best val Loss {best["loss"]:.4f} at step {best["step"]:,}')
 
     if do_eval and do_eval_on_start:
         _run_eval(step)
@@ -172,7 +201,7 @@ def main(config):
         rnd_reset = torch.rand(gen.n_envs, device=device, generator=gen.rng) < p_reset.val
         reset_mask = torch.logical_or(obs['reset_mask'], rnd_reset)
         state  = rnn.reset_state(state, reset_mask)
-        x = obs['tokens'].view(-1, 1)
+        x = step_tokens(obs['tokens'], rnn)
 
         capture_details = inspect_scheduler.tick(step_size)
         capture_vis_data = vis_inspect_scheduler.tick(step_size)
@@ -280,19 +309,28 @@ def main(config):
 
         logger.log(step, flush=True)
 
-    if do_eval and eval_schedule.tick(step_size):
+    if do_eval:
         _run_eval(step)
+        _run_test()
+        # +1 so the final eval/test metrics are flushed even if the last step was already flushed
+        step += 1
     logger.log(step, flush=True, force=True)
     logger.finish()
+
+
+def step_tokens(tokens, rnn):
+    # cores take a step input as (B, 1) [batch-first, grnn_lru] or (1, B) [sequence dim first]
+    return tokens.view(-1, 1) if getattr(rnn, 'batch_first', False) else tokens.view(1, -1)
 
 
 @torch.no_grad()
 def run_eval(
         step: int, *, model, gen, logger, n_envs, max_rollout, device,
-        context_window=None
+        context_window=None, prefix='val'
 ):
-    """Evaluate on val set; if context_window>0, also run context-memory probe."""
+    """One full pass over an eval split; if context_window is set, also run context-memory probe."""
     model.eval()
+    gen.reset()
     state = None
     ce_loss, acc, tot_cnt = 0.0, 0.0, 0
 
@@ -310,7 +348,7 @@ def run_eval(
             reset_mask = torch.logical_or(reset_mask, cw_ix == 0)
         state = model.rnn.reset_state(state, reset_mask)
 
-        x = obs['tokens'].view(-1, 1)
+        x = step_tokens(obs['tokens'], model.rnn)
         y, state, _ = model(x, state, capture=False)
 
         targets = obs['targets']
@@ -333,7 +371,7 @@ def run_eval(
 
     if tot_cnt == 0:
         print('No valid data for evaluation!')
-        return
+        return None
 
     ce_loss, acc = ce_loss / tot_cnt, acc / tot_cnt
 
@@ -343,9 +381,9 @@ def run_eval(
         'BPC': ce_loss / ln_2,
         'Acc': acc,
     })
-    logger.accumulate(metrics, prefix='val', key='eval')
+    logger.accumulate(metrics, prefix=prefix, key='eval')
 
-    if context_window is not None:
+    if context_window is not None and prefix == 'val':
         cw_ix_bpc = to_numpy(cw_ix_ce / cw_ix_cnt / ln_2)
         # log key percentiles numerically
         label_fracs = [('p0', 0.0), ('p25', 0.25), ('p50', 0.50), ('p75', 0.75), ('p100', 1.0)]
@@ -362,6 +400,8 @@ def run_eval(
             'bpc_curve': plot_bpc_by_context_pos(cw_ix_bpc, step=step),
         }
         logger.accumulate(figures, prefix='val.context_window', key='list')
+
+    return {'Loss': float(ce_loss), 'BPC': float(ce_loss) / ln_2, 'Acc': float(acc)}
 
 
 @torch.no_grad()
