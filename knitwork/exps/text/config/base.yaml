@@ -2,7 +2,8 @@ seed: null
 name: null
 log:
   logger: comet
-  project: knitwork-text
+  proxy: true
+  project: knitwork-text-debug
   schedule: 5.0e+5
 
 device: null

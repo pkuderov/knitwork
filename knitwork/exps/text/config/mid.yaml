@@ -2,6 +2,7 @@ seed: null
 name: null
 log:
   logger: comet
+  proxy: true
   project: knitwork-text-debug
   dump_status: false
   schedule: 5.0e+6

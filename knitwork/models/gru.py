@@ -112,24 +112,28 @@ class GruCore(nn.Module):
 
         if self.n_layers == 1:
             dropout = 0.0
+
+        batch_first=True
+        self.seq_dim = 1 if batch_first else 0
         self.rnn = nn.GRU(
             input_size=self.hidden_size,
             hidden_size=self.hidden_size,
             num_layers=self.n_layers,
-            batch_first=False,
+            batch_first=batch_first,
             bias=use_bias,
             dropout=dropout,
         )
 
     def forward(self, x: torch.Tensor, state: dict, **_):
-        # x shape: (n_inputs, batch, hidden_size)
-        # keep the same shape, using the first dim as sequence dim
-        # but make sure it's always 1
-        assert x.shape[0] == 1
+        # x shape: (B, In, H)
+        # utilise SeqLen dim as Input len dim (=how many input channels)
+        # but make sure it's always 1, or fix the logic
+        seq_dim = self.seq_dim
+        assert x.shape[seq_dim] == 1
         y, h_new = self.rnn(x, state['h'])
 
         # remove sequence dim
-        y = y.squeeze(0)
+        y = y.squeeze(seq_dim)
         state = {'h': h_new}
         info = {}
 

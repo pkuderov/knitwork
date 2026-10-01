@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import contextmanager
 import os
 
 import numpy as np
@@ -268,14 +269,15 @@ def start_logger(
     log_perf = log_cfg.get('log_perf', log_perf)
     suppress_printing = log_cfg.get('suppress_printing', suppress_printing)
 
-    return logger_factory(
-        logger=config,
-        log_schedule=log_cfg['schedule'],
-        log_perf=log_perf,
-        suppress_printing=suppress_printing,
-        tracker=tracker,
-        callbacks=callbacks,
-    )
+    with http_proxy(log_cfg):
+        return logger_factory(
+            logger=config,
+            log_schedule=log_cfg['schedule'],
+            log_perf=log_perf,
+            suppress_printing=suppress_printing,
+            tracker=tracker,
+            callbacks=callbacks,
+        )
 
 
 def _make_serializable(obj):
@@ -298,3 +300,36 @@ def print_metrics(step, metrics):
         for k, v in metrics.items()
     )
     print(''.join(msgs))
+
+
+@contextmanager
+def http_proxy(log_cfg):
+    proxy_env_var = "COMET_HTTP_PROXY"
+    import os
+
+    if proxy_env_var not in os.environ or not log_cfg.get('proxy', False):
+        yield
+        return
+
+    try:
+        # store old values
+        _old_http_proxy = os.environ.get("HTTP_PROXY", None) 
+        _old_http_proxy_low = os.environ.get("http_proxy", None)
+        _old_https_proxy = os.environ.get("HTTPS_PROXY", None)
+
+        os.environ["HTTP_PROXY"] = os.environ["http_proxy"] = os.environ["HTTPS_PROXY"] = os.environ[proxy_env_var]
+        print("HTTP PROXY ENABLED:", os.environ[proxy_env_var])
+        yield
+    finally:
+        # remove overwrites first
+        del os.environ["HTTP_PROXY"]
+        del os.environ["http_proxy"]
+        del os.environ["HTTPS_PROXY"]
+
+        # restore old values if they exist
+        if _old_http_proxy is not None:
+            os.environ["HTTP_PROXY"] = _old_http_proxy
+        if _old_http_proxy_low is not None:
+            os.environ["http_proxy"] = _old_http_proxy_low
+        if _old_https_proxy is not None:
+            os.environ["HTTPS_PROXY"] = _old_https_proxy
