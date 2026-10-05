@@ -127,7 +127,7 @@ def main(config):
 
         if capture:
             if has_grid:
-                cka_vis.update(state['h'])
+                cka_vis.update(rnn.inspection_hidden(state) if hasattr(rnn, 'inspection_hidden') else state['h'])
             if 'attn_weights' in info:
                 attn_vis.update(info['attn_weights'])
 

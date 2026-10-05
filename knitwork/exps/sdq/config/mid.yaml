@@ -1,0 +1,131 @@
+seed: null
+name: null
+log:
+  logger: comet
+  project: knitwork-aistat
+  schedule: 5.0e+6
+
+device: null
+dtype: float32
+
+exp: sdq
+gen: hard
+wrapper_model: token
+model: rnn.L1
+
+n_envs: 512
+rollout_len: 32
+n_steps: 1.0e+9
+compile: true
+
+inspect_schedule: 5.0e+5
+vis_inspect_schedule: 5.0e+5
+
+gens:
+  hard:
+    n_keys: 5
+    n_vals: 10
+    T: 10
+    p_store: 0.35
+    p_query: 0.35
+    count_stored: true
+    count_queried: true
+  fixed:
+    n_keys: 5
+    n_vals: 10
+    T: 500
+    p_store: 0.1
+    p_query: 0.25
+    count_stored: true
+    count_queried: true
+
+token_wrapper: {}
+communication:
+  loss_weight: 0.0
+  entropy_weight: 0.0
+
+# ======> Models (~1M parameters, as in text/mid.yaml)
+rnn_L2:
+  hidden_size: 288
+  n_layers: 2
+  use_bias: true
+  dropout: 0.0
+grnn_lru_sparse_dynamic_control:
+  hidden_size: 180
+  n_layers: 2
+  n_columns: 4
+  horizon:
+  - 1.0
+  - 1000.0
+  fb_norm: true
+  hub_query_size: 8
+  topology: star
+  hub_query_init: zero
+
+grnn_lru_slots_slot_alloc:
+  hidden_size: 180
+  n_layers: 2
+  n_columns: 4
+  horizon:
+  - 1.0
+  - 1000.0
+  fb_norm: true
+  hub_query_size: 8
+  mode: slot_alloc
+  n_slots: 8
+  slot_key_size: 16
+  slot_value_size: 32
+  memory_column: 3
+  slot_write_bias: 0.0
+grnn_lru_slots_slot_soft:
+  hidden_size: 180
+  n_layers: 2
+  n_columns: 4
+  horizon:
+  - 1.0
+  - 1000.0
+  fb_norm: true
+  hub_query_size: 8
+  mode: slot_soft
+  n_slots: 8
+  slot_key_size: 16
+  slot_value_size: 32
+  memory_column: 3
+  slot_write_bias: 0.0
+grnn_lru_slots_slot_entmax:
+  hidden_size: 180
+  n_layers: 2
+  n_columns: 4
+  horizon:
+  - 1.0
+  - 1000.0
+  fb_norm: true
+  hub_query_size: 8
+  mode: slot_entmax
+  n_slots: 8
+  slot_key_size: 16
+  slot_value_size: 32
+  memory_column: 3
+  slot_write_bias: 0.0
+
+# base LR config
+lr:
+  val: 5.0e-4
+  tar: 5.0e-5
+  lr: 0.01
+  schedule: 250
+  warmup:
+    val: 1.0e-9
+    n_linear_steps: 50
+    schedule: 24
+
+curriculum:
+  schedule: 2.0e+5
+  max_T: 500
+  key: Loss
+
+trackers:
+  slow: 5.0e-3
+  fast: 2.0e-2
+  list: null
+  eval: null
