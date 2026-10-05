@@ -1,5 +1,5 @@
 % ─────────────────────────────────────────────────────────────────────────────
-% MoSAIC paper bibliography — AAAI 2027
+% MoSAIC paper bibliography — AISTATS 2027 revision
 % ─────────────────────────────────────────────────────────────────────────────
 
 % ── Baselines: Standard RNNs ──────────────────────────────────────────────────
@@ -69,7 +69,7 @@
 @inproceedings{kalchbrenner2015gridlstm,
   author    = {Kalchbrenner, Nal and Danihelka, Ivo and Graves, Alex},
   title     = {Grid Long Short-Term Memory},
-  booktitle = {3rd International Conference on Learning Representations (ICLR)},
+  booktitle = {International Conference on Learning Representations (ICLR)},
   year      = {2016},
 }
 
@@ -99,7 +99,7 @@
 }
 
 @inproceedings{qin2024hgrn2,
-  author    = {Qin, Zhen and Yang, Songlin and Sun, Weixuan and Shen, Xuyang and Li, Dong and Li, Weigao and Zheng, Yubo},
+  author    = {Qin, Zhen and Yang, Songlin and Sun, Weixuan and Shen, Xuyang and Li, Dong and Sun, Weigao and Zhong, Yiran},
   title     = {{HGRN2}: Gated Linear {RNNs} with State Expansion},
   booktitle = {Proceedings of the First Conference on Language Modeling (COLM)},
   year      = {2024},
@@ -120,6 +120,16 @@
   title   = {Transformers are {SSMs}: Generalized Models and Efficient Algorithms Through Structured State Space Duality},
   journal = {arXiv preprint arXiv:2405.21060},
   year    = {2024},
+}
+
+@misc{gu2023mamba,
+  author = {Gu, Albert and Dao, Tri},
+  title = {{Mamba}: Linear-Time Sequence Modeling with Selective State Spaces},
+  year = {2023},
+  eprint = {2312.00752},
+  archiveprefix = {arXiv},
+  primaryclass = {cs.LG},
+  url = {https://arxiv.org/abs/2312.00752}
 }
 
 @article{yang2024deltanet,
@@ -278,10 +288,11 @@
 % ── Memory Benchmarks ─────────────────────────────────────────────────────────
 
 @inproceedings{morad2023popgym,
-  author    = {Morad, Steven D. and Kortvelesy, Ryan and Bettini, Matteo and Liwicki, Stephan and Prorok, Amanda},
+  author    = {Morad, Steven and Kortvelesy, Ryan and Bettini, Matteo and Liwicki, Stephan and Prorok, Amanda},
   title     = {{POPGym}: Benchmarking Partially Observable Reinforcement Learning},
   booktitle = {11th International Conference on Learning Representations (ICLR)},
   year      = {2023},
+  url       = {https://openreview.net/forum?id=chDrutUTs0K},
 }
 
 @article{cherepanov2025mikasa,
@@ -383,4 +394,79 @@
   year         = {2011},
   howpublished = {\url{https://www.mattmahoney.net/dc/textdata.html}},
   note         = {Text8 dataset description},
+}
+
+% Sources added for the AISTATS revision; metadata checked against primary sources.
+@inproceedings{goyal2021factorizing,
+  author = {Goyal, Anirudh and Lamb, Alex and Gampa, Phanideep and Beaudoin, Philippe and Levine, Sergey and Blundell, Charles and Bengio, Yoshua and Mozer, Michael},
+  title = {Factorizing Declarative and Procedural Knowledge in Structured, Dynamic Environments},
+  booktitle = {International Conference on Learning Representations},
+  year = {2021},
+  url = {https://research.google/pubs/factorizing-declarative-and-procedural-knowledge-in-structured-dynamic-environments/}
+}
+
+@inproceedings{rahaman2021spatial,
+  author = {Rahaman, Nasim and Goyal, Anirudh and Gondal, Muhammad Waleed and Wuthrich, Manuel and Bauer, Stefan and Sharma, Yash and Bengio, Yoshua and Sch{\"o}lkopf, Bernhard},
+  title = {Spatially Structured Recurrent Modules},
+  booktitle = {International Conference on Learning Representations},
+  year = {2021},
+  url = {https://openreview.net/forum?id=5l9zj5G7vDY}
+}
+
+@inproceedings{shazeer2017moe,
+  author = {Shazeer, Noam and Mirhoseini, Azalia and Maziarz, Krzysztof and Davis, Andy and Le, Quoc and Hinton, Geoffrey and Dean, Jeff},
+  title = {Outrageously Large Neural Networks: The Sparsely-Gated Mixture-of-Experts Layer},
+  booktitle = {International Conference on Learning Representations},
+  year = {2017},
+  url = {https://arxiv.org/abs/1701.06538}
+}
+
+@misc{fedus2021switch,
+  author = {Fedus, William and Zoph, Barret and Shazeer, Noam},
+  title = {Switch Transformers: Scaling to Trillion Parameter Models with Simple and Efficient Sparsity},
+  year = {2021},
+  howpublished = {arXiv:2101.03961},
+  url = {https://arxiv.org/abs/2101.03961}
+}
+
+@misc{olsson2022induction,
+  author = {Olsson, Catherine and Elhage, Nelson and Nanda, Neel and Joseph, Nicholas and DasSarma, Nova and Henighan, Tom and Mann, Ben and Askell, Amanda and Bai, Yuntao and Chen, Anna and Conerly, Tom and Drain, Dawn and Ganguli, Deep and Hatfield-Dodds, Zac and Hernandez, Danny and Johnston, Scott and Jones, Andy and Kernion, Jackson and Lovitt, Liane and Ndousse, Kamal and Amodei, Dario and Brown, Tom and Clark, Jack and Kaplan, Jared and McCandlish, Sam and Olah, Chris},
+  title = {In-context Learning and Induction Heads},
+  year = {2022},
+  howpublished = {arXiv:2209.11895},
+  url = {https://arxiv.org/abs/2209.11895}
+}
+
+@misc{su2021roformer,
+  author = {Su, Jianlin and Lu, Yu and Pan, Shengfeng and Murtadha, Ahmed and Wen, Bo and Liu, Yunfeng},
+  title = {{RoFormer}: Enhanced Transformer with Rotary Position Embedding},
+  year = {2021},
+  howpublished = {arXiv:2104.09864},
+  url = {https://arxiv.org/abs/2104.09864}
+}
+
+@inproceedings{zhang2019rmsnorm,
+  author = {Zhang, Biao and Sennrich, Rico},
+  title = {Root Mean Square Layer Normalization},
+  booktitle = {Advances in Neural Information Processing Systems},
+  year = {2019},
+  url = {https://arxiv.org/abs/1910.07467}
+}
+
+@article{elfwing2018silu,
+  author = {Elfwing, Stefan and Uchibe, Eiji and Doya, Kenji},
+  title = {Sigmoid-Weighted Linear Units for Neural Network Function Approximation in Reinforcement Learning},
+  journal = {Neural Networks},
+  volume = {107},
+  pages = {3--11},
+  year = {2018},
+  doi = {10.1016/j.neunet.2017.12.012}
+}
+
+@misc{tieleman2012rmsprop,
+  author = {Tieleman, Tijmen and Hinton, Geoffrey},
+  title = {Lecture 6.5---{RMSProp}: Divide the Gradient by a Running Average of Its Recent Magnitude},
+  howpublished = {Neural Networks for Machine Learning, lecture notes},
+  year = {2012},
+  url = {https://www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf}
 }

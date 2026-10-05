@@ -1,0 +1,30 @@
+% Generated offline by inference/aistats_revision_evidence.py.
+\begin{table}[t]
+\centering
+\caption{New Text8 model accounting from the retained widths and local implementations, including token adapters ($V=27$). State counts include necessary recurrent and public-message caches, or Transformer key/value caches; redundant views and bookkeeping are excluded. Float32 KiB exclude training intermediates and optimizer state.}
+\label{tab:midstate}
+\begin{tabular}{lrrrr}
+\toprule
+Model & Width & Params & State scalars & KiB \\
+\midrule
+Mamba & 194 & 1,003,201 & 29,488 & 115.19 \\
+MoSAIC L3C4 & 112 & 1,068,743 & 1,344 & 5.25 \\
+MoSAIC L2C4 & 136 & 1,050,499 & 1,088 & 4.25 \\
+MoSAIC L2C8 & 96 & 972,715 & 1,536 & 6.00 \\
+MoSAIC L1C8 & 140 & 1,033,515 & 1,120 & 4.38 \\
+GRU L1 & 404 & 1,003,563 & 404 & 1.58 \\
+GRU L2 & 288 & 1,014,363 & 576 & 2.25 \\
+GRU L3 & 232 & 985,563 & 696 & 2.72 \\
+Grid-LRU L1C8 & 176 & 1,003,651 & 4,224 & 16.50 \\
+Grid-LRU L2C8 & 128 & 1,059,747 & 5,120 & 20.00 \\
+Grid-LRU L3C4 & 148 & 1,063,015 & 4,144 & 16.19 \\
+HGRN2 & 153 & 996,210 & 280,908 & 1097.30 \\
+mLSTM & 216 & 995,577 & 140,619 & 549.29 \\
+DeltaNet & 217 & 1,004,089 & 141,267 & 551.82 \\
+RIMs & 696 & 994,859 & 1,392 & 5.44 \\
+BRIMs & 480 & 1,000,395 & 1,920 & 7.50 \\
+Grid-LRU L2C4 & 180 & 1,049,463 & 3,600 & 14.06 \\
+Transformer-256 & 176 & 1,002,347 & 360,448 & 1408.00 \\
+\bottomrule
+\end{tabular}
+\end{table}

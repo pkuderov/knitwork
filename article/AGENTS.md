@@ -4,7 +4,7 @@
 
 ## Current paper
 
-The current English Typst draft is `typst/paper_en.typ`, an anonymous AAAI 2026 submission presenting MoSAIC (Modular Self-Attentive Interacting Columns for Recurrent Memory). Related Typst sources, bibliography, figures, and generated PDF are in `typst/`; LaTeX material is in `latex/`.
+The current AISTATS 2027 revision is `latex/paper.tex`, an anonymous submission presenting MoSAIC (Modular Self-Attentive Interacting Columns for Recurrent Memory), using the official `latex/aistats2027.sty`. Build instructions and remaining evidence gaps are in `latex/README.md`. The earlier AAAI-27 Typst draft remains in `typst/paper_en.typ`; its numbers and formatting are not synchronized with the AISTATS revision.
 
 Use the paper source, rather than a generated PDF, as the editable authority. Keep submission-specific formatting and anonymity constraints intact unless the task explicitly changes them.
 

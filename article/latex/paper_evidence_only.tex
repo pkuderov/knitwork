@@ -1,3 +1,4 @@
+% Separate manuscript edition retaining measured results and methodological limitations.
 \documentclass[letterpaper,twoside]{article}
 \usepackage{aistats2027}
 \usepackage[hyphens]{url}
@@ -141,9 +142,9 @@ Every column performs an ordinary independent GRU update,
 \operatorname{GRU}_{l,c}
 (\mathbf{x}_{t,c}^l,\mathbf{h}_{t-1}^{l,c}).
 \end{equation}
-The prediction head reads column 0 of the top layer. This intentional readout bottleneck requires useful information held in peripheral columns to be compressed and retrieved through one column. All top-layer columns persist and participate in the next bottom-layer message bank. The bottleneck is an architectural constraint, not evidence of learned semantic specialization.
+The prediction head reads column 0 of the top layer. This intentional readout bottleneck requires useful information held in peripheral columns to be compressed and retrieved through one column. All top-layer columns persist and participate in the next bottom-layer message bank.
 
-The full MoSAIC configuration uses three training-only routing terms: Gaussian logit noise, a communication cost favoring diagonal routes, and an entropy bonus that discourages early route collapse. Let $S_l$ be the number of messages at layer $l$. With zero-based column index $c$, the route cost $d_{c,j}^l$ is zero for the same-column recurrent message, one for another recurrent message, and $2c$ for the external input at the bottom layer. The communication loss is the mean expected route cost,
+The full MoSAIC configuration uses three training-only routing terms: Gaussian logit noise, a communication cost favoring diagonal routes, and an entropy bonus favoring higher routing entropy. Let $S_l$ be the number of messages at layer $l$. With zero-based column index $c$, the route cost $d_{c,j}^l$ is zero for the same-column recurrent message, one for another recurrent message, and $2c$ for the external input at the bottom layer. The communication loss is the mean expected route cost,
 \begin{equation}
 \mathcal{L}_{\mathrm{comm}}
 = \mathbb{E}_{t,l,c,r}\!\left[
@@ -225,7 +226,7 @@ Holding MoSAIC-L2C4 widths and routing terms fixed, seed-42 top-$k$ attention re
 \input{aistats_ablation_main}
 
 \paragraph{Training terms.}
-Table~\ref{tab:ablation} gives the first component test. Removing noise, communication cost, entropy bonus, or all three changes BPC by at most 0.0041 at this short common horizon, with signs changing across earlier points. Removing the communication term nevertheless raises its logged expected route cost from about 0.896 to 1.045 at a shared 58.72M-token diagnostic, while normalized entropy stays near 0.96--0.97. The term changes routing without a resolved quality benefit in this pilot. The evaluation is near the end of the reset warmup, uses one seed and a capped validation prefix, and omits full-budget SDQ. It neither identifies indispensable regularizers nor establishes equivalence or specialization.
+Table~\ref{tab:ablation} gives the first component test. Removing noise, communication cost, entropy bonus, or all three changes BPC by at most 0.0041 at this short common horizon, with signs changing across earlier points. Removing the communication term nevertheless raises its logged expected route cost from about 0.896 to 1.045 at a shared 58.72M-token diagnostic, while normalized entropy stays near 0.96--0.97. The term changes routing without a resolved quality benefit in this pilot. The evaluation is near the end of the reset warmup, uses one seed and a capped validation prefix, and omits full-budget SDQ. Full-budget and repeated-seed ablations are still required to assess their quality contribution.
 
 \paragraph{Longer BPTT and LRU mechanisms.}
 Length-512 pilots keep 32,768 tokens/update by reducing training streams from 512 to 64. At 50.33M tokens they do not improve Grid-LRU, and GRU/MoSAIC are about 0.02 BPC worse; this does not isolate long-context capacity from trajectory diversity or training schedule (Appendix~\ref{app:rollout}). Five LRU memory/reading modifications and seven sparse-routing variants are reported with their own controls in Appendix~\ref{app:lru}. Two hub reads improve text8 by 0.0157 BPC on one seed, but this gain does not transfer to our recall/RL pilots.
@@ -247,9 +248,9 @@ Resource logs cover 65 historical main and reduced-token launches on heterogeneo
 
 \section{Discussion and Limitations}\label{sec:limitations}
 
-The evidence supports a specific result: under our approximately parameter-matched recipes, GRU-based modular state improves internal text8 validation at two scales and the historical SDQ training diagnostic. It does not establish an advantage over modern recurrent models: Mamba leads the new text8 comparison, simpler Grid-LRU loses quality, and the recall/RL extensions are weak. Additional state, learned routing, nonlinear gating, and optimization may jointly explain the positive result.
+The evidence supports a specific result: under our approximately parameter-matched recipes, GRU-based modular state improves internal text8 validation at two scales and the historical SDQ training diagnostic. It does not establish an advantage over modern recurrent models: Mamba leads the new text8 comparison, simpler Grid-LRU loses quality, and the recall/RL extensions are weak. These comparisons match approximate parameter scale and logged tokens; state allocation and computation differ across architectures.
 
-Column 0 is intentionally the sole readout. Its bottom-layer external-input route also has cost $2c=0$, while column 15 pays 30 compared with cost 1 for an off-diagonal recurrent route. This asymmetry grows with column count. At fixed parameter budget, additional columns also reduce within-column and readout width (424 to 224 for historical L2C4 to L2C16). Routing cost and readout capacity therefore vary with topology; their individual contributions remain untested. Route diversity, entropy, and activation dissimilarity alone do not identify semantic specialization.
+Column 0 is intentionally the sole readout. Its bottom-layer external-input route also has cost $2c=0$, while column 15 pays 30 compared with cost 1 for an off-diagonal recurrent route. This asymmetry grows with column count. At fixed parameter budget, additional columns also reduce within-column and readout width (424 to 224 for historical L2C4 to L2C16). Routing cost and readout capacity therefore vary with topology; their individual contributions remain untested.
 
 Historical seeds and the complete manual-tuning record are unavailable; historical text8 validation was reused during development, and SDQ lacks a fixed-gap held-out evaluation. The new series has recorded seeds and matched logged tokens, but two or three repeats are insufficient for broad uncertainty claims, and the baselines are local implementations under a shared recipe. Component and transfer pilots use one seed and cannot settle full-budget effects. State-matched and compute-matched controls, projection/readout ablations, and controlled latency/peak-memory measurements remain missing. Neither sparse message selection nor fixed-size state establishes faster execution, superior long-context scaling, or general Transformer replacement.
 
@@ -264,7 +265,7 @@ MoSAIC organizes recurrence into persistent GRU columns that exchange messages t
 \clearpage
 \subsection*{AI Use Statement}
 
-Generative AI tools were used to search, summarize, and analyze the research literature, and to assist in writing, debugging, and revising code. They also assisted architectural hypotheses, experiment configuration, analysis and interpretation of logged results, manuscript editing, bibliographic checks, figure-generation code, and conversion to the AISTATS LaTeX format. The authors retain responsibility for the implementation, analysis, references, and final manuscript content.
+Generative AI tools were used to search, summarize, and analyze the research literature, and to assist in writing, debugging, and revising code. They also assisted architectural design, experiment configuration, analysis and interpretation of logged results, manuscript editing, bibliographic checks, figure-generation code, and conversion to the AISTATS LaTeX format. The authors retain responsibility for the implementation, analysis, references, and final manuscript content.
 
 \bibliography{refs}
 
@@ -361,9 +362,6 @@ The historical cohort is fixed by the original retained run inventory; new main 
 
 The common historical text8 horizon is 960,036,864 tokens. For the six Transformer launches, the bracketing measurements are 942,538,752 and 962,592,768 tokens; interpolation estimates BPC at the shared budget without pretending it is a measured checkpoint. All recurrent values there are direct observations. For SDQ, every launch contributes Acc++ at the same five counters, 950,036,480, 955,036,672, 960,036,864, 965,037,056, and 970,037,248. This resolves the earlier horizon/window mismatch, while leaving the changing Acc++ threshold and curriculum dependence unresolved.
 
-\paragraph{Routing diagnostics.}
-For GRU-column models, logged column similarity compares batch-mean top-layer activation vectors using pairwise cosine similarity. This summary does not measure conditional retrieval or establish redundant information. Routing entropy describes dispersion over sources; neither low entropy nor low activation similarity establishes semantic roles or vanishing gradients. Those interpretations require direct interventions or gradient measurements.
-
 \section{LRU Extensions and Sparse Communication}\label{app:lru}
 
 \paragraph{Static Grid-LRU.}
@@ -382,7 +380,7 @@ These use an L2C4H180 dynamic-hub control with star connectivity, an eight-dimen
 
 \input{aistats_lru_variants}
 
-Two reads improves text8 from 1.6687 to 1.6530 BPC at the shared horizon; the paired late-window difference is also negative. Write gates and rotations change BPC much less, and query-conditioned/matrix reads worsen it. These are one-seed outcomes, not evidence of a universal memory improvement. A larger private memory, a new write rule, or an extra read can alter optimization and capacity as well as retrieval.
+Two reads improves text8 from 1.6687 to 1.6530 BPC at the shared horizon; the paired late-window difference is also negative. Write gates and rotations change BPC much less, and query-conditioned/matrix reads worsen it. These are one-seed outcomes, not evidence of a universal memory improvement. The variants also differ in parameter counts, state allocation, or update computation, as specified above.
 
 \paragraph{Periodic-reset diagnostic.}
 The retained logs also evaluate the same validation data with each stream's state reset every 1,024 valid tokens, independently of BPTT length. Table~\ref{tab:lruvariants} reports this diagnostic at the same checkpoint. Two reads gives 1.6641 BPC versus 1.6803 for its dynamic-hub control, retaining a 0.0162-BPC advantage. The reset increases BPC by 0.0111 and 0.0116, respectively. This single-seed result shows that the gain persists under periodic resets; it does not establish superior retrieval beyond 1,024 tokens or identify the gain as a longer memory horizon. Late-window averages likewise summarize correlated checkpoints rather than independent repeats.
@@ -392,7 +390,7 @@ The separate suite varies learned mixing initialization/connectivity: self-heavy
 
 \input{aistats_sparse_lru}
 
-Self-heavy and dynamic-hub pilots show small paired gains, while block and clockwork lose quality in the tested settings. The block core has about half the dense core's parameters. Sparse attention support alone need not avoid dense projections or recurrent updates; none of these quality logs is a controlled throughput measurement or a demonstration of semantic specialization.
+Self-heavy and dynamic-hub pilots show small paired gains, while block and clockwork lose quality in the tested settings. The block core has about half the dense core's parameters. Sparse attention support alone need not avoid dense projections or recurrent updates; none of these quality logs is a controlled throughput measurement.
 
 \section{BPTT-Length Pilots}\label{app:rollout}
 
@@ -424,7 +422,7 @@ Each evaluation uses a freshly created environment with seed 50000, stochastic a
 
 \input{aistats_rl}
 
-Table~\ref{tab:rl} reports the common-window returns. Random guessing has expected return $-0.5$ and perfect prediction $+1$ in these settings. Plain LRU's RepeatPreviousHard mean $-0.3809$ is a modest departure from chance; it is not task mastery or proof of a particular memory strategy. Grid variants remain near chance on both probes. The ten runs have no logged skipped updates, but this does not establish convergence or robust stability. Some Grid-LRU raw states are much larger than those of plain LRU despite bounded poles and normalized feedback. Additional seeds and longer training are required to distinguish architecture limitations, feedback amplification, and PPO optimization effects.
+Table~\ref{tab:rl} reports the common-window returns. Random guessing has expected return $-0.5$ and perfect prediction $+1$ in these settings. Plain LRU's RepeatPreviousHard mean $-0.3809$ is a modest departure from chance; it is not task mastery or proof of a particular memory strategy. Grid variants remain near chance on both probes. The ten runs have no logged skipped updates, but this does not establish convergence or robust stability. Some Grid-LRU raw states are much larger than those of plain LRU despite bounded poles and normalized feedback. These single-seed pilots require replication before drawing conclusions about RL performance.
 
 \clearpage
 \input{aistats_resources_appendix}

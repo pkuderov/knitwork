@@ -1,0 +1,44 @@
+% Questions copied verbatim from the official AISTATS 2027 author kit.
+\section*{Checklist}
+
+\begin{enumerate}
+
+  \item For all models and algorithms presented, check if you include:
+  \begin{enumerate}
+    \item A clear description of the mathematical setting, assumptions, algorithm, and/or model. [Yes] Section~\ref{sec:method} describes MoSAIC; Appendices~\ref{app:lru}--\ref{app:rl} specify the extensions and pilot protocols.
+    \item An analysis of the properties and complexity (time, space, sample size) of any algorithm. [Yes] Section~\ref{sec:method} gives parameter, carried-state, and per-token routing complexity; no sample-complexity theorem is claimed.
+    \item (Optional) Anonymized source code, with specification of all dependencies, including external libraries. [No] Code and configurations will be released after acceptance; no anonymous code archive is supplied with this draft.
+  \end{enumerate}
+
+  \item For any theoretical claim, check if you include:
+  \begin{enumerate}
+    \item Statements of the full set of assumptions of all theoretical results. [Not Applicable] This paper presents no theoretical results.
+    \item Complete proofs of all theoretical results. [Not Applicable] This paper presents no theoretical results.
+    \item Clear explanations of any assumptions. [Not Applicable] Model assumptions are specified in Section~\ref{sec:method}; no theorem assumptions are required.
+  \end{enumerate}
+
+  \item For all figures and tables that present empirical results, check if you include:
+  \begin{enumerate}
+    \item The code, data, and instructions needed to reproduce the main experimental results (either in the supplemental material or as a URL). [No] The public data source and protocol are described, but experiment code is not supplied with this draft.
+    \item All the training details (e.g., data splits, hyperparameters, how they were chosen). [No] Sections~\ref{sec:method} and~\ref{sec:experiments} and Appendices~\ref{app:protocol}--\ref{app:rl} describe the retained configurations and new recorded seeds. The historical manual-tuning record and seed values are unavailable; local baselines have no exhaustive method-specific tuning.
+    \item A clear definition of the specific measure or statistics and error bars (e.g., with respect to the random seed after running experiments multiple times). [Yes] Section~\ref{sec:experiments}, the captions, and Appendix~\ref{app:uncertainty} define common horizons, BPC, online Acc++, launch counts, and sample SD. One-seed pilots have no uncertainty estimate; their checkpoint averages are not independent training replicates.
+    \item A description of the computing infrastructure used. (e.g., type of GPUs, internal cluster, or cloud provider). [Yes] Sections~\ref{sec:resources} and~\ref{sec:limitations} identify H100 for new runs and heterogeneous hardware for historical quality. Appendix~\ref{app:resources} reports costs only for the 48 confirmed historical H100 launches, with actual subset counts.
+  \end{enumerate}
+
+  \item If you are using existing assets (e.g., code, data, models) or curating/releasing new assets, check if you include:
+  \begin{enumerate}
+    \item Citations of the creator If your work uses existing assets. [Yes] We cite text8, Zoology/MQAR, POPGym, and the original model and technique papers.
+    \item The license information of the assets, if applicable. [No] A complete license inventory for the historical data and implementation dependencies has not been provided.
+    \item New assets either in the supplemental material or as a URL, if applicable. [No] The implementation is planned for release after acceptance; no new asset is supplied with this draft.
+    \item Information about consent from data providers/curators. [Not Applicable] We use an existing public text corpus and an algorithmic generator, without collecting new human data.
+    \item Discussion of sensible content if applicable, e.g., personally identifiable information or offensive content. [No] A separate sensitive-content audit of text8 was not conducted.
+  \end{enumerate}
+
+  \item If you used crowdsourcing or conducted research with human subjects, check if you include:
+  \begin{enumerate}
+    \item The full text of instructions given to participants and screenshots. [Not Applicable] No crowdsourcing or human-subject study was conducted.
+    \item Descriptions of potential participant risks, with links to Institutional Review Board (IRB) approvals if applicable. [Not Applicable] No crowdsourcing or human-subject study was conducted.
+    \item The estimated hourly wage paid to participants and the total amount spent on participant compensation. [Not Applicable] No crowdsourcing or human-subject study was conducted.
+  \end{enumerate}
+
+\end{enumerate}

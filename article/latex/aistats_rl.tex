@@ -1,0 +1,22 @@
+% Generated offline by inference/aistats_revision_evidence.py.
+\begin{table}[t]
+\centering
+\caption{POPGym pilots, seed 42: mean evaluation return over the same four checkpoints at 6.291456, 6.815744, 7.340032, and 7.864320M vector slots. Each evaluation uses 32 stochastic-policy episodes with fresh environment seed 50000. Checkpoints share one training trajectory; their mean is not a seed-level uncertainty estimate.}
+\label{tab:rl}
+\begin{tabular}{llr}
+\toprule
+Environment & Model & Late return $\uparrow$ \\
+\midrule
+RepeatPreviousHard & GRU & -0.5161 \\
+RepeatPreviousHard & LRU & -0.3809 \\
+RepeatPreviousHard & Grid-GRU & -0.4942 \\
+RepeatPreviousHard & Grid-LRU & -0.4973 \\
+RepeatPreviousHard & dynamic-hub & -0.4963 \\
+RepeatPreviousHard & two-reads & -0.4927 \\
+AutoencodeEasy & GRU & -0.4964 \\
+AutoencodeEasy & LRU & -0.4663 \\
+AutoencodeEasy & dynamic-hub & -0.5072 \\
+AutoencodeEasy & two-reads & -0.5111 \\
+\bottomrule
+\end{tabular}
+\end{table}

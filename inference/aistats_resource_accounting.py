@@ -212,18 +212,15 @@ def latex_stat(runs, field, scale, digits):
 
 def write_latex(data):
     assert len(data['runs']) == 65 and all('error' not in r for r in data['runs']), 'Resolve incomplete cohort before producing paper tables'
-    gpu_labels = {
-        'NVIDIA H100 80GB HBM3': 'H100',
-        'NVIDIA TITAN RTX': 'TITAN',
-        'NVIDIA GeForce RTX 3080 Ti': '3080Ti',
-        'Tesla V100-SXM3-32GB': 'V100',
-    }
+    paper_gpu = 'NVIDIA H100 80GB HBM3'
     groups = {}
     for run in data['runs']:
         if 'error' not in run:
             gpu = tuple(run['gpu_names'])
             assert len(gpu) == 1, 'Resolve multi-device inventories before reporting'
             groups.setdefault((run['task'], run['config'], gpu[0]), []).append(run)
+    h100_count = sum(len(runs) for (_, _, gpu), runs in groups.items() if gpu == paper_gpu)
+    assert h100_count == 48, 'Reconcile the retained hardware subset before publication'
     core_configs = {'rnn / rnn_L2', 'grnn / grnn_L2C4', 'grnn / grnn_L3C4', 'transformer / transformer'}
     main = [
         '% Generated offline by inference/aistats_resource_accounting.py.',
@@ -234,7 +231,7 @@ def write_latex(data):
         r'Task & Model & $n$ & Logged tokens (M) & Loop time (h) & Rate (k tokens/s) \\', r'\midrule',
     ]
     for (task, config, gpu), runs in sorted(groups.items()):
-        if config not in core_configs or gpu != 'NVIDIA H100 80GB HBM3':
+        if config not in core_configs or gpu != paper_gpu:
             continue
         label = model_label(config) + (r'$\dagger$' if len(runs) == 1 else '')
         cells = [task, label, str(len(runs))]
@@ -245,19 +242,19 @@ def write_latex(data):
     appendix = [
         '% Generated offline by inference/aistats_resource_accounting.py.',
         r'\section{Historical Resource Accounting}\label{app:resources}', '',
-        r'This accounting covers the same 65 historical launches used in the main and reduced-token quality summaries. It was retrieved from their recorded run identifiers without adding new experiments. The hardware inventory is heterogeneous: 48 launches report H100 80GB HBM3, eight TITAN RTX, five RTX 3080 Ti, and four V100-SXM3-32GB. We therefore stratify rates and elapsed-time proxies by GPU model rather than pooling them into architecture comparisons.', '',
+        r'Resource logs were recovered for the 65 historical launches in the main and reduced-token quality summaries. The tables below restrict resource accounting to the 48 launches whose device logs identify NVIDIA H100 80GB HBM3; the other 17 launches used different GPU types and are excluded from these resource tables. Historical quality summaries retain the complete original cohort, including those launches. Thus hardware-restricted resource counts differ from quality-table counts. No device labels or measurements have been reassigned or converted to H100 equivalents.', '',
         r'For a run with processed-token counter $s_i$ and interval rate $f_i=\texttt{perf/fps}_i$, we reconstruct $T_{\mathrm{loop}}=\sum_i(s_i-s_{i-1})/f_i$, with $s_0=0$, through the last logged point at or below 1B. The effective rate is $s_{\mathrm{last}}/T_{\mathrm{loop}}$. The logger divides each token increment by elapsed time since its preceding flush. This includes compilation, training, validation, inspection, logging overhead between flushes, and any workload contention; it excludes finalization after the last flush. We do not extrapolate missing endpoints. These are log-derived elapsed-time proxies rather than dedicated throughput benchmarks or exclusive GPU-hours.', '',
-        r'Update counts are $\lfloor s_{\mathrm{last}}/(n_{\mathrm{envs}}\,\ell_{\mathrm{TBPTT}})\rfloor$, counting reached update boundaries; a nonfinite-gradient skip need not perform an optimizer step. The full-run duration in tracker metadata is inconsistent with the fps-derived time in two historical launches (one GRU-L3 SDQ run and one Transformer-256 text8 run), so it is not used as the cost estimator. Tables below report means $\pm$ sample standard deviations per launch; single-launch rows have no uncertainty estimate. Their launch counts describe hardware strata, not additional experiments. H100 denotes H100 80GB HBM3, TITAN denotes TITAN RTX, 3080Ti denotes RTX 3080 Ti, and V100 denotes V100-SXM3-32GB.', '',
+        r'Update counts are $\lfloor s_{\mathrm{last}}/(n_{\mathrm{envs}}\,\ell_{\mathrm{TBPTT}})\rfloor$, counting reached update boundaries; a nonfinite-gradient skip need not perform an optimizer step. Tracker duration and the fps integral disagree in two launches in the complete historical inventory, so metadata duration is not used as the cost estimator. Tables report means $\pm$ sample standard deviations per launch; single-launch rows have no uncertainty estimate. H100 hardware labels do not control concurrent workloads or implementation differences. The new reported experiments also identify H100 80GB HBM3 in their device logs.', '',
     ]
     for task in ['SDQ', 'text8']:
         for reduced in [False, True]:
             kind = 'Reduced-token context' if reduced else 'Main cohort'
-            appendix += [r'\begin{table}[ht]', r'\centering', r'\caption{' + task + ': ' + kind + r' resources, stratified by GPU model. Reduced-token rows have different batch and update geometries.}', r'\begin{tabular}{llrrrrr}', r'\toprule', r'Model & GPU & $n$ & Tokens (M) & Updates (k) & Loop time (h) & Rate (k tokens/s) \\', r'\midrule']
+            appendix += [r'\begin{table}[H]', r'\centering', r'\caption{' + task + ': ' + kind + r' resources, H100 subset only. Reduced-token rows have different batch and update geometries.}', r'\begin{tabular}{lrrrrr}', r'\toprule', r'Model & $n$ & Tokens (M) & Updates (k) & Loop time (h) & Rate (k tokens/s) \\', r'\midrule']
             for (row_task, config, gpu), runs in sorted(groups.items()):
                 is_reduced = config.split(' / ')[0] in ['hgrn2', 'delta_net', 'mlstm']
-                if row_task != task or is_reduced != reduced:
+                if row_task != task or is_reduced != reduced or gpu != paper_gpu:
                     continue
-                cells = [model_label(config), gpu_labels[gpu], str(len(runs))]
+                cells = [model_label(config), str(len(runs))]
                 for field, scale, digits in [('accounted_tokens', 1e6, 1), ('accounted_updates', 1e3, 2), ('loop_hours', 1, 3), ('effective_tokens_per_second', 1e3, 1)]:
                     cells.append(latex_stat(runs, field, scale, digits))
                 appendix.append(' & '.join(cells) + r' \\')

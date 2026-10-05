@@ -1,0 +1,16 @@
+% Generated offline by inference/aistats_revision_evidence.py.
+\begin{table}[t]
+\centering
+\caption{Rollout pilots at 50,331,648 tokens, seed 42; BPC with the same capped validation. Length 64 uses 512 training streams, length 512 uses 64: both have 32,768 tokens/update. Longer BPTT changes the number of independent streams and does not isolate context length alone.}
+\label{tab:rollout}
+\begin{tabular}{lrrr}
+\toprule
+Model & Rollout 64 & Rollout 512 & $\Delta$ \\
+\midrule
+GRU & 1.9826 & 2.0034 & $+0.0208$ \\
+Grid-GRU & 1.9260 & 1.9464 & $+0.0204$ \\
+Grid-LRU & 2.4867 & 2.4870 & $+0.0004$ \\
+LRU & 2.1575 & 2.1552 & $-0.0022$ \\
+\bottomrule
+\end{tabular}
+\end{table}

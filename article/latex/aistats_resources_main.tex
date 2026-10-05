@@ -1,0 +1,19 @@
+% Generated offline by inference/aistats_resource_accounting.py.
+\begin{table*}[t]
+\centering
+\caption{Historical log-derived costs for the H100 subset of the main references. Tokens, elapsed loop time, and effective rate are per-launch means $\pm$ sample standard deviations. $\dagger$: one launch, with no variability estimate. This hardware subset has fewer launches than the quality tables; workload contention was not controlled. Time includes training-loop overhead and is not exclusive accelerator usage.}
+\label{tab:resources}
+\begin{tabular}{llrrrr}
+\toprule
+Task & Model & $n$ & Logged tokens (M) & Loop time (h) & Rate (k tokens/s) \\
+\midrule
+SDQ & MoSAIC-L2C4$\dagger$ & 1 & $1000.0$ & $1.327$ & $209.3$ \\
+SDQ & MoSAIC-L3C4 & 3 & $1000.0\pm0.0$ & $1.946\pm0.311$ & $145.4\pm25.1$ \\
+SDQ & GRU-L2$\dagger$ & 1 & $1000.0$ & $0.984$ & $282.2$ \\
+text8 & MoSAIC-L2C4 & 2 & $1000.0\pm0.0$ & $1.627\pm0.236$ & $172.5\pm25.1$ \\
+text8 & MoSAIC-L3C4 & 3 & $1000.0\pm0.0$ & $2.264\pm0.033$ & $122.7\pm1.8$ \\
+text8 & GRU-L2 & 2 & $1000.0\pm0.0$ & $1.097\pm0.016$ & $253.1\pm3.6$ \\
+text8 & Transformer-256$\dagger$ & 1 & $1000.0$ & $0.571$ & $486.1$ \\
+\bottomrule
+\end{tabular}
+\end{table*}

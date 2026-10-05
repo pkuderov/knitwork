@@ -1,0 +1,18 @@
+% Generated offline by inference/aistats_revision_evidence.py.
+\begin{table}[t]
+\centering
+\caption{MQAR pilots at 173,598,720 logged training tokens, seed 42: query-weighted validation accuracy (\%) and cross-entropy (nats), followed by bin accuracies (\%). All sequence-level exact-match accuracies are zero. Each bin contains 1,000 sequences; no strong-baseline or repeated-seed comparison is available.}
+\label{tab:mqar}
+\begin{tabular}{lrrrrrrr}
+\toprule
+Variant & Overall & CE & 64/4 & 128/8 & 256/16 & 256/32 & 256/64 \\
+\midrule
+control & 2.700 & 7.838 & 24.825 & 11.388 & 4.519 & 1.969 & 0.142 \\
+write gate & 2.357 & 7.412 & 25.500 & 10.400 & 3.363 & 0.969 & 0.348 \\
+query read & 0.023 & 8.322 & 0.025 & 0.037 & 0.006 & 0.041 & 0.017 \\
+associative & 2.059 & 8.506 & 23.225 & 9.488 & 3.631 & 0.847 & 0.020 \\
+rotations & 1.738 & 7.678 & 22.350 & 7.587 & 2.044 & 0.653 & 0.184 \\
+two reads & 1.743 & 7.721 & 22.150 & 7.600 & 1.975 & 0.637 & 0.230 \\
+\bottomrule
+\end{tabular}
+\end{table}
