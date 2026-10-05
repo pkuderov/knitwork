@@ -2,9 +2,15 @@
   - [AAAI results](experiments/results_aaai.md)
   - [Results](experiments/results.md)
   - [SDQ](experiments/sdq.md)
+  - [MQAR / Zoology](experiments/mqar.md)
   - [Text Modeling](experiments/text.md)
   - [TreasureHunt](experiments/treasure.md)
   - [MIKASA / POPGym](experiments/mikasa.md)
+  - [Aliased Cubes (provisional)](experiments/aliased_cubes.md)
+  - [LRU benchmark candidates](experiments/lru_benchmark_candidates.md)
+  - [LRU follow-up configurations](experiments/lru_followup.md)
+  - [LRU memory and access variants](experiments/lru_architecture_variants.md)
+  - [Slot memory experiments](experiments/lru_slots.md)
 
 - **Basics**
   - [GRU baseline](methods/gru.md)
@@ -33,6 +39,7 @@
   - [mLSTM](methods/mlstm.md)
   - [Transformer](methods/transformer.md)
   - [Mamba](methods/mamba.md)
+  - [Baseline memory](methods/baseline_memory.md)
   - [RIMs](methods/rims.md)
   - [BRIMs](methods/brims.md)
   - [GridRnn-LRU core](methods/grnn_lru_core.md)
@@ -66,6 +73,9 @@
   - [GridRNN-Multimodal](methods/grnn_multimodal.md)
   - [GridRNN-Multimodal v2](methods/grnn_multimodal_v2.md)
   - [Multimodal SDQ (design)](methods/multimodal_sdq_design.md)
+  - [Grid LRU variants](methods/grnn_lru_experimental.md)
+  - [Sparse Grid LRU](methods/grnn_lru_sparse.md)
+  - [GridRNN-LRU slots](methods/grnn_lru_slots.md)
 
 - **Infrastructure**
   - [Curriculum Scheduling](methods/curriculum_scheduling.md)

@@ -63,4 +63,4 @@ uv run knitwork/exps/text/run_text.py knitwork/exps/text/config/extend_config.ya
 
 ## Logging
 
-AIM project: `grid-rnn-text`. Main metrics: `Acc`, `BPC`, `PPL`, `Loss`.
+Comet project (workspace `team-rl-exp`): `knitwork-text`. Main metrics: `Acc`, `BPC`, `PPL`, `Loss`.

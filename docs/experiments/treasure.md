@@ -128,4 +128,4 @@ uv run knitwork/exps/treasure/run_treasure_hunt.py \
 
 ## Logging
 
-AIM project: `grid-rnn-treasure`. Main metrics: `MeanReward`, `OpenedFrac`, `PolicyLoss`, `ValueLoss`, `Entropy`, `env/mean_opened`.
+Logger: Comet ML (workspace `team-rl-exp`) — exact project name not yet confirmed for this experiment, verify before relying on it. Main metrics: `MeanReward`, `OpenedFrac`, `PolicyLoss`, `ValueLoss`, `Entropy`, `env/mean_opened`.

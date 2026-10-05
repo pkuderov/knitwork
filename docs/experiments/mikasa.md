@@ -1,5 +1,7 @@
 # MIKASA / POPGym — Memory Benchmark
 
+> Current core-based PPO runner: `knitwork.exps.mikasa.run`. The June notes and launch examples below describe legacy `run_mikasa.py` implementations. The 2026-10-03 audit, historical Comet snapshot, Grid-LRU pilots and corrected commands are in `2026-10-03-mikasa-lru-experiment-plan.md` at the repository root. In installed POPGym, RepeatFirst rewards recalling the first symbol at every step, not only at episode end; Autoencode reproduces cards in reverse order. Battleship now has an optional discrete-coordinate action adapter in the current runner. Legacy claims and settings below should not be treated as current quantitative evidence.
+
 ## Task formulation
 
 POPGym (Partially Observable Process Gym, Morad et al. 2023) is a set of diagnostic environments for evaluating different memory types in recurrent RL agents. Unlike TreasureHunt (single task type) or SDQ (synthetic association test), POPGym covers four orthogonal memory aspects:
@@ -158,7 +160,7 @@ uv run knitwork/exps/mikasa/run_mikasa.py knitwork/exps/mikasa/config_mikasa.yam
 uv run knitwork/exps/mikasa/run_mikasa.py knitwork/exps/mikasa/config_mikasa.yaml \
   --env=popgym-CountRecallEasy-v0 --model=grnn
 
-# Smoke-test (no AIM, 50k steps)
+# Smoke-test (no Comet logging, 50k steps)
 uv run knitwork/exps/mikasa/run_mikasa.py knitwork/exps/mikasa/config_mikasa.yaml \
   --env=popgym-RepeatFirstEasy-v0 --model=grnn --n_steps=5e4 --log.enabled=false
 ```
@@ -181,7 +183,7 @@ uv run knitwork/exps/mikasa/run_mikasa.py knitwork/exps/mikasa/config_mikasa.yam
 
 ## Logging
 
-AIM project: `grid-rnn-mikasa`. Default metrics: `MeanReward`, `ep_return`, `ep_length`, `PolicyLoss`, `ValueLoss`, `Entropy`, `fps`.
+Comet project (workspace `team-rl-exp`): `knitwork-mikasa`. Default metrics: `MeanReward`, `ep_return`, `ep_length`, `PolicyLoss`, `ValueLoss`, `Entropy`, `fps`.
 
 ---
 

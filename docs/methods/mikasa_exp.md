@@ -115,7 +115,7 @@ uv run knitwork/exps/mikasa/run_mikasa.py knitwork/exps/mikasa/config_mikasa.yam
 uv run knitwork/exps/mikasa/run_mikasa.py knitwork/exps/mikasa/config_mikasa.yaml \
   --env=popgym-MultiarmedBanditEasy-v0 --model=hgrnn
 
-# Smoke-test (no AIM, 100k steps)
+# Smoke-test (no Comet logging, 100k steps)
 uv run knitwork/exps/mikasa/run_mikasa.py knitwork/exps/mikasa/config_mikasa.yaml \
   --env=popgym-RepeatFirstEasy-v0 --model=grnn --n_steps=1e5 --log.enabled=false
 ```

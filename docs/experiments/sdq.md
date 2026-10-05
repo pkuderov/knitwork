@@ -70,4 +70,4 @@ uv run knitwork/exps/sdq/run_sdq.py knitwork/exps/sdq/config/extend_config.yaml 
 
 ## Logging
 
-AIM project: `grid-rnn-sdq`. Main metrics: `Acc`, `Acc++`, `Loss`, `sq_gap`.
+Comet project (workspace `team-rl-exp`): `knitwork-sdq`. Main metrics: `Acc`, `Acc++`, `Loss`, `sq_gap`.

@@ -30,7 +30,7 @@ knitwork/
 ## Experiment constraints
 
 - Always run on **CUDA**: pass `--device=cuda` or ensure `device: cuda` in config (it is the default)
-- Run **no more than 3 experiments simultaneously**
+- No fixed limit on simultaneous experiments on the server: `server/queue_daemon.py` keeps GPU memory use under 79 GiB (`--mem_cap_gb`) and never starts jobs while a foreign process is on the GPU
 
 ## Running experiments
 
@@ -56,12 +56,12 @@ uv run python -m knitwork.common.count_params --model grnn --input_size 27 --out
 
 ```sh
 --model=<name>          # select model (see Models section)
---name="<run name>"     # AIM run name
+--name="<run name>"     # Comet run name
 --device=cuda|cpu
 --n_steps=1e9
 --n_envs=128
 --seed=42
---log.enabled=false     # disable AIM logging
+--log.enabled=false     # disable Comet logging
 ```
 
 ## Models
@@ -114,137 +114,38 @@ When adding a new model file, always create the corresponding `docs/methods/` do
 
 ## Remote experiment server
 
-GPU-сервер с RTX 3050. Все эксперименты запускаются там.
-
-### SSH подключение
-
-```sh
-# Локальная сеть (быстро, всегда)
-ssh knitwork-server          # 192.168.1.58:2222
-
-# Глобальная сеть (через WireGuard → playit.gg UDP)
-ssh knitwork-server-global   # 10.8.0.1:2222
-```
-
-`~/.ssh/config` уже настроен, ключ: `~/.ssh/knitwork_server`.
-
-**После перезагрузки клиента** — WireGuard поднимается автоматически (`systemctl enable wg-quick@wg-knitwork`). Если нет:
-```sh
-sudo wg-quick up wg-knitwork
-```
-
-**После перезагрузки сервера** — очередь и playit стартуют автоматически (systemd user services с lingering). Проверить:
-```sh
-ssh knitwork-server "systemctl --user status knitwork-queue playit"
-```
-
-### Синхронизация кода
-
-Перед запуском экспериментов код нужно синхронизировать. Исключаются: `.aim/`, `.git/`, `docs/`, `article/`, `__pycache__/`, `.venv/`.
+GPU-сервер — **только `aicenter3`, только H100 (GPU 3)**. Подробности
+подключения, ограничений и типичных проблем — в `setup.md` в корне
+репозитория, не дублируются здесь. Короткая выжимка:
 
 ```sh
-bash server/sync_to_server.sh
+ssh aicenter3 'nvidia-smi -i 3 --query-gpu=index,memory.used,memory.total,utilization.gpu --format=csv'
+ssh aicenter3 'cd /storage/annenkov_vd/knitwork && CUDA_VISIBLE_DEVICES=3 python <script>'
 ```
 
-Или сразу sync + enqueue одной командой:
-```sh
-bash server/knitwork_run.sh <script> <config> [overrides] [-- --name "run name"]
-```
+**Разрешена только GPU 3**, остальные пять H100 на сервере — не трогать.
+GPU общая (не выделена под проект) — перед запуском всегда проверять
+занятость, не запускать задачу и не завершать чужие процессы, если карта
+занята. Нет очереди/daemon'а — планирование параллельных запусков вручную,
+по одной команде за раз (см. `setup.md`).
 
-### Запуск экспериментов (очередь)
+Любые упоминания прежнего сервера (`knitwork-server`, RTX 3050, демон
+`knitwork-queue`, AIM-логирование) в истории документации проекта —
+устарели и не описывают текущую инфраструктуру; не использовать как
+инструкцию.
 
-На сервере работает демон `knitwork-queue.service` — запускает не более 3 экспериментов одновременно, остальные ждут в очереди.
+## Experiment tracking (Comet ML)
 
-```sh
-# Добавить эксперимент в очередь (выполняется локально, запускает sync + enqueue):
-bash server/knitwork_run.sh knitwork/exps/sdq/run_sdq.py \
-    knitwork/exps/sdq/config/extend_config.yaml --model=grnn -- --name "grnn baseline"
-
-# Добавить несколько — выполнятся по 3 параллельно:
-bash server/knitwork_run.sh knitwork/exps/sdq/run_sdq.py \
-    knitwork/exps/sdq/config/extend_config.yaml --model=grnn_lru -- --name "grnn_lru"
-```
-
-Напрямую на сервере (без sync):
-```sh
-ssh knitwork-server "cd ~/knitwork && PYTHON=/opt/uv-envs/knitwork/.venv/bin/python && \
-    \$PYTHON server/enqueue.py 'КОМАНДА' --name='название'"
-```
-
-### Статус очереди и логи
-
-```sh
-# Статус: running / pending / completed
-ssh knitwork-server "cd ~/knitwork && /opt/uv-envs/knitwork/.venv/bin/python server/queue_status.py"
-
-# Лог конкретного эксперимента (ID из queue_status):
-ssh knitwork-server "tail -50 ~/knitwork_logs/0001_имя.log"
-
-# Сброс pending (отменить все ожидающие):
-ssh knitwork-server "cd ~/knitwork && /opt/uv-envs/knitwork/.venv/bin/python server/enqueue.py --clear-pending"
-```
-
-### Результаты экспериментов (AIM)
-
-AIM-база хранится на сервере в `~/.aim/` (корень home). Читать через SSH:
-
-```sh
-ssh knitwork-server "cd ~/knitwork && /opt/uv-envs/knitwork/.venv/bin/python server/query_results.py --last 10"
-ssh knitwork-server "cd ~/knitwork && /opt/uv-envs/knitwork/.venv/bin/python server/query_results.py --model grnn --sort val_acc"
-```
-
-### Серверное окружение
-
-| Что | Где |
-|---|---|
-| Python venv | `/opt/uv-envs/knitwork/.venv/` |
-| Python binary | `/opt/uv-envs/knitwork/.venv/bin/python` |
-| Проект | `~/knitwork/` |
-| Логи экспериментов | `~/knitwork_logs/` |
-| AIM база | `~/.aim/` |
-| Очередь (JSON) | `~/knitwork_queue.json` |
-
-Команды нужно запускать через полный путь к python вenv или с `LD_LIBRARY_PATH` (очередь прокидывает его автоматически через systemd-сервис).
-
-### Частые ошибки и решения
-
-**`ImportError: libcusparseLt.so.0`**
-Torch не видит CUDA-библиотеки. Эксперименты через очередь (`queue_runner.py`) это исправляют автоматически — сервис экспортирует `LD_LIBRARY_PATH`. При ручном запуске:
-```sh
-export LD_LIBRARY_PATH=/opt/uv-envs/knitwork/.venv/lib/python3.12/site-packages/nvidia/cu13/lib:...
-```
-
-**`CUDNN_STATUS_NOT_INITIALIZED` для RNN/GRU моделей**
-Пакет `nvidia-cudnn-cu13` (CUDA 13) конфликтует с драйвером, поддерживающим только CUDA 12.8. Решение — заменить на cu12:
-```sh
-ssh knitwork-server "/opt/uv-envs/knitwork/.venv/bin/pip uninstall nvidia-cudnn-cu13 -y && \
-    /opt/uv-envs/knitwork/.venv/bin/pip install nvidia-cudnn-cu12==9.10.2.21 --force-reinstall"
-```
-
-**`ssh knitwork-server-global` не подключается**
-WireGuard не поднят. Локально: `sudo wg-quick up wg-knitwork`. Если playit упал на сервере: `ssh knitwork-server "sudo systemctl restart playit"`.
-
-**`Connection closed by 10.8.0.1 port 2222`**
-MTU-проблема (сработает при обновлении SSH). В `~/.ssh/config` для `knitwork-server-global` прописан `KexAlgorithms curve25519-sha256` — решает проблему.
-
-**Очередь не запускает эксперименты**
-```sh
-ssh knitwork-server "systemctl --user restart knitwork-queue"
-ssh knitwork-server "systemctl --user status knitwork-queue"
-```
-
-**`uv run` не видит пакеты**
-Venv не слинкован. На сервере: `ln -sfn /opt/uv-envs/knitwork/.venv ~/knitwork/.venv`
-
-**Мало места на диске сервера**
-Очистить кэши (безопасно): `ssh knitwork-server "rm -rf ~/.cache/uv/ ~/.cache/pip/"`
-
-## Experiment tracking (AIM)
-
-Experiments are logged to AIM. Projects:
-- `grid-rnn-sdq` — SDQ experiments
-- `grid-rnn-text` — text experiments  
-- `grid-rnn-treasure` — TreasureHunt experiments
+Experiments are logged to **Comet ML only** (`log.logger: comet` in
+config), workspace `team-rl-exp`. No other logger (AIM, wandb, tensorboard)
+is used for this project going forward — historical runs logged to AIM
+before the switch to Comet remain in place and are not deleted; they are
+simply not the source for current/future comparisons. Active projects:
+- `knitwork-sdq` — SDQ experiments
+- `knitwork-text` / `knitwork-text-debug` — text8/Shakespeare experiments
+- `knitwork-mikasa` — MIKASA/POPGym RL experiments (separate research thread)
+- `knitwork` — earlier architecture-search runs (pre-dates the final paper
+  configs; useful for history, not for current comparisons)
 
 
 

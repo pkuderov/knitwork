@@ -44,12 +44,12 @@ Available models: `rnn`, `grnn`, `grnn_lru`, `grnn_lru_wide`
 
 ```sh
 --model=<name>          # select model
---name="<run name>"     # AIM run name
+--name="<run name>"     # Comet run name
 --device=cuda|cpu       # default: cuda
 --n_steps=1e9
 --n_envs=128
 --seed=42
---log.enabled=false     # disable AIM logging
+--log.enabled=false     # disable Comet logging
 --visualize=false       # disable visualizations
 ```
 
