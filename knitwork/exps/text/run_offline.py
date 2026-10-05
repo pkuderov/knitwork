@@ -47,6 +47,8 @@ def main(config):
     config['offline'] = True
 
     rng = np.random.default_rng(config['seed'])
+    if config['seed'] is not None:
+        torch.manual_seed(config['seed'])
     device = get_device(config.get('device'))
     dtype = get_dtype(config.get('dtype'))
     n_envs = config['n_envs']

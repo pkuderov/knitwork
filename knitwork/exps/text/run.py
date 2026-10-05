@@ -9,6 +9,7 @@ import copy
 import numpy as np
 import torch
 from torch import nn
+from torch.utils.checkpoint import checkpoint
 
 from knitwork.common.dynamic_param import DynamicParameter
 from knitwork.common.entrypoint import run_experiment
@@ -48,6 +49,14 @@ def main(config):
     eval_cfg = config.get('eval', {})
     do_eval = eval_cfg.get('enabled', False)
     do_eval_on_start = eval_cfg.get('on_start', False)
+    eval_n_envs = eval_cfg.get('n_envs', n_envs)
+    eval_max_tokens = eval_cfg.get('max_tokens')
+    if do_eval and (type(eval_n_envs) is not int or eval_n_envs < 1):
+        raise ValueError('eval.n_envs must be a positive integer')
+    if do_eval and eval_max_tokens is not None and (
+        type(eval_max_tokens) is not int or eval_max_tokens < eval_n_envs
+    ):
+        raise ValueError('eval.max_tokens must be an integer >= eval.n_envs')
     if do_eval:
         # contiguous train|val|test; vocab from train only; test is touched once at the end
         splits = split_train_val_test(raw, eval_cfg['val_size'], eval_cfg['test_size'])
@@ -56,12 +65,14 @@ def main(config):
         context_window = eval_cfg.get('context_window', None)
 
         def _make_eval_gen(d):
-            g = TextGenerator(d, n_envs=n_envs, ignore_index=CE_ignore_index, seed=get_seed(rng), device=device)
+            g = TextGenerator(d, n_envs=eval_n_envs, ignore_index=CE_ignore_index, seed=get_seed(rng), device=device)
             return torch.compile(g.to(device))
 
         val_gen, test_gen = _make_eval_gen(val_data), _make_eval_gen(test_data)
         # one full pass over each eval split
-        max_rollout = {k: len(d) // n_envs for k, d in [('val', val_data), ('test', test_data)]}
+        max_rollout = {k: len(d) // eval_n_envs for k, d in [('val', val_data), ('test', test_data)]}
+        if eval_max_tokens is not None:
+            max_rollout = {key: min(count, eval_max_tokens // eval_n_envs) for key, count in max_rollout.items()}
         print(f'Split (tokens): train {len(train_data):,} | val {len(val_data):,} | test {len(test_data):,}')
     else:
         train_data, charset = tokenize(raw)
@@ -169,16 +180,19 @@ def main(config):
     # full-continuity eval is the primary metric; the windowed one (state reset every `window` tokens)
     # matches the training context regime and is what checkpoints are selected on (when enabled)
     window = eval_cfg.get('window')
+    last_eval_step = None
 
     def _eval_pass(step, gen_, tag, n_roll):
-        kw = dict(model=model, gen=gen_, logger=logger, n_envs=n_envs, max_rollout=n_roll, device=device)
+        kw = dict(model=model, gen=gen_, logger=logger, n_envs=eval_n_envs, max_rollout=n_roll, device=device)
         res = run_eval(step, prefix=tag, context_window=context_window if tag == 'val' else None, **kw)
         if window:
             res = run_eval(step, prefix=f'{tag}_w{int(window)}', context_window=int(window), **kw)
         return res
 
     def _run_eval(step):
+        nonlocal last_eval_step
         res = _eval_pass(step, val_gen, 'val', max_rollout['val'])
+        last_eval_step = step
         if res is not None and res['Loss'] < best['loss']:
             best.update(loss=res['Loss'], step=step, state=copy.deepcopy(model.state_dict()))
 
@@ -197,19 +211,40 @@ def main(config):
         _run_eval(step)
         logger.log(step, flush=True, force=True)
 
+    # activation checkpointing over groups of `grad_checkpoint` steps: keeps the state only at segment borders
+    # (same gradients, ~1.3x time); needed by the matrix-state baselines whose rollout activations do not fit otherwise
+    gc_k = int(config.get('grad_checkpoint', 0) or 0)
+    seg_buf = []
+    if gc_k:
+        assert rollout_len % gc_k == 0, 'grad_checkpoint must divide rollout_len'
+        assert not (use_vae or has_grid or has_harmonic), 'grad_checkpoint supports plain recurrent cores only'
+
+    def _segment(state, xs, resets):
+        ys = []
+        for x_j, reset_j in zip(xs, resets):
+            state = rnn.reset_state(state, reset_j)
+            y_j, state, _ = model(x_j, state, capture=False)
+            ys.append(y_j)
+        return torch.stack(ys), state
+
     while step < n_steps:
         obs = gen.next()
 
         rnd_reset = torch.rand(gen.n_envs, device=device, generator=gen.rng) < p_reset.val
         reset_mask = torch.logical_or(obs['reset_mask'], rnd_reset)
-        state  = rnn.reset_state(state, reset_mask)
         x = step_tokens(obs['tokens'], rnn)
+        if not gc_k:
+            state = rnn.reset_state(state, reset_mask)
 
         capture_details = inspect_scheduler.tick(step_size)
         capture_vis_data = vis_inspect_scheduler.tick(step_size)
         capture = capture_details or capture_vis_data or has_harmonic
 
-        y, state, info = model(x, state, capture=capture)
+        if gc_k:
+            seg_buf.append((x, reset_mask))
+            y, info = None, {}
+        else:
+            y, state, info = model(x, state, capture=capture)
 
         if capture:
             # FIXME: not yet supported after rework
@@ -218,7 +253,8 @@ def main(config):
                 logger.accumulate(harmonic_stats, key='slow')
 
             if has_grid:
-                cka_vis.update(state['h'])
+                inspected_h = rnn.inspection_hidden(state) if hasattr(rnn, 'inspection_hidden') else state['h']
+                cka_vis.update(inspected_h)
             if 'attn_weights' in info:
                 attn_vis.update(info['attn_weights'])
             if 'gates' in info:
@@ -227,8 +263,15 @@ def main(config):
                     for li, g in enumerate(info['gates'])
                 }
                 logger.accumulate(gate_metrics, key='fast')
+            for metric_name in ('write_gate', 'memory_write_rate'):
+                if metric_name in info:
+                    logger.accumulate(
+                        {f'{metric_name}/L{li}': value.mean() for li, value in enumerate(info[metric_name])},
+                        key='fast',
+                    )
 
-        batch_y.append(y)
+        if y is not None:
+            batch_y.append(y)
         batch_y_gt.append(obs['targets'])
         batch_in_word_pos.append(in_word_acc.ixs)
         if use_vae and info.get('kl') is not None:
@@ -241,6 +284,11 @@ def main(config):
         iter += 1
         step += step_size
         in_word_acc.ixs = torch.where(x.view(-1) == space_token, 0, in_word_acc.ixs + 1)
+
+        if gc_k and len(seg_buf) == gc_k:
+            ys, state = checkpoint(_segment, state, [b[0] for b in seg_buf], [b[1] for b in seg_buf], use_reentrant=False)
+            batch_y.extend(ys.unbind(0))
+            seg_buf.clear()
 
         if step % batch_size == 0:
             y_cat  = torch.cat(batch_y, dim=0)
@@ -312,8 +360,10 @@ def main(config):
         logger.log(step, flush=True)
 
     if do_eval:
-        _run_eval(step)
-        _run_test()
+        if last_eval_step != step:
+            _run_eval(step)
+        if eval_cfg.get('test_on_finish', True):
+            _run_test()
         # +1 so the final eval/test metrics are flushed even if the last step was already flushed
         step += 1
     logger.log(step, flush=True, force=True)
@@ -411,7 +461,7 @@ def run_eval(
 def log_col_similarity(rnn, state, logger):
     """Log max/mean pairwise cosine similarity between column activations (last layer)."""
     # Column collapse monitoring
-    h = state['h']
+    h = rnn.inspection_hidden(state) if hasattr(rnn, 'inspection_hidden') else state['h']
     if not isinstance(h, torch.Tensor) or h.ndim != 4:
         return
 
