@@ -11,6 +11,7 @@
   - [LRU follow-up configurations](experiments/lru_followup.md)
   - [LRU memory and access variants](experiments/lru_architecture_variants.md)
   - [Slot memory experiments](experiments/lru_slots.md)
+  - [Recent results (09-29 to 10-05)](experiments/recent_results_2026-10-05.md)
 
 - **Basics**
   - [GRU baseline](methods/gru.md)
