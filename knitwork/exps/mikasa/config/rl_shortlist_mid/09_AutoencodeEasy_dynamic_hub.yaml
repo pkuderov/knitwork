@@ -1,0 +1,70 @@
+# Selected RL queue: ten runs total, including controls.
+seed: 42
+name: rl_mid_shortlist/AutoencodeEasy/dynamic_hub/8388608slots/seed42
+log:
+  logger: comet
+  project: knitwork-mikasa
+  schedule: 262144
+device: null
+dtype: float32
+exp: rl_mikasa
+env: popgym-AutoencodeEasy-v0
+n_envs: 32
+async_envs: false
+rollout_len: 128
+n_steps: 8388608
+compile: true
+rl:
+  gamma: 0.995
+  gae_lambda: 0.99
+  clip_eps: 0.1
+  value_coef: 0.5
+  entropy_coef: 0.005
+  max_grad_norm: 0.5
+  ppo_epochs: 2
+  target_kl: 0.02
+  refresh_state: true
+observation:
+  previous_action_reward: true
+  discrete_actions: true
+rl_wrapper:
+  feature_norm: true
+  policy_gain: 0.01
+inspect_schedule: null
+vis_inspect_schedule: null
+diagnostics_schedule: 262144
+communication:
+  loss_weight: 0.0
+  entropy_weight: 0.0
+lr:
+  val: 0.0002
+  tar: 0.0001
+  lr: 0.01
+  schedule: 100
+  warmup:
+    val: 1.0e-06
+    n_linear_steps: 16
+    schedule: 4
+eval:
+  enabled: true
+  schedule: 524288
+  n_envs: 16
+  episodes: 32
+  seed: 50000
+  max_vector_steps: 8192
+trackers:
+  slow: 0.005
+  fast: 0.02
+  eval: null
+model: grnn_lru_sparse.dynamic_hub
+grnn_lru_sparse_dynamic_hub:
+  hidden_size: 180
+  n_layers: 2
+  n_columns: 4
+  horizon:
+  - 1.0
+  - 1000.0
+  fb_norm: true
+  topology: star
+  hub_query_size: 8
+  hub_query_init: zero

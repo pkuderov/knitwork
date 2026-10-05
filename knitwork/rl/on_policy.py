@@ -9,6 +9,7 @@ import torch
 import torch.nn.functional as F
 from torch.distributions import Categorical
 from gymnasium import spaces
+from gymnasium.vector import AutoresetMode
 
 from knitwork.common.torch import to_loggable_metrics, to_numpy, to_torch
 
@@ -42,20 +43,22 @@ class EpisodeStats:
     @torch.no_grad()
     def update(self, batch: RolloutBatch):
         rollout_len, n_envs = batch.actions.shape[:2]
-        reset, rewards = batch.reset, batch.rewards
+        rewards = batch.rewards
 
         if self.returns is None:
             self.returns = batch.rewards.new_zeros(n_envs)
             self.lengths = batch.rewards.new_zeros(n_envs, dtype=torch.int64)
 
         for t in range(rollout_len):
-            ix_reset = torch.nonzero(reset[t]).flatten()
-            self.completed_returns.extend(self.returns[ix_reset].cpu().tolist())
-            self.completed_lengths.extend(self.lengths[ix_reset].cpu().tolist())
-            self.returns += rewards[t]
-            self.lengths += 1
-            self.returns[ix_reset] = 0.0
-            self.lengths[ix_reset] = 0
+            valid = ~batch.reset[t]
+            self.returns += rewards[t] * valid
+            self.lengths += valid
+            ended = valid & (batch.term[t] | batch.trunc[t])
+            ix_ended = torch.nonzero(ended).flatten()
+            self.completed_returns.extend(self.returns[ix_ended].cpu().tolist())
+            self.completed_lengths.extend(self.lengths[ix_ended].cpu().tolist())
+            self.returns[ix_ended] = 0.0
+            self.lengths[ix_ended] = 0
 
     def get(self):
         if not self.completed_returns:
@@ -73,7 +76,10 @@ def flatten_obs(obs, obs_space):
     if isinstance(obs_space, spaces.MultiDiscrete):
         return obs.reshape(obs.shape[0], -1).astype(np.float32)
     if isinstance(obs_space, spaces.Tuple):
-        return np.stack(obs, axis=-1).astype(np.float32)
+        return np.concatenate([
+            flatten_obs(part, space)
+            for part, space in zip(obs, obs_space.spaces)
+        ], axis=-1).astype(np.float32)
     if isinstance(obs_space, spaces.Box):
         return obs.reshape(obs.shape[0], -1).astype(np.float32)
     raise ValueError(f'Unsupported observation space: {obs_space}')
@@ -90,7 +96,7 @@ def compute_gae(
     terminal-observation value for a time-limit truncation.
     """
     advs = torch.zeros_like(rewards)
-    gae = torch.zeros(rewards.shape[1], device=rewards.device)
+    gae = torch.zeros_like(rewards[0])
     for t in reversed(range(rewards.shape[0])):
         valid = valid_masks[t].to(values.dtype)
         bootstrap_mask = (~terminated[t]).to(values.dtype)
@@ -111,6 +117,24 @@ def prep_obs(obs, obs_space, device, is_discrete, dtype):
     return obs
 
 
+def validate_recurrent_policy(model):
+    """PPO replay needs the same logits before the first optimizer step.
+
+    Categorical action sampling remains stochastic. Independent routing noise
+    or dropout in the recurrent transition needs explicit RNG replay, which this
+    trainer does not implement.
+    """
+    for module in model.modules():
+        if module.training and (
+            getattr(module, 'noise_std', 0) > 0
+            or isinstance(module, torch.nn.Dropout) and module.p > 0
+            or isinstance(module, torch.nn.GRU) and module.dropout > 0
+            or isinstance(module, torch.nn.MultiheadAttention) and module.dropout > 0
+            or getattr(module, 'dropout_p', 0) > 0
+        ):
+            raise ValueError('Recurrent PPO requires noise_std=0 and dropout=0; RNG replay is not implemented')
+
+
 @torch.no_grad()
 def sample_batch(
         env, model, state, obs, done,
@@ -118,6 +142,9 @@ def sample_batch(
         capture_fn=None, on_step=None,
 ):
     """Collect one vectorized on-policy rollout and its bootstrap values."""
+    if env.metadata.get('autoreset_mode') != AutoresetMode.NEXT_STEP:
+        raise ValueError('sample_batch supports only explicit NEXT_STEP autoreset')
+    validate_recurrent_policy(model)
     n_envs = env.num_envs
     obs_shape = (rollout_len, n_envs, 1) if is_discrete else (
         rollout_len, n_envs, obs.shape[1]
@@ -134,10 +161,11 @@ def sample_batch(
     reset_buf = torch.zeros(rollout_len, n_envs, dtype=torch.bool, device=device)
 
     state_init = state
-    # state = model.reset_state(state, done)
 
     for t in range(rollout_len):
-        # from the last step, now it means reset
+        # NEXT_STEP exposes the final observation in this reset-only slot.
+        # Evaluate it with the old state for truncation bootstrap, then clear
+        # state before the next episode's first observation.
         reset_mask = done
         capture = capture_fn() if capture_fn is not None else False
 
@@ -187,11 +215,12 @@ def sample_batch(
 def train_batch(
         model, batch: RolloutBatch, optimizer, *, ppo_epochs, clip_eps, value_coef,
         entropy_coef, max_grad_norm, gamma, gae_lambda,
-        comm_loss_weight=0.0, comm_entropy_weight=0.0,
+        comm_loss_weight=0.0, comm_entropy_weight=0.0, target_kl=None,
 ):
     """Run recurrent PPO updates with BPTT across the complete rollout."""
-    rollout_len = batch.obs.shape[0]
-    comm_loss_enabled = None
+    if target_kl is not None and target_kl <= 0:
+        raise ValueError('target_kl must be positive or None')
+    validate_recurrent_policy(model)
 
     is_valid = ~batch.reset
     advs, returns = compute_gae(
@@ -201,15 +230,22 @@ def train_batch(
     )
 
     valid_advs = advs[is_valid]
+    if valid_advs.numel() == 0:
+        return dict(L_pi=0.0, L_v=0.0, H=0.0, L_comm=0.0, H_comm=0.0, Rew=0.0, Upd=0, Skipped=0, ValidFraction=0.0)
     advs = (advs - valid_advs.mean()) / (valid_advs.std(unbiased=False) + 1e-8)
+    n_valid = is_valid.sum()
 
     n_optimizer_steps = 0
+    stopped_on_kl = False
+    skipped_nonfinite = 0
     for _ in range(ppo_epochs):
-        policy_loss=0.0
-        value_loss=0.0
-        entropy=0.0
-        comm_loss=0.0
-        comm_entropy=0.0
+        policy_loss = 0.0
+        value_loss = 0.0
+        entropy = 0.0
+        comm_loss = 0.0
+        comm_entropy = 0.0
+        approx_kl = 0.0
+        clip_fraction = 0.0
         state = batch.state_init
 
         for t in range(batch.obs.shape[0]):
@@ -220,25 +256,27 @@ def train_batch(
             if not valid.any():
                 continue
 
-            ratio = (dist.log_prob(batch.actions[t]) - batch.log_probs[t]).exp()
+            log_ratio = dist.log_prob(batch.actions[t]) - batch.log_probs[t]
+            ratio = log_ratio.exp()
             policy_loss += -torch.min(
                 ratio * advs[t],
                 ratio.clamp(1 - clip_eps, 1 + clip_eps) * advs[t],
-            )[valid].mean()
+            )[valid].sum()
 
-            entropy += dist.entropy()[valid].mean()
-            value_loss += F.mse_loss(value, returns[t], reduction='none')[valid].mean()
+            entropy += dist.entropy()[valid].sum()
+            value_loss += F.mse_loss(value, returns[t], reduction='none')[valid].sum()
+            approx_kl += ((ratio.detach() - 1) - log_ratio.detach())[valid].sum()
+            clip_fraction += ((ratio.detach() - 1).abs() > clip_eps)[valid].sum()
 
-            if comm_loss_enabled or (comm_loss_enabled is None and 'comm_loss' in info):
-                comm_loss_enabled = True
-                comm_loss += torch.stack(info['comm_loss']).mean()
-                comm_entropy += torch.stack(info['comm_entropy']).mean()
+            if (comm_loss_weight or comm_entropy_weight) and 'comm_loss' in info:
+                comm_loss += torch.stack(info['comm_loss']).mean() * valid.sum()
+                comm_entropy += torch.stack(info['comm_entropy']).mean() * valid.sum()
 
-        policy_loss /= rollout_len
-        value_loss /= rollout_len
-        entropy /= rollout_len
-        comm_loss /= rollout_len
-        comm_entropy /= rollout_len
+        policy_loss /= n_valid
+        value_loss /= n_valid
+        entropy /= n_valid
+        comm_loss /= n_valid
+        comm_entropy /= n_valid
 
         loss = (
             policy_loss
@@ -249,12 +287,16 @@ def train_batch(
         )
 
         optimizer.zero_grad()
+        if target_kl is not None and approx_kl / n_valid > 1.5 * target_kl:
+            stopped_on_kl = True
+            break
         loss.backward()
         grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
         if torch.isfinite(grad_norm):
             optimizer.step()
             n_optimizer_steps += 1
         else:
+            skipped_nonfinite += 1
             print('Nan/Inf grad — step skipped')
 
     metrics = {
@@ -263,9 +305,28 @@ def train_batch(
         'H': entropy,
         'L_comm': comm_loss,
         'H_comm': comm_entropy,
-        '|Grad|': grad_norm,
+        '|Grad|': grad_norm if n_optimizer_steps or skipped_nonfinite else 0.0,
         'Rew': batch.rewards[is_valid].mean(),
         'Upd': n_optimizer_steps,
+        'Skipped': skipped_nonfinite,
+        'KLStop': int(stopped_on_kl),
+        'ApproxKL': approx_kl / n_valid,
+        'ClipFrac': clip_fraction / n_valid,
+        'ValidFraction': is_valid.to(batch.values.dtype).mean(),
     }
     metrics = to_loggable_metrics(metrics)
     return metrics
+
+
+@torch.no_grad()
+def refresh_rollout_state(model, batch):
+    """Recompute the rollout-end state after PPO, from its stored boundary state.
+
+    The boundary state itself remains an approximation; this is not replay of
+    the entire episode before the rollout.
+    """
+    state = batch.state_init
+    for obs, reset in zip(batch.obs, batch.reset):
+        _, _, state, _ = model(obs, state, capture=False)
+        state = model.reset_state(state, reset)
+    return model.detach_state(state)

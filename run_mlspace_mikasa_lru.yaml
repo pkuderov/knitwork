@@ -1,0 +1,32 @@
+# Launch from the repository root containing the corrected runner; not from aicenter3.
+container:
+  image: cr.ai.cloud.ru/0be50883-779e-4f89-a2c2-6befd3879c6f/cuda12.2_uv0.10.4:latest
+  command: bash knitwork/exps/mikasa/run_rl_shortlist.sh
+  environment:
+    MY_HOME: $MY_HOME
+    UV_CACHE_DIR: $UV_CACHE_DIR
+    MPLBACKEND: Agg
+    COMET_API_KEY: $COMET_API_KEY
+    SETUPTOOLS_USE_DISTUTILS: local
+    TEAM_NAME: knitwork/$ME
+  work_dir: .
+  run_from_copy: false
+  cry_copy_dir: $MY_HOME/.cryri
+  exclude_from_copy:
+  - .git
+  - _supp
+  - .agents
+  - .claude
+  - .github
+  - .venv
+  - agents
+  - article
+  - docs
+  - knitwork.egg-info
+  - shiroa
+  - build
+cloud:
+  region: SR006
+  instance_type: a100plus.1gpu.80vG.12C.96G
+  n_workers: 1
+  description: 'mikasa PPO v2 mid shortlist: ten runs including baselines, 8M each'
