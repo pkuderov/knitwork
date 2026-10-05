@@ -1,0 +1,285 @@
+# Mid recurrent cores; explicit sections also support --model overrides.
+seed: 42
+device: null
+dtype: float32
+exp: mqar
+model: grnn_lru.L2C4
+output_dir: runs/mqar
+log:
+  logger: null
+  project: knitwork-mqar
+  schedule: 1000000.0
+data:
+  vocab_size: 8192
+  power_a: 0.01
+  random_non_queries: true
+  train_seed: 100
+  val_seed: 200
+  test_seed: 300
+  train:
+  - input_seq_len: 64
+    num_kv_pairs: 4
+    num_examples: 100000
+  - input_seq_len: 128
+    num_kv_pairs: 8
+    num_examples: 20000
+  - input_seq_len: 256
+    num_kv_pairs: 16
+    num_examples: 20000
+  - input_seq_len: 256
+    num_kv_pairs: 32
+    num_examples: 20000
+  - input_seq_len: 256
+    num_kv_pairs: 64
+    num_examples: 20000
+  val:
+  - input_seq_len: 64
+    num_kv_pairs: 4
+    num_examples: 1000
+  - input_seq_len: 128
+    num_kv_pairs: 8
+    num_examples: 1000
+  - input_seq_len: 256
+    num_kv_pairs: 16
+    num_examples: 1000
+  - input_seq_len: 256
+    num_kv_pairs: 32
+    num_examples: 1000
+  - input_seq_len: 256
+    num_kv_pairs: 64
+    num_examples: 1000
+  test:
+  - input_seq_len: 64
+    num_kv_pairs: 4
+    num_examples: 1000
+  - input_seq_len: 64
+    num_kv_pairs: 8
+    num_examples: 1000
+  - input_seq_len: 64
+    num_kv_pairs: 16
+    num_examples: 1000
+  - input_seq_len: 128
+    num_kv_pairs: 32
+    num_examples: 1000
+  - input_seq_len: 256
+    num_kv_pairs: 64
+    num_examples: 1000
+  - input_seq_len: 512
+    num_kv_pairs: 128
+    num_examples: 1000
+  - input_seq_len: 1024
+    num_kv_pairs: 256
+    num_examples: 1000
+training:
+  epochs: 32
+  max_updates: null
+  batch_size: 32
+  learning_rate: 0.001
+  grad_clip: 1.0
+eval:
+  schedule: 1000
+  batch_size: 32
+  state_seed: 1000
+grnn_lru_L2C4:
+  hidden_size: 180
+  n_layers: 2
+  n_columns: 4
+  horizon:
+  - 1.0
+  - 1000.0
+  fb_norm: true
+grnn_lru_sparse_star:
+  hidden_size: 180
+  n_layers: 2
+  n_columns: 4
+  horizon:
+  - 1.0
+  - 1000.0
+  fb_norm: true
+  topology: star
+grnn_lru_sparse_star_ring:
+  hidden_size: 180
+  n_layers: 2
+  n_columns: 4
+  horizon:
+  - 1.0
+  - 1000.0
+  fb_norm: true
+  topology: star_ring
+grnn_lru_sparse_clockwork:
+  hidden_size: 180
+  n_layers: 2
+  n_columns: 4
+  horizon:
+  - 1.0
+  - 1000.0
+  fb_norm: true
+  update_periods:
+  - 1
+  - 1
+  - 2
+  - 2
+  update_offsets:
+  - 0
+  - 0
+  - 0
+  - 1
+grnn_lru_sparse_block:
+  hidden_size: 180
+  n_layers: 2
+  n_columns: 4
+  horizon:
+  - 1.0
+  - 1000.0
+  fb_norm: true
+  projection_groups: 2
+  shuffle_between_layers: true
+grnn_lru_sparse_entmax:
+  hidden_size: 180
+  n_layers: 2
+  n_columns: 4
+  horizon:
+  - 1.0
+  - 1000.0
+  fb_norm: true
+  routing_activation: entmax15
+  routing_init: soft
+grnn_lru_sparse_dynamic_hub:
+  hidden_size: 180
+  n_layers: 2
+  n_columns: 4
+  horizon:
+  - 1.0
+  - 1000.0
+  fb_norm: true
+  hub_query_size: 8
+  topology: star
+grnn_lru_sparse_self_heavy:
+  hidden_size: 180
+  n_layers: 2
+  n_columns: 4
+  horizon:
+  - 1.0
+  - 1000.0
+  fb_norm: true
+  routing_init: self_heavy
+rnn_L2:
+  hidden_size: 211
+  n_layers: 2
+  use_bias: true
+  dropout: 0.0
+trackers:
+  slow: 0.01
+  eval: null
+grnn_lru_sparse_control:
+  hidden_size: 180
+  fb_norm: true
+  n_layers: 2
+  n_columns: 4
+  horizon:
+  - 1.0
+  - 1000.0
+grnn_lru_sparse_dynamic_hub_top:
+  hidden_size: 180
+  fb_norm: true
+  n_layers: 2
+  n_columns: 4
+  horizon: &id001
+  - 1.0
+  - 1000.0
+  topology: star
+  hub_query_size: 8
+  hub_layers:
+  - 1
+grnn_lru_sparse_dynamic_hub_zero:
+  hidden_size: 180
+  fb_norm: true
+  n_layers: 2
+  n_columns: 4
+  horizon: *id001
+  topology: star
+  hub_query_size: 8
+  hub_query_init: zero
+grnn_lru_sparse_dynamic_hub_self_heavy:
+  hidden_size: 180
+  fb_norm: true
+  n_layers: 2
+  n_columns: 4
+  horizon: *id001
+  topology: star
+  hub_query_size: 8
+  routing_init: self_heavy
+grnn_lru_sparse_dense_small:
+  hidden_size: 161
+  fb_norm: true
+  n_layers: 2
+  n_columns: 4
+  horizon: *id001
+grnn_lru_sparse_block_wide:
+  hidden_size: 204
+  fb_norm: true
+  n_layers: 2
+  n_columns: 4
+  horizon: *id001
+  projection_groups: 2
+  shuffle_between_layers: true
+grnn_lru_sparse_block_dense_hub:
+  hidden_size: 180
+  fb_norm: true
+  n_layers: 2
+  n_columns: 4
+  horizon: *id001
+  projection_groups: 2
+  dense_hub: true
+  shuffle_between_layers: true
+grnn_lru_sparse_clockwork_light:
+  hidden_size: 180
+  fb_norm: true
+  n_layers: 2
+  n_columns: 4
+  horizon: *id001
+  update_periods:
+  - 1
+  - 1
+  - 1
+  - 2
+  update_offsets:
+  - 0
+  - 0
+  - 0
+  - 0
+grnn_lru_sparse_clockwork_output:
+  hidden_size: 180
+  fb_norm: true
+  n_layers: 2
+  n_columns: 4
+  horizon: *id001
+  update_periods:
+  - 1
+  - 1
+  - 2
+  - 2
+  update_offsets:
+  - 0
+  - 0
+  - 0
+  - 1
+  clockwork_mode: output
+grnn_L2C4:
+  hidden_size: 156
+  n_layers: 2
+  n_columns: 4
+  n_attn_heads: 4
+  ln_msg: true
+  bank: 2
+  mha: 2
+  noise_std: 0.05
+grnn_L2C4_core_mid:
+  hidden_size: 136
+  n_layers: 2
+  n_columns: 4
+  n_attn_heads: 4
+  ln_msg: true
+  bank: 2
+  mha: 2
+  noise_std: 0.05
