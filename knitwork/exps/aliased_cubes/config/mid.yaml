@@ -1,0 +1,59 @@
+# Provisional local cube surface; not an exact reproduction of ICML-2024 Table 7.
+seed: 42
+device: null
+dtype: float32
+compile: false
+exp: aliased_cubes
+model: grnn_lru.L2C4
+output_dir: runs/aliased_cubes
+
+log:
+  logger: null
+  project: knitwork-aliased-cubes
+  schedule: 1.0e+6
+
+environment:
+  edge_size: 6
+  n_observations: 12
+  map_seed: 0
+  graph_path: null
+
+data:
+  sequence_length: 400
+  train_sequences: 2048
+  val_sequences: 256
+  test_sequences: 2048
+  train_seed: 100
+  val_seed: 101
+  test_seed: 102
+
+training:
+  iterations: 25000
+  batch_size: 32
+  rollout_len: 64
+  learning_rate: 0.001
+  grad_clip: 1.0
+
+eval:
+  schedule: 250
+  batch_size: 32
+  report_after: 30
+  state_seed: 1000
+
+grnn_lru_L2C4:
+  hidden_size: 180
+  n_layers: 2
+  n_columns: 4
+  horizon: [1.0, 1000.0]
+  fb_norm: true
+
+# About 0.4% more parameters than the LRU model with this observation/action adapter.
+rnn_L2:
+  hidden_size: 294
+  n_layers: 2
+  use_bias: true
+  dropout: 0.0
+
+trackers:
+  slow: 0.01
+  eval: null

@@ -1,0 +1,81 @@
+# Column-zero bottleneck; one memory/access mechanism, no auxiliary losses.
+seed: 42
+name: text_lru_architecture_mid/associative
+log:
+  logger: comet
+  project: knitwork-aistat
+  dump_status: false
+  schedule: 5000000.0
+device: null
+dtype: float32
+exp: text
+gen: text8
+wrapper_model: token
+n_envs: 512
+rollout_len: 64
+n_steps: 1000000000.0
+compile: true
+inspect_schedule: 500000.0
+vis_inspect_schedule: 500000.0
+inspect_n_in_word_acc: 5
+eval:
+  enabled: true
+  on_start: false
+  val_size: 5000000.0
+  test_size: 5000000.0
+  schedule: 20000000.0
+  window: 1024
+gens:
+  text8:
+    path: $MY_HOME/data/text/text8.txt
+    reset_prob:
+      val: 0.2
+      tar: 0.001
+      lr: 0.04
+      schedule: 100
+      warmup:
+        val: 0.1
+        n_linear_steps: 100
+        schedule: 15
+        logspace: true
+  tinysh:
+    path: $MY_HOME/data/text/tinyshakespeare_1.1M.txt
+    reset_prob:
+      val: 0.2
+      tar: 0.001
+      lr: 0.04
+      schedule: 100
+token_wrapper: {}
+communication:
+  loss_weight: 0.0
+  entropy_weight: 0.0
+lr:
+  val: 0.0005
+  tar: 5.0e-05
+  lr: 0.01
+  schedule: 250
+  warmup:
+    val: 1.0e-06
+    n_linear_steps: 50
+    schedule: 12
+    logspace: true
+trackers:
+  slow: 0.005
+  fast: 0.02
+  list: null
+  eval: null
+model: grnn_lru_experimental.associative
+grnn_lru_experimental_associative:
+  hidden_size: 180
+  n_layers: 2
+  n_columns: 4
+  horizon:
+  - 1.0
+  - 1000.0
+  fb_norm: true
+  hub_query_size: 8
+  mechanism: associative
+  memory_key_size: 16
+  memory_value_size: 32
+  memory_column: 3
+  memory_write_bias: -2.0

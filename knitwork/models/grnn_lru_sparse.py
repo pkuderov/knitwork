@@ -50,7 +50,7 @@ def entmax15(logits):
 class SparseCommunication(nn.Module):
     def __init__(
             self, original, *, topology='dense', routing_init='diagonal',
-            routing_activation='softmax', hub_query_size=0,
+            routing_activation='softmax', hub_query_size=0, hub_query_init='default',
     ):
         super().__init__()
         if topology not in ('dense', 'star', 'star_ring'):
@@ -63,6 +63,8 @@ class SparseCommunication(nn.Module):
             raise ValueError('entmax15 ablation requires dense candidate connectivity')
         if not isinstance(hub_query_size, int) or hub_query_size < 0:
             raise ValueError('hub_query_size must be a nonnegative integer')
+        if hub_query_init not in ('default', 'zero'):
+            raise ValueError('hub_query_init must be default or zero')
         self.dim = original.dim
         self.pi_route_logits = original.pi_route_logits
         self.routing_activation = routing_activation
@@ -79,8 +81,15 @@ class SparseCommunication(nn.Module):
         self.register_buffer('allowed', allowed, persistent=False)
         self._initialize(routing_init, topology)
         if hub_query_size:
-            self.query = nn.Linear(self.dim, hub_query_size, bias=False)
-            self.key = nn.Linear(self.dim, hub_query_size, bias=False)
+            if hub_query_init == 'zero':
+                # Preserve common initialization, including the wrapper created after the core.
+                with torch.random.fork_rng(devices=[]):
+                    self.query = nn.Linear(self.dim, hub_query_size, bias=False)
+                    self.key = nn.Linear(self.dim, hub_query_size, bias=False)
+                    nn.init.zeros_(self.query.weight)
+            else:
+                self.query = nn.Linear(self.dim, hub_query_size, bias=False)
+                self.key = nn.Linear(self.dim, hub_query_size, bias=False)
 
     @torch.no_grad()
     def _initialize(self, routing_init, topology):
@@ -150,32 +159,95 @@ class GroupedLruBank(LruBank):
             nn.init.uniform_(weight, -1 / math.sqrt(width), 1 / math.sqrt(width))
 
     def forward(self, layer, x, h, columns=None):
-        c, b, width = x.shape
-        g, d = self.groups, width // self.groups
+        h_n = self.advance(layer, x, h, columns)
+        return self.project(layer, x, h_n, columns), h_n
+
+    def advance(self, layer, x, h, columns=None):
         log_r, theta = self.log_r[layer], self.theta[layer]
-        weight_in, weight_out = self.weight_in[layer], self.weight_out[layer]
         if columns is not None:
             log_r, theta = log_r[columns], theta[columns]
-            weight_in, weight_out = weight_in[columns], weight_out[columns]
-        decay = log_r.exp()
-        radius = (-decay).exp()
-        lam_re, lam_im = radius * theta.cos(), radius * theta.sin()
-        gamma = (-torch.expm1(-2 * decay)).sqrt()
+        u = self.input_projection(layer, x, columns)
+        return evolve_lru(u, h, log_r, theta)
+
+    def project(self, layer, x, h, columns=None):
+        y = self.output_projection(layer, h, columns)
+        return torch.transpose_copy(F.silu(y) + x, 0, 1)
+
+    def input_projection(self, layer, x, columns=None):
+        weight = self.weight_in[layer]
+        if columns is not None:
+            weight = weight[columns]
+        return self.grouped_input(x, weight)
+
+    def output_projection(self, layer, h, columns=None):
+        weight = self.weight_out[layer]
+        if columns is not None:
+            weight = weight[columns]
+        return self.grouped_output(h, weight)
+
+    def grouped_input(self, x, weight):
+        c, b, width = x.shape
+        g, d = self.groups, width // self.groups
         grouped_x = x.reshape(c, b, g, d).permute(0, 2, 1, 3).reshape(c * g, b, d)
-        u = torch.bmm(grouped_x, weight_in.reshape(c * g, d, 2 * d))
+        u = torch.bmm(grouped_x, weight.reshape(c * g, d, 2 * d))
         u_re, u_im = u.reshape(c, g, b, 2 * d).chunk(2, -1)
         u_re = u_re.permute(0, 2, 1, 3).reshape(c, b, width)
         u_im = u_im.permute(0, 2, 1, 3).reshape(c, b, width)
+        return torch.cat((u_re, u_im), dim=-1)
+
+    def grouped_output(self, h, weight):
+        c, b, packed_width = h.shape
+        width = packed_width // 2
+        g, d = self.groups, width // self.groups
         h_re, h_im = h.chunk(2, -1)
-        new_re = lam_re * h_re - lam_im * h_im + gamma * u_re
-        new_im = lam_re * h_im + lam_im * h_re + gamma * u_im
-        h_n = torch.cat((new_re, new_im), dim=-1)
         grouped_h = torch.cat(
-            (new_re.reshape(c, b, g, d), new_im.reshape(c, b, g, d)), dim=-1,
+            (h_re.reshape(c, b, g, d), h_im.reshape(c, b, g, d)), dim=-1,
         ).permute(0, 2, 1, 3).reshape(c * g, b, 2 * d)
-        y = torch.bmm(grouped_h, weight_out.reshape(c * g, 2 * d, d))
+        y = torch.bmm(grouped_h, weight.reshape(c * g, 2 * d, d))
         y = y.reshape(c, g, b, d).permute(0, 2, 1, 3).reshape(c, b, width)
-        return torch.transpose_copy(F.silu(y) + x, 0, 1), h_n
+        return y
+
+
+class PeripheralGroupedLruBank(GroupedLruBank):
+    """Dense hub projections and stored block projections only for peripheral columns.
+
+    Selected columns must include column zero first, as enforced by GridRnn's clock.
+    """
+
+    def __init__(self, original, groups):
+        super().__init__(original, groups)
+        self.weight_in = nn.Parameter(self.weight_in[:, 1:].detach().clone())
+        self.weight_out = nn.Parameter(self.weight_out[:, 1:].detach().clone())
+        self.hub_weight_in = nn.Parameter(original.weight_in[:, 0].detach().clone())
+        self.hub_weight_out = nn.Parameter(original.weight_out[:, 0].detach().clone())
+
+    def input_projection(self, layer, x, columns=None):
+        weights = self.weight_in[layer]
+        if columns is not None:
+            weights = weights[columns[1:] - 1]
+        hub = torch.bmm(x[:1], self.hub_weight_in[layer].unsqueeze(0))
+        peripheral = self.grouped_input(x[1:], weights)
+        return torch.cat((hub, peripheral), dim=0)
+
+    def output_projection(self, layer, h, columns=None):
+        weights = self.weight_out[layer]
+        if columns is not None:
+            weights = weights[columns[1:] - 1]
+        hub = torch.bmm(h[:1], self.hub_weight_out[layer].unsqueeze(0))
+        peripheral = self.grouped_output(h[1:], weights)
+        return torch.cat((hub, peripheral), dim=0)
+
+
+def evolve_lru(u, h, log_r, theta):
+    decay = log_r.exp()
+    radius = (-decay).exp()
+    lam_re, lam_im = radius * theta.cos(), radius * theta.sin()
+    gamma = (-torch.expm1(-2 * decay)).sqrt()
+    h_re, h_im = h.chunk(2, -1)
+    u_re, u_im = u.chunk(2, -1)
+    new_re = lam_re * h_re - lam_im * h_im + gamma * u_re
+    new_im = lam_re * h_im + lam_im * h_re + gamma * u_im
+    return torch.cat((new_re, new_im), dim=-1)
 
 
 def shuffle_channels(x, groups):
@@ -186,22 +258,44 @@ class GridRnn(DenseGridRnn):
     def __init__(
             self, *, topology='dense', routing_init='diagonal',
             routing_activation='softmax', hub_query_size=0, projection_groups=1,
-            shuffle_between_layers=False, update_periods=None, update_offsets=None, **kwargs,
+            hub_layers=None, hub_query_init='default', dense_hub=False,
+            shuffle_between_layers=False, update_periods=None, update_offsets=None,
+            clockwork_mode='state', **kwargs,
     ):
         super().__init__(**kwargs)
         if not isinstance(projection_groups, int) or projection_groups < 1 or self.hidden_size % projection_groups:
             raise ValueError('projection_groups must divide hidden_size')
         self.projection_groups = projection_groups
         self.shuffle_between_layers = shuffle_between_layers
+        if dense_hub and projection_groups == 1:
+            raise ValueError('dense_hub requires grouped peripheral projections')
+        if clockwork_mode not in ('state', 'output'):
+            raise ValueError('clockwork_mode must be state or output')
+        self.clockwork_mode = clockwork_mode
         if projection_groups > 1:
-            self.cells = GroupedLruBank(self.cells, projection_groups)
+            bank = PeripheralGroupedLruBank if dense_hub else GroupedLruBank
+            self.cells = bank(self.cells, projection_groups)
+        if hub_layers is None:
+            hub_layers = list(range(self.n_layers)) if hub_query_size else []
+        else:
+            hub_layers = list(hub_layers)
+            if not hub_query_size or not hub_layers:
+                raise ValueError('hub_layers requires nonempty dynamic routing')
+        if any(type(layer) is not int or not 0 <= layer < self.n_layers for layer in hub_layers):
+            raise ValueError('hub_layers must contain valid zero-based layer indices')
+        if len(set(hub_layers)) != len(hub_layers):
+            raise ValueError('hub_layers cannot contain duplicate indices')
+        if hub_query_init not in ('default', 'zero'):
+            raise ValueError('hub_query_init must be default or zero')
         if (topology, routing_init, routing_activation, hub_query_size) != ('dense', 'diagonal', 'softmax', 0):
             self.comm = self.attn = nn.ModuleList([
                 SparseCommunication(
                     comm, topology=topology, routing_init=routing_init,
-                    routing_activation=routing_activation, hub_query_size=hub_query_size,
+                    routing_activation=routing_activation,
+                    hub_query_size=hub_query_size if layer in hub_layers else 0,
+                    hub_query_init=hub_query_init,
                 )
-                for comm in self.comm
+                for layer, comm in enumerate(self.comm)
             ])
         periods = [1] * self.n_columns if update_periods is None else list(update_periods)
         offsets = [0] * self.n_columns if update_offsets is None else list(update_offsets)
@@ -240,6 +334,13 @@ class GridRnn(DenseGridRnn):
             previous_h = state['h'][layer]
             if columns is None:
                 cell_out, next_h = self.cells(layer, message, previous_h)
+            elif self.clockwork_mode == 'output':
+                # Every column records the token; only scheduled columns emit a fresh message.
+                next_h = self._advance_cells(layer, message, previous_h)
+                selected_message = message.index_select(0, columns)
+                selected_h = next_h.index_select(0, columns)
+                selected_out = self._project_cells(layer, selected_message, selected_h, columns)
+                cell_out = state['outs'][layer].index_copy(1, columns, selected_out)
             else:
                 selected_h = previous_h.index_select(0, columns)
                 selected_message = message.index_select(0, columns)
@@ -265,18 +366,27 @@ class GridRnn(DenseGridRnn):
 
     def _selected_cells(self, layer, x, h, columns):
         # Index parameters before bmm so inactive columns perform no cell projection.
-        theta = self.cells.theta[layer][columns]
-        decay = self.cells.log_r[layer][columns].exp()
-        radius = (-decay).exp()
-        lam_re, lam_im = radius * theta.cos(), radius * theta.sin()
-        gamma = (-torch.expm1(-2 * decay)).sqrt()
-        h_re, h_im = h.chunk(2, -1)
-        u_re, u_im = torch.bmm(x, self.cells.weight_in[layer][columns]).chunk(2, -1)
-        new_re = lam_re * h_re - lam_im * h_im + gamma * u_re
-        new_im = lam_re * h_im + lam_im * h_re + gamma * u_im
-        next_h = torch.cat((new_re, new_im), dim=-1)
-        y = torch.bmm(next_h, self.cells.weight_out[layer][columns])
-        return torch.transpose_copy(F.silu(y) + x, 0, 1), next_h
+        next_h = self._advance_cells(layer, x, h, columns)
+        return self._project_cells(layer, x, next_h, columns), next_h
+
+    def _advance_cells(self, layer, x, h, columns=None):
+        if self.projection_groups > 1:
+            return self.cells.advance(layer, x, h, columns)
+        log_r, theta = self.cells.log_r[layer], self.cells.theta[layer]
+        weights = self.cells.weight_in[layer]
+        if columns is not None:
+            log_r, theta, weights = log_r[columns], theta[columns], weights[columns]
+        u = torch.bmm(x, weights)
+        return evolve_lru(u, h, log_r, theta)
+
+    def _project_cells(self, layer, x, h, columns=None):
+        if self.projection_groups > 1:
+            return self.cells.project(layer, x, h, columns)
+        weights = self.cells.weight_out[layer]
+        if columns is not None:
+            weights = weights[columns]
+        y = torch.bmm(h, weights)
+        return torch.transpose_copy(F.silu(y) + x, 0, 1)
 
     def init_state(self, bsz):
         state = super().init_state(bsz)
@@ -301,8 +411,12 @@ class GridRnn(DenseGridRnn):
         h_size = 2 * self.n_layers * self.n_columns * self.hidden_size
         if self.has_clockwork:
             return h_size + self.n_layers * self.n_columns * self.hidden_size
-        hub_layers = self.n_layers if self.fb_norm else self.n_layers - 1
-        hub_cache = hub_layers * self.hidden_size if self.hub_uses_queries else 0
+        hub_layers = sum(
+            bool(getattr(comm, 'hub_query_size', 0))
+            for layer, comm in enumerate(self.comm)
+            if self.fb_norm or layer < self.n_layers - 1
+        )
+        hub_cache = hub_layers * self.hidden_size
         return h_size + self.n_columns * self.hidden_size + hub_cache
 
     @property

@@ -6,9 +6,12 @@ MODELS_ROOT = 'knitwork.models'
 
 REGISTRY = {
     'rnn': 'gru.GruCore',
+    'lru': 'lru_core.LruCore',
     'grnn': 'grnn_core.GridRnn',
     'grnn_lru': 'grnn_lru_core.GridRnn',
     'grnn_lru_sparse': 'grnn_lru_sparse.GridRnn',
+    'grnn_lru_experimental': 'grnn_lru_experimental.GridRnn',
+    'grnn_lru_slots': 'grnn_lru_slots.GridRnn',
     'delta_net': 'baseline.delta_net.DeltaNetCore',
     'hgrn2': 'baseline.hgrn2.HGRN2Core',
     'mlstm': 'baseline.mlstm.mLSTMCore',

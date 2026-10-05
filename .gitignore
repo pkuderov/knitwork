@@ -162,6 +162,10 @@ celerybeat.pid
 .envrc
 .venv
 env/
+# Keep new project environment source visible while ignoring other local env artifacts.
+!knitwork/env/
+knitwork/env/*
+!knitwork/env/aliased_cube.py
 venv/
 ENV/
 env.bak/

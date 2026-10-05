@@ -1,0 +1,111 @@
+# Two CPU updates; select any mechanism with --model.
+seed: 42
+device: cpu
+dtype: float32
+exp: mqar
+model: grnn_lru_experimental.write_gate
+output_dir: runs/mqar-architecture-smoke
+log:
+  logger: null
+  project: knitwork-mqar
+  schedule: 1000000.0
+data:
+  vocab_size: 64
+  power_a: 0.01
+  random_non_queries: true
+  train_seed: 100
+  val_seed: 200
+  test_seed: 300
+  train:
+  - input_seq_len: 16
+    num_kv_pairs: 2
+    num_examples: 8
+  - input_seq_len: 32
+    num_kv_pairs: 4
+    num_examples: 8
+  val:
+  - input_seq_len: 16
+    num_kv_pairs: 2
+    num_examples: 4
+  - input_seq_len: 32
+    num_kv_pairs: 4
+    num_examples: 4
+  test:
+  - input_seq_len: 16
+    num_kv_pairs: 2
+    num_examples: 4
+  - input_seq_len: 32
+    num_kv_pairs: 4
+    num_examples: 4
+training:
+  epochs: 1
+  max_updates: 2
+  batch_size: 2
+  learning_rate: 0.001
+  grad_clip: 1.0
+eval:
+  schedule: 1
+  batch_size: 2
+  state_seed: 1000
+trackers:
+  slow: 0.01
+  eval: null
+name: mqar_lru_architecture_smoke
+grnn_lru_experimental_write_gate:
+  hidden_size: 12
+  n_layers: 2
+  n_columns: 4
+  horizon: &id001
+  - 1.0
+  - 1000.0
+  fb_norm: true
+  hub_query_size: 8
+  mechanism: write_gate
+  write_gate_bias: 2.0
+grnn_lru_experimental_query_read:
+  hidden_size: 12
+  n_layers: 2
+  n_columns: 4
+  horizon: *id001
+  fb_norm: true
+  hub_query_size: 8
+  mechanism: query_read
+  read_rank: 16
+grnn_lru_experimental_associative:
+  hidden_size: 12
+  n_layers: 2
+  n_columns: 4
+  horizon: *id001
+  fb_norm: true
+  hub_query_size: 8
+  mechanism: associative
+  memory_key_size: 16
+  memory_value_size: 32
+  memory_column: 3
+  memory_write_bias: -2.0
+grnn_lru_experimental_rotations:
+  hidden_size: 12
+  n_layers: 2
+  n_columns: 4
+  horizon: *id001
+  fb_norm: true
+  hub_query_size: 8
+  mechanism: rotations
+  rotation_groups: 4
+grnn_lru_experimental_two_reads:
+  hidden_size: 12
+  n_layers: 2
+  n_columns: 4
+  horizon: *id001
+  fb_norm: true
+  hub_query_size: 8
+  mechanism: two_reads
+grnn_lru_sparse_dynamic_control:
+  hidden_size: 12
+  n_layers: 2
+  n_columns: 4
+  horizon: *id001
+  fb_norm: true
+  hub_query_size: 8
+  topology: star
+  hub_query_init: zero
