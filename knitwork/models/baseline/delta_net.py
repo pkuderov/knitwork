@@ -20,17 +20,18 @@ class _DeltaLayer(nn.Module):
         nn.init.normal_(self.ff[-1].weight, std=0.01 / (H ** 0.5))
         nn.init.zeros_(self.ff[-1].bias)
 
-    def forward(self, x: torch.Tensor, S: torch.Tensor):
-        # x: [B, H],  S: [B, H, H] — KV matrix state
+    def forward(self, x: torch.Tensor, S: torch.Tensor, keep: torch.Tensor | None = None):
+        # x: [B, H],  S: [B, H, H] — KV matrix state,  keep: [B, 1] 0/1, a reset env sees an empty memory
         k  = F.normalize(self.W_k(x), dim=-1)                       # unit key
         v  = self.W_v(x)
         q  = self.W_q(x)
         b  = torch.sigmoid(self.W_b(x))                              # [B, 1]
         Sk = torch.bmm(S, k.unsqueeze(-1)).squeeze(-1)               # current estimate
+        if keep is not None:
+            # reset folded into per-env scalars: no [B, H, H] copy of the state is saved for backward
+            Sk, S = keep * Sk, keep.unsqueeze(-1) * S
         dv = v - Sk                                                   # delta correction
-        S  = S + b.unsqueeze(-1) * torch.bmm(                        # outer-product write
-            dv.unsqueeze(-1), k.unsqueeze(1)
-        )
+        S  = S + torch.bmm((b * dv).unsqueeze(-1), k.unsqueeze(1))   # outer-product write, scaled before the product
         y  = torch.bmm(S, q.unsqueeze(-1)).squeeze(-1)               # retrieve
         x  = x + self.norm(y)
         x  = x + self.ff(x)
@@ -143,9 +144,10 @@ class DeltaNetCore(nn.Module):
         if state is None:
             state = self.init_state(x.shape[0])
 
+        keep = state.get('keep')  # pending reset set by reset_state, consumed here
         new_S = []
         for layer, S in zip(self.layers, state['S']):
-            x, S = layer(x, S)
+            x, S = layer(x, S, keep)
             new_S.append(S)
 
         return self.norm_out(x), {'S': new_S}, {}
@@ -155,13 +157,16 @@ class DeltaNetCore(nn.Module):
             bsz = reset_mask.shape[0] if reset_mask is not None else bsz
             return self.init_state(bsz)
 
-        keep = (~reset_mask.flatten())[:, None, None]
-        return {'S': [S * keep for S in state['S']]}
+        # lazy reset: only record the mask, the layers apply it through their gates
+        keep = (~reset_mask.flatten())[:, None].to(state['S'][0].dtype)
+        if state.get('keep') is not None:
+            keep = keep * state['keep']
+        return {'S': state['S'], 'keep': keep}
 
     def detach_state(self, state):
         if state is None:
             return state
-        return {'S': [S.detach() for S in state['S']]}
+        return {k: ([S.detach() for S in v] if isinstance(v, list) else v.detach()) for k, v in state.items()}
 
     def init_state(self, bsz):
         S = [

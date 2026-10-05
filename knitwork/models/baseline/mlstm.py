@@ -22,22 +22,26 @@ class _mLSTMLayer(nn.Module):
         nn.init.zeros_(self.ff[-1].bias)
         nn.init.constant_(self.W_f.bias, 3.0)   # high initial forget = long memory
 
-    def forward(self, x: torch.Tensor, state):
-        # x: [B, H],  state: (C [B,H,H], n [B,H], m [B,1])
+    def forward(self, x: torch.Tensor, state, keep: torch.Tensor | None = None):
+        # x: [B, H],  state: (C [B,H,H], n [B,H], m [B,1]),  keep: [B, 1] 0/1, a reset env sees an empty memory
         C, n, m = state
         q  = self.W_q(x) / (self.H ** 0.5)   # [B, H] scaled query
         k  = self.W_k(x) / (self.H ** 0.5)   # [B, H] scaled key
         v  = self.W_v(x)                       # [B, H]
         li = self.W_i(x)                       # [B, 1] log input gate
         lf = F.logsigmoid(self.W_f(x))        # [B, 1] log forget gate
+        if keep is not None:
+            m = m * keep
 
         # numerically stable gate combination in log-space
         m_new = torch.max(lf + m, li)          # [B, 1]
         f_g   = torch.exp(lf + m - m_new)      # [B, 1] forget gate
         i_g   = torch.exp(li - m_new)          # [B, 1] input gate
+        if keep is not None:
+            f_g = f_g * keep                   # reset folded into the forget gate: no [B, H, H] copy saved for backward
 
-        C = f_g.unsqueeze(-1) * C + i_g.unsqueeze(-1) * torch.bmm(
-            v.unsqueeze(-1), k.unsqueeze(1)    # outer product v ⊗ k  [B, H, H]
+        C = f_g.unsqueeze(-1) * C + torch.bmm(
+            (i_g * v).unsqueeze(-1), k.unsqueeze(1)    # outer product (i*v) ⊗ k  [B, H, H]
         )
         n = f_g * n + i_g * k                  # [B, H] normaliser
 
@@ -168,11 +172,12 @@ class mLSTMCore(nn.Module):
         if state is None:
             state = self.init_state(x.shape[0])
 
+        keep = state.get('keep')  # pending reset set by reset_state, consumed here
         new_C, new_n, new_m = [], [], []
         for layer, C, n, m in zip(
                 self.layers, state['C'], state['n'], state['m']
         ):
-            x, (C, n, m) = layer(x, (C, n, m))
+            x, (C, n, m) = layer(x, (C, n, m), keep)
             new_C.append(C)
             new_n.append(n)
             new_m.append(m)
@@ -185,19 +190,17 @@ class mLSTMCore(nn.Module):
             bsz = reset_mask.shape[0] if reset_mask is not None else bsz
             return self.init_state(bsz)
 
-        keep_matrix = (~reset_mask.flatten())[:, None, None]
-        keep_vector = keep_matrix.squeeze(-1)
-        return {
-            'C': [C * keep_matrix for C in state['C']],
-            'n': [n * keep_vector for n in state['n']],
-            'm': [m * keep_vector for m in state['m']],
-        }
+        # lazy reset: only record the mask, the layers apply it through their gates
+        keep = (~reset_mask.flatten())[:, None].to(state['C'][0].dtype)
+        if state.get('keep') is not None:
+            keep = keep * state['keep']
+        return state | {'keep': keep}
 
     def detach_state(self, state):
         if state is None:
             return state
         return {
-            key: [value.detach() for value in values]
+            key: [value.detach() for value in values] if isinstance(values, list) else values.detach()
             for key, values in state.items()
         }
 
