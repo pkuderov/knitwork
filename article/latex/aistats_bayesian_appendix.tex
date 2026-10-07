@@ -1,0 +1,150 @@
+\section{Local Bayesian Routing: Statements and Complete Proofs}\label{app:bayesian}
+
+This appendix formalizes the local model in Section~\ref{sec:bayesian}. The posterior calculation is standard Gaussian conjugacy; the information-access and compression statements specify what it can imply about a routing bottleneck. None asserts that trained columns satisfy Assumption G, that learned attention estimates uncertainty, or that a trained predictor attains Bayes risk.
+
+\subsection{Setting and Scope of the Assumptions}
+
+Fix a timestep, receiving column, and scalar coordinate of the projected values being fused. Let $A$ be a finite set of sources. On a probability space, take $Z\sim\mathcal{N}(m_0,\tau_0^{-1})$ with $m_0\in\mathbb{R}$ and $\tau_0>0$. For each $i\in A$, $M_i=Z+\varepsilon_i$, where $\varepsilon_i\sim\mathcal{N}(0,\tau_i^{-1})$, $\tau_i>0$, and all noises are independent of one another and of $Z$. Equivalently, $M_i\mid Z=z\sim\mathcal{N}(z,\tau_i^{-1})$, independently across sources. Precisions are deterministic and known; subsets $S$ are deterministic and nonempty. These are the full assumptions for Theorems~\ref{thm:posterior-fusion}, \ref{thm:fusion-optimality}, \ref{thm:retained-route}, and~\ref{thm:bayes-risk}. Theorem~\ref{thm:bottleneck} additionally restricts the readout's information.
+
+Here, precision is inverse observation-noise variance, not attention temperature or a measured property of a column. Conditional independence excludes correlated or duplicated evidence; positivity means every retained source supplies some independent information about $Z$. A proper prior supplies a joint probability model and finite second moments. If history or receiver state is fixed as context, all assumptions must hold conditional on that context, with its information incorporated into the prior. Conditioning on arbitrary hidden states does not automatically preserve them. All conclusions concern this one fusion step, without a claim about later recurrent access.
+
+For $S\subseteq A$, let $\mathcal{F}_S=\sigma(M_i:i\in S)$, and use $T_S,\bar T_S,\mu_S,\bar\mu_S$ from Equation~\eqref{eq:bayesian-definitions}. Define
+\begin{equation}\label{eq:bayesian-energy}
+B_S=\sum_{i\in S}\tau_i M_i,\qquad
+E_S(x)=\sum_{i\in S}\tau_i(x-M_i)^2,\qquad
+\bar E_S(x)=\tau_0(x-m_0)^2+E_S(x).
+\end{equation}
+The actual posterior multiplies the likelihood by the proper prior. Separately, the flat-prior generalized posterior is the normalized likelihood
+\begin{equation}\label{eq:bayesian-flat-posterior}
+\pi_S^{\mathrm{flat}}(z\mid M_S)
+=\frac{\prod_{i\in S}p(M_i\mid z)}
+{\int_{\mathbb{R}}\prod_{i\in S}p(M_i\mid u)\,du}.
+\end{equation}
+An improper uniform prior is not a probability law for $Z$. Thus Equation~\eqref{eq:bayesian-flat-posterior} defines a density in $z$ for fixed observations, rather than a conditional law under an unspecified joint distribution. Its moments are also the limits of the proper posterior moments as $\tau_0\downarrow0$ with fixed $m_0$ and observations. All conditional expectations and Bayes risks below use $\tau_0>0$.
+
+\subsection{Four Elementary Lemmas}
+
+\begin{mosaiclemma}[Positive total precision]\label{lem:positive-precision}
+For every nonempty $S\subseteq A$, $T_S>0$ and $\bar T_S>0$.
+\end{mosaiclemma}
+\begin{proof}
+A nonempty finite sum of strictly positive $\tau_i$ is positive. Adding $\tau_0>0$ preserves positivity.
+\end{proof}
+
+\begin{mosaiclemma}[Centering]\label{lem:bayesian-centering}
+The weighted residuals satisfy
+\begin{equation}
+\sum_{i\in S}\tau_i(\mu_S-M_i)=0,\qquad
+\tau_0(\bar\mu_S-m_0)+\sum_{i\in S}\tau_i(\bar\mu_S-M_i)=0.
+\end{equation}
+\end{mosaiclemma}
+\begin{proof}
+The first sum is $\mu_ST_S-B_S=0$ by the definition of $\mu_S$ and Lemma~\ref{lem:positive-precision}. The second is $\bar\mu_S\bar T_S-(\tau_0m_0+B_S)=0$ by the definition of $\bar\mu_S$.
+\end{proof}
+
+\begin{mosaiclemma}[Completion of squares]\label{lem:bayesian-squares}
+For every $x\in\mathbb{R}$,
+\begin{equation}\label{eq:bayesian-square-completion}
+E_S(x)=E_S(\mu_S)+T_S(x-\mu_S)^2,\qquad
+\bar E_S(x)=\bar E_S(\bar\mu_S)+\bar T_S(x-\bar\mu_S)^2.
+\end{equation}
+\end{mosaiclemma}
+\begin{proof}
+Write $x-M_i=(x-\mu_S)+(\mu_S-M_i)$, square, multiply by $\tau_i$, and sum. The cross term is $2(x-\mu_S)\sum_i\tau_i(\mu_S-M_i)=0$ by Lemma~\ref{lem:bayesian-centering}; the other terms give the first identity. For the second, perform the same expansion about $\bar\mu_S$, including the term of weight $\tau_0$ centered at $m_0$. The second centering identity cancels its cross term.
+\end{proof}
+
+\begin{mosaiclemma}[Gaussian normalization]\label{lem:bayesian-normalization}
+For $T>0$ and $m\in\mathbb{R}$,
+\begin{equation}
+\int_{\mathbb{R}}\exp\!\left[-\frac{T}{2}(z-m)^2\right]dz=\sqrt{\frac{2\pi}{T}}.
+\end{equation}
+\end{mosaiclemma}
+\begin{proof}
+Substitution $v=\sqrt{T}(z-m)$ reduces the integral to $I/\sqrt{T}$, where $I=\int_{\mathbb{R}}e^{-v^2/2}dv$. Tonelli's theorem and polar coordinates give $I^2=\int_{\mathbb{R}^2}e^{-(u^2+v^2)/2}\,du\,dv=2\pi\int_0^\infty r e^{-r^2/2}dr=2\pi$. The last integral equals one by substitution $w=r^2/2$, and $I>0$ yields $I=\sqrt{2\pi}$.
+\end{proof}
+
+\subsection{Posterior Fusion and Optimality}
+
+\paragraph{Proof of Theorem~\ref{thm:posterior-fusion}.}
+Conditional independence gives
+\begin{equation}
+p(M_S\mid z)=C_S e^{-E_S(z)/2},\qquad
+C_S=\prod_{i\in S}\sqrt{\frac{\tau_i}{2\pi}}>0.
+\end{equation}
+Multiplication by $p(z)=\sqrt{\tau_0/(2\pi)}e^{-\tau_0(z-m_0)^2/2}$ makes the posterior kernel proportional to $e^{-\bar E_S(z)/2}$. By Lemma~\ref{lem:bayesian-squares}, its only $z$-dependent factor is $e^{-\bar T_S(z-\bar\mu_S)^2/2}$. Lemmas~\ref{lem:positive-precision} and~\ref{lem:bayesian-normalization} therefore yield
+\begin{equation}\label{eq:bayesian-posterior-density}
+p(z\mid M_S)=\sqrt{\frac{\bar T_S}{2\pi}}\exp\!\left[-\frac{\bar T_S}{2}(z-\bar\mu_S)^2\right].
+\end{equation}
+This is the asserted normal density. The same calculation without the prior term normalizes Equation~\eqref{eq:bayesian-flat-posterior} to $\mathcal{N}(\mu_S,T_S^{-1})$. With fixed observations, $\bar\mu_S\to\mu_S$ and $\bar T_S^{-1}\to T_S^{-1}$ as $\tau_0\downarrow0$, which also proves the flat-prior limit. \hfill$\square$
+
+\begin{mosaictheorem}[Fusion optimality]\label{thm:fusion-optimality}
+Under Assumption G, $\mu_S$ is the unique global minimizer of $E_S$, and $\bar\mu_S$ is the unique global minimizer of $\bar E_S$.
+\end{mosaictheorem}
+\begin{proof}
+Equation~\eqref{eq:bayesian-square-completion} gives $E_S(x)-E_S(\mu_S)=T_S(x-\mu_S)^2\geq0$. Since $T_S>0$, equality holds exactly at $x=\mu_S$. The identical argument with $\bar T_S>0$ proves the prior-augmented statement. This is an algebraic minimization; no Gaussian assumption is needed beyond positive weights for this identity.
+\end{proof}
+
+\begin{mosaictheorem}[Strict value of retaining a source]\label{thm:retained-route}
+Under Assumption G, for deterministic nonempty $R\subsetneq U\subseteq A$,
+\begin{equation}
+\operatorname{Var}(Z\mid\mathcal{F}_U)=\bar T_U^{-1}<\bar T_R^{-1}=\operatorname{Var}(Z\mid\mathcal{F}_R).
+\end{equation}
+The same strict inequality holds between the normalized-likelihood variances $T_U^{-1}$ and $T_R^{-1}$.
+\end{mosaictheorem}
+\begin{proof}
+The disjoint decomposition $U=R\mathbin{\dot\cup}(U\setminus R)$ gives $\bar T_U=\bar T_R+\sum_{i\in U\setminus R}\tau_i$. Strict inclusion and positive precisions imply $0<\bar T_R<\bar T_U$. Taking reciprocals reverses this inequality, and Theorem~\ref{thm:posterior-fusion} identifies the reciprocals as posterior variances. Omitting $\tau_0$ gives the normalized-likelihood statement. In particular, $1/(\tau_1+\tau_2)<1/\tau_1$ for two sources with positive precisions.
+\end{proof}
+
+\subsection{Readout Bottleneck and Bayes Risk}
+
+\begin{mosaictheorem}[Bottleneck readout]\label{thm:bottleneck}
+Under Assumption G, fix nonempty $R\subseteq A$ and let $Y=g(M_R)$ for a deterministic measurable map into a finite-dimensional readout space. Write $\mathcal{G}=\sigma(Y)\subseteq\mathcal{F}_R$. For every square-integrable $\mathcal{G}$-measurable prediction $a$,
+\begin{equation}\label{eq:bayesian-bottleneck-risk}
+\begin{aligned}
+\mathbb{E}[(a-Z)^2\mid\mathcal{G}]
+&=\left(a-\mathbb{E}[\bar\mu_R\mid\mathcal{G}]\right)^2
++\bar T_R^{-1}+\operatorname{Var}(\bar\mu_R\mid\mathcal{G}).
+\end{aligned}
+\end{equation}
+Thus the optimal conditional risk is $\bar T_R^{-1}+\operatorname{Var}(\bar\mu_R\mid\mathcal{G})\geq\bar T_R^{-1}$, and it equals $\bar T_R^{-1}$ almost surely exactly when $\bar\mu_R$ is $\mathcal{G}$-measurable (up to null sets). In particular, if $\mathcal{G}=\mathcal{F}_R$, then $Z\mid\mathcal{G}\sim\mathcal{N}(\bar\mu_R,\bar T_R^{-1})$.
+\end{mosaictheorem}
+\begin{proof}
+By Theorem~\ref{thm:posterior-fusion}, $\mathbb{E}[Z\mid\mathcal{F}_R]=\bar\mu_R$ and $\operatorname{Var}(Z\mid\mathcal{F}_R)=\bar T_R^{-1}$. Since $\mathcal{G}\subseteq\mathcal{F}_R$, iterated conditional expectation gives $\mathbb{E}[Z\mid\mathcal{G}]=\mathbb{E}[\bar\mu_R\mid\mathcal{G}]$. The conditional second moment is
+\begin{equation}
+\mathbb{E}[Z^2\mid\mathcal{G}]
+=\mathbb{E}[\bar T_R^{-1}+\bar\mu_R^2\mid\mathcal{G}]
+=\bar T_R^{-1}+\mathbb{E}[\bar\mu_R^2\mid\mathcal{G}].
+\end{equation}
+Subtracting $(\mathbb{E}[Z\mid\mathcal{G}])^2$ gives $\operatorname{Var}(Z\mid\mathcal{G})=\bar T_R^{-1}+\operatorname{Var}(\bar\mu_R\mid\mathcal{G})$. Expanding the conditional squared error about $\mathbb{E}[Z\mid\mathcal{G}]$ proves Equation~\eqref{eq:bayesian-bottleneck-risk}; its cross term is zero. The first square is minimized uniquely almost surely by $a=\mathbb{E}[\bar\mu_R\mid\mathcal{G}]$. The remaining conditional variance is nonnegative and vanishes almost surely if and only if $\bar\mu_R=\mathbb{E}[\bar\mu_R\mid\mathcal{G}]$ almost surely: take expectations of its nonnegative squared residual to see this equivalence. Finally, $\mathcal{G}=\mathcal{F}_R$ gives the stated conditional law directly from Theorem~\ref{thm:posterior-fusion}.
+\end{proof}
+
+The full information-field equality is sufficient but stronger than needed for optimal squared-error prediction: $Y=\bar\mu_R$ alone attains the same risk. Measurability of a readout with respect to $M_R$ establishes only inclusion of information fields, not equality. A fixed-dimensional column can therefore be sufficient in this scalar model, but a trained column is not guaranteed to preserve the sufficient statistic.
+
+\begin{mosaictheorem}[Bayes risk]\label{thm:bayes-risk}
+Under Assumption G, among square-integrable $\mathcal{F}_S$-measurable predictions, the unique Bayes action for squared-error loss, up to almost-sure equality, is $a_S^*=\bar\mu_S$. Its optimal conditional risk is $\bar T_S^{-1}$.
+\end{mosaictheorem}
+\begin{proof}
+For such a prediction $a$, write $a-Z=(a-\bar\mu_S)+(\bar\mu_S-Z)$. Squaring and conditioning on $\mathcal{F}_S$ gives
+\begin{equation}
+\mathbb{E}[(a-Z)^2\mid\mathcal{F}_S]
+=(a-\bar\mu_S)^2+2(a-\bar\mu_S)\mathbb{E}[\bar\mu_S-Z\mid\mathcal{F}_S]
++\mathbb{E}[(\bar\mu_S-Z)^2\mid\mathcal{F}_S]
+=(a-\bar\mu_S)^2+\bar T_S^{-1}.
+\end{equation}
+The cross term vanishes and the final variance follows from Theorem~\ref{thm:posterior-fusion}. The remaining square is zero exactly when $a=\bar\mu_S$ almost surely, proving optimality and uniqueness. Consequently, Theorem~\ref{thm:retained-route} also gives a strict reduction of optimal conditional squared-error risk for nested source sets with unchanged precisions. Integrating gives the same ordering for unconditional Bayes risks, since these optimal conditional variances are deterministic.
+\end{proof}
+
+\begin{mosaicproposition}[Column count alone gives no guarantee]\label{prop:column-count}
+Under the local model, increasing the number of source columns does not imply a decrease in posterior variance unless the configurations' information sets and precisions are suitably coupled.
+\end{mosaicproposition}
+\begin{proof}
+Use the same prior in two configurations. The first exposes one source with precision $4$; the second exposes two independent sources each with precision $1/2$. By Theorem~\ref{thm:posterior-fusion}, their posterior variances are respectively $1/(\tau_0+4)$ and $1/(\tau_0+1)$. The second is strictly larger despite having more source columns. These source sets are not nested with the original source retained, so Theorem~\ref{thm:retained-route} does not apply. In the flat-prior calculation the respective variances are $1/4$ and $1$. The example assigns precisions explicitly; it does not infer them from actual hidden widths or parameter counts.
+\end{proof}
+
+\subsection{Relation to Implemented Routing and the Experiments}
+
+In the flat-prior calculation, $\mu_S=\sum_{i\in S}w_i M_i$, where $w_i=\tau_i/T_S=\operatorname{softmax}_{i\in S}(\log\tau_i)$. In the proper model, the posterior mean includes the additional prior weight $\tau_0/\bar T_S$. Attention can express a normalized weighted sum, but this algebraic fact does not identify learned content scores with log precisions. MoSAIC additionally projects and normalizes messages, updates a GRU, and retains recurrent history. Its correlated learned representations and arbitrary content-dependent logits need not satisfy the scalar observation model.
+
+The information assumption in Theorem~\ref{thm:bottleneck} excludes evidence from outside $R$ through selection, weights, history, or residual paths. The implemented top-$k$ router computes scores from the entire source bank before masking. Hence the selected set and its weights can depend on discarded sources; this is not the deterministic source-access restriction in Theorem~\ref{thm:retained-route}. Even for a fixed mask, the complete information available to the receiver must be accounted for. Later timesteps can also relay presently excluded information. These qualifications preclude treating source selection in the trained network as the exact information field in this model.
+
+The Gaussian theorems concern optimal squared-error prediction, while BPC measures token-level cross-entropy of a trained network. Section~\ref{sec:ablation} reports the single-seed ordering $1.5921$ (dense), $1.6353$ (top-2), and $1.8869$ (top-1). Its direction is consistent with a benefit from broader source access, but it neither verifies Assumption G nor tests the posterior formulas. The model motivates fixed-mask interventions that measure incremental information while holding source representations and prior context fixed. It supplies no theorem that dense learned routing must improve BPC or that more columns must improve memory.

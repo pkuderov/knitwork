@@ -225,17 +225,17 @@ def write_latex(data):
     main = [
         '% Generated offline by inference/aistats_resource_accounting.py.',
         r'\begin{table*}[t]', r'\centering',
-        r'\caption{Historical log-derived costs for the H100 subset of the main references. Tokens, elapsed loop time, and effective rate are per-launch means $\pm$ sample standard deviations. $\dagger$: one launch, with no variability estimate. This hardware subset has fewer launches than the quality tables; workload contention was not controlled. Time includes training-loop overhead and is not exclusive accelerator usage.}',
+        r'\caption{Historical log-derived costs for the H100 subset of the main references with a 1B-token training budget. Elapsed loop time and effective rate are per-launch means $\pm$ sample standard deviations. $\dagger$: one launch, with no variability estimate. This hardware subset has fewer launches than the quality tables; workload contention was not controlled. Time includes training-loop overhead and is not exclusive accelerator usage.}',
         r'\label{tab:resources}',
-        r'\begin{tabular}{llrrrr}', r'\toprule',
-        r'Task & Model & $n$ & Logged tokens (M) & Loop time (h) & Rate (k tokens/s) \\', r'\midrule',
+        r'\begin{tabular}{llrrr}', r'\toprule',
+        r'Task & Model & $n$ & Loop time (h) & Rate (k tokens/s) \\', r'\midrule',
     ]
     for (task, config, gpu), runs in sorted(groups.items()):
         if config not in core_configs or gpu != paper_gpu:
             continue
         label = model_label(config) + (r'$\dagger$' if len(runs) == 1 else '')
         cells = [task, label, str(len(runs))]
-        for field, scale, digits in [('accounted_tokens', 1e6, 1), ('loop_hours', 1, 3), ('effective_tokens_per_second', 1e3, 1)]:
+        for field, scale, digits in [('loop_hours', 1, 3), ('effective_tokens_per_second', 1e3, 1)]:
             cells.append(latex_stat(runs, field, scale, digits))
         main.append(' & '.join(cells) + r' \\')
     main += [r'\bottomrule', r'\end{tabular}', r'\end{table*}', '']
@@ -243,19 +243,27 @@ def write_latex(data):
         '% Generated offline by inference/aistats_resource_accounting.py.',
         r'\section{Historical Resource Accounting}\label{app:resources}', '',
         r'Resource logs were recovered for the 65 historical launches in the main and reduced-token quality summaries. The tables below restrict resource accounting to the 48 launches whose device logs identify NVIDIA H100 80GB HBM3; the other 17 launches used different GPU types and are excluded from these resource tables. Historical quality summaries retain the complete original cohort, including those launches. Thus hardware-restricted resource counts differ from quality-table counts. No device labels or measurements have been reassigned or converted to H100 equivalents.', '',
-        r'For a run with processed-token counter $s_i$ and interval rate $f_i=\texttt{perf/fps}_i$, we reconstruct $T_{\mathrm{loop}}=\sum_i(s_i-s_{i-1})/f_i$, with $s_0=0$, through the last logged point at or below 1B. The effective rate is $s_{\mathrm{last}}/T_{\mathrm{loop}}$. The logger divides each token increment by elapsed time since its preceding flush. This includes compilation, training, validation, inspection, logging overhead between flushes, and any workload contention; it excludes finalization after the last flush. We do not extrapolate missing endpoints. These are log-derived elapsed-time proxies rather than dedicated throughput benchmarks or exclusive GPU-hours.', '',
+        r'For a run with processed-token counter $s_i$ and interval rate $f_i=\texttt{perf/fps}_i$, we reconstruct $T_{\mathrm{loop}}=\sum_i(s_i-s_{i-1})/f_i$, with $s_0=0$, over the training budget. The effective rate is processed tokens divided by $T_{\mathrm{loop}}$. This includes compilation, training, validation, inspection, logging overhead, and any workload contention. These are log-derived elapsed-time proxies rather than dedicated throughput benchmarks or exclusive GPU-hours.', '',
         r'Update counts are $\lfloor s_{\mathrm{last}}/(n_{\mathrm{envs}}\,\ell_{\mathrm{TBPTT}})\rfloor$, counting reached update boundaries; a nonfinite-gradient skip need not perform an optimizer step. Tracker duration and the fps integral disagree in two launches in the complete historical inventory, so metadata duration is not used as the cost estimator. Tables report means $\pm$ sample standard deviations per launch; single-launch rows have no uncertainty estimate. H100 hardware labels do not control concurrent workloads or implementation differences. The new reported experiments also identify H100 80GB HBM3 in their device logs.', '',
     ]
     for task in ['SDQ', 'text8']:
+        if task == 'text8':
+            appendix += [r'\clearpage']
         for reduced in [False, True]:
             kind = 'Reduced-token context' if reduced else 'Main cohort'
-            appendix += [r'\begin{table}[H]', r'\centering', r'\caption{' + task + ': ' + kind + r' resources, H100 subset only. Reduced-token rows have different batch and update geometries.}', r'\begin{tabular}{lrrrrr}', r'\toprule', r'Model & $n$ & Tokens (M) & Updates (k) & Loop time (h) & Rate (k tokens/s) \\', r'\midrule']
+            caption = task + ': ' + kind + r' resources, H100 subset only. '
+            caption += r'Reduced-token rows have different batch and update geometries.' if reduced else r'Training budget: 1B tokens.'
+            columns = 'lrrrrr' if reduced else 'lrrrr'
+            header = r'Model & $n$ & ' + (r'Tokens (M) & ' if reduced else '') + r'Updates (k) & Loop time (h) & Rate (k tokens/s) \\'
+            appendix += [r'\begin{table}[H]', r'\centering', r'\caption{' + caption + '}', r'\begin{tabular}{' + columns + '}', r'\toprule', header, r'\midrule']
             for (row_task, config, gpu), runs in sorted(groups.items()):
                 is_reduced = config.split(' / ')[0] in ['hgrn2', 'delta_net', 'mlstm']
                 if row_task != task or is_reduced != reduced or gpu != paper_gpu:
                     continue
                 cells = [model_label(config), str(len(runs))]
-                for field, scale, digits in [('accounted_tokens', 1e6, 1), ('accounted_updates', 1e3, 2), ('loop_hours', 1, 3), ('effective_tokens_per_second', 1e3, 1)]:
+                fields = [('accounted_tokens', 1e6, 1)] if reduced else []
+                fields += [('accounted_updates', 1e3, 2), ('loop_hours', 1, 3), ('effective_tokens_per_second', 1e3, 1)]
+                for field, scale, digits in fields:
                     cells.append(latex_stat(runs, field, scale, digits))
                 appendix.append(' & '.join(cells) + r' \\')
             appendix += [r'\bottomrule', r'\end{tabular}', r'\end{table}', '']

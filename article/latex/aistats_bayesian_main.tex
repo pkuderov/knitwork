@@ -1,0 +1,28 @@
+\subsection{A Local Bayesian Model of Routing}\label{sec:bayesian}
+
+We analyze information access at a fixed timestep, receiver, and scalar projected-message coordinate. This surrogate uses standard Gaussian fusion \citep{murphy2007gaussian}; it is not a distributional claim about learned GRU states.
+
+\paragraph{Assumption G.}
+Let $A$ be a finite source set and $Z\sim\mathcal{N}(m_0,\tau_0^{-1})$, with $\tau_0>0$. For each $i\in A$, let $M_i=Z+\varepsilon_i$, where the noises are mutually independent, independent of $Z$, and $\varepsilon_i\sim\mathcal{N}(0,\tau_i^{-1})$ with fixed known $\tau_i>0$. Source subsets are fixed before observing messages. Any recurrent history treated as context must leave this conditional model valid.
+
+For nonempty $S\subseteq A$, write $M_S=(M_i)_{i\in S}$ and define
+\begin{equation}\label{eq:bayesian-definitions}
+\begin{aligned}
+T_S &= \sum_{i\in S}\tau_i,\qquad \bar T_S=\tau_0+T_S,\\
+\mu_S &= \frac{\sum_{i\in S}\tau_i M_i}{T_S},\qquad
+\bar\mu_S=\frac{\tau_0m_0+T_S\mu_S}{\bar T_S}.
+\end{aligned}
+\end{equation}
+
+\begin{mosaictheorem}[Posterior fusion]\label{thm:posterior-fusion}
+Under Assumption G, $Z\mid M_S\sim\mathcal{N}(\bar\mu_S,\bar T_S^{-1})$. In the flat-prior limit $\tau_0\downarrow0$, the normalized likelihood has mean $\mu_S$ and variance $T_S^{-1}$.
+\end{mosaictheorem}
+
+Appendix~\ref{app:bayesian} proves this result and four further theorems. Fusion uniquely minimizes a precision-weighted quadratic (Theorem~\ref{thm:fusion-optimality}). Retaining an additional independent source strictly lowers posterior variance (Theorem~\ref{thm:retained-route}) and optimal squared-error risk (Theorem~\ref{thm:bayes-risk}), holding existing precisions fixed. A compressed readout $Y=g(M_S)$ has optimal conditional risk
+\begin{equation}\label{eq:bayesian-bottleneck-main}
+\bar T_S^{-1}+\operatorname{Var}(\bar\mu_S\mid Y)
+\geq \bar T_S^{-1},
+\end{equation}
+with equality exactly when $Y$ preserves the posterior mean (Theorem~\ref{thm:bottleneck}). Thus a single-column readout can preserve all information needed for optimal squared-error prediction; its dimension alone does not determine information loss.
+
+The flat-prior weights satisfy $\tau_i/T_S=\operatorname{softmax}_{i\in S}(\log\tau_i)$, giving an algebraic correspondence to attention. MoSAIC's learned logits are not calibrated precisions, and top-$k$ selection consults all source scores. These theorems therefore describe fixed information access, not the implemented adaptive router. Changing column count can change both messages and precisions (Proposition~\ref{prop:column-count}); no monotonic quality guarantee follows. Gaussian squared-error risk is also distinct from token cross-entropy, so the analysis gives no BPC guarantee.

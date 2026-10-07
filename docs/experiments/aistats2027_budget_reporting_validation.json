@@ -1,0 +1,35 @@
+{
+  "final_budget_raw_numeric_checks": 113,
+  "original_pilot_raw_scalar_checks": 124,
+  "mid_groups": 18,
+  "mid_launches": 41,
+  "historical_text8_launches": 29,
+  "historical_sdq_launches": 24,
+  "revision": "2026-10-06 budget reporting",
+  "manuscripts": {
+    "paper": {
+      "pages": 20,
+      "main_text_pages": 8,
+      "table2_page": 7,
+      "unresolved_references": false,
+      "reporting_horizon_mentions": false
+    },
+    "paper_evidence_only": {
+      "pages": 20,
+      "main_text_pages": 8,
+      "table2_page": 7,
+      "unresolved_references": false,
+      "reporting_horizon_mentions": false
+    }
+  },
+  "sha256": {
+    "inference/aistats_revision_evidence.py": "51c5a1e1a4d650f8b1e4f1f94c055fe8c1d4050268bea0268481cf5be11c4796",
+    "inference/aistats_resource_accounting.py": "2765223b1014a34c7f814e02426abd4be33f8ca12e1ad7a3fcb8e860915d2b4f",
+    "article/latex/paper.tex": "1d874e4156e779cb6f36a69afec721c6d391b320cb88f4f333ed408fb60b3c79",
+    "article/latex/paper_evidence_only.tex": "386c0738fd8af4fd5ac0620fb4ab16008261e65e76c754f8357e5f53b546e665",
+    "article/latex/paper.pdf": "362af87c7dc670992b560305a590b72b6f259a86dbba7d8bb79a43adb3b593d8",
+    "article/latex/paper_evidence_only.pdf": "89c7b739b09bc7aeefe2705d07abb813878419fe3bbabb0f9e1621f7b7c8ff83",
+    "docs/experiments/aistats2027_revision_evidence.json": "d4e2265a8342eb6904fd4ac9c1ec7a610997d980e69cbefc72af89e0dab1d073"
+  },
+  "remaining_build_warning": "Official title block: overfull hbox 5.1225pt"
+}

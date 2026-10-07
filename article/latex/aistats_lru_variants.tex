@@ -1,18 +1,18 @@
 % Generated offline by inference/aistats_revision_evidence.py.
 \begin{table}[t]
 \centering
-\caption{Five LRU mechanisms and their own dynamic-hub control on Text8, seed 42, at 980,037,632 tokens. Late $\Delta$ averages paired differences at the common 800.03--980.04M logs. Reset-1024 evaluates the same validation data with state reset every 1,024 valid tokens; reset penalty is its BPC minus continuous BPC. Core widths are L2C4H180; added projections or replacement of an LRU by matrix memory change parameter/state counts. This is a single-seed exploratory comparison.}
+\caption{Five LRU mechanisms and their dynamic-hub control on Text8, seed 42, with a 1B-token training budget. Late $\Delta$ averages paired differences over late evaluations. Reset-1024 evaluates the same validation data with state reset every 1,024 valid tokens; reset penalty is its BPC minus continuous BPC. Core widths are L2C4H180; added projections or replacement of an LRU by matrix memory change parameter/state counts. This is a single-seed exploratory comparison.}
 \label{tab:lruvariants}
 \begin{tabular}{lrrrrr}
 \toprule
 Variant & BPC $\downarrow$ & $\Delta$ & Late $\Delta$ & Reset-1024 & Reset penalty \\
 \midrule
-control & 1.6687 & $+0.0000$ & $+0.0000$ & 1.6803 & $+0.0116$ \\
-write gate & 1.6675 & $-0.0012$ & $-0.0014$ & 1.6799 & $+0.0124$ \\
-query read & 1.6872 & $+0.0185$ & $+0.0184$ & 1.7009 & $+0.0136$ \\
-associative & 1.6938 & $+0.0251$ & $+0.0224$ & 1.7121 & $+0.0183$ \\
-rotations & 1.6663 & $-0.0024$ & $-0.0003$ & 1.6787 & $+0.0123$ \\
-two reads & 1.6530 & $-0.0157$ & $-0.0168$ & 1.6641 & $+0.0111$ \\
+control & 1.6673 & $+0.0000$ & $+0.0000$ & 1.6794 & $+0.0120$ \\
+write gate & 1.6650 & $-0.0023$ & $-0.0014$ & 1.6771 & $+0.0121$ \\
+query read & 1.6872 & $+0.0199$ & $+0.0184$ & 1.7009 & $+0.0136$ \\
+associative & 1.6938 & $+0.0265$ & $+0.0224$ & 1.7121 & $+0.0183$ \\
+rotations & 1.6651 & $-0.0023$ & $-0.0003$ & 1.6772 & $+0.0122$ \\
+two reads & 1.6488 & $-0.0185$ & $-0.0168$ & 1.6607 & $+0.0119$ \\
 \bottomrule
 \end{tabular}
 \end{table}

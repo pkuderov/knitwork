@@ -1,19 +1,19 @@
 % Generated offline by inference/aistats_revision_evidence.py.
 \begin{table}[t]
 \centering
-\caption{Sparse LRU pilots, seed 42. Each row uses its latest common logged point with the separate dense control; horizons differ across rows and are not cross-row rankings. $\Delta$ is paired BPC difference. Block has a 0.531M core versus approximately 1.05M for its dense control.}
+\caption{Sparse LRU pilots on Text8, seed 42, with a 1B-token training budget. $\Delta$ is BPC difference from the dense control. Block has a 0.531M core versus approximately 1.05M for its dense control.}
 \label{tab:sparselru}
-\begin{tabular}{lrrr}
+\begin{tabular}{lrr}
 \toprule
-Variant & Tokens (M) & BPC $\downarrow$ & $\Delta$ \\
+Variant & BPC $\downarrow$ & $\Delta$ \\
 \midrule
-self heavy & 920.04 & 1.6725 & $-0.0063$ \\
-star & 1000.00 & 1.6816 & $+0.0055$ \\
-star ring & 600.02 & 1.7305 & $-0.0025$ \\
-clockwork & 920.04 & 1.7123 & $+0.0335$ \\
-block & 920.04 & 1.7607 & $+0.0819$ \\
-entmax & 1000.00 & 1.6861 & $+0.0099$ \\
-dynamic hub & 1000.00 & 1.6659 & $-0.0102$ \\
+self heavy & 1.6680 & $-0.0082$ \\
+star & 1.6816 & $+0.0055$ \\
+star ring & 1.6828 & $+0.0067$ \\
+clockwork & 1.7084 & $+0.0323$ \\
+block & 1.7638 & $+0.0877$ \\
+entmax & 1.6861 & $+0.0099$ \\
+dynamic hub & 1.6659 & $-0.0102$ \\
 \bottomrule
 \end{tabular}
 \end{table}

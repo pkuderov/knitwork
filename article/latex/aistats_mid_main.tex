@@ -1,32 +1,31 @@
 % Generated offline by inference/aistats_revision_evidence.py.
 \begin{table}[t]
 \centering
-\caption{Text8 $\sim$1M series: mean $\pm$ sample SD of validation BPC. Upper panel: exactly 980,037,632 logged tokens. Lower panel uses separate horizons: $\dagger$ 960,036,864; $\ddagger$ 982,646,784, without interpolation. Seeds 42/1337, adding 31337 for $n=3$. Split 90M/5M/5M. Local baselines share the training recipe; state and compute are unmatched.}
+\setlength{\tabcolsep}{5pt}
+\caption{Text8 validation results for models with approximately one million parameters and a training budget of one billion tokens. Values are the mean and sample standard deviation across repeated runs. Models share the data split and training recipe; recurrent state and computational cost are not matched.}
 \label{tab:mid}
 \begin{tabular}{lrrr}
 \toprule
-Model & Params & $n$ & BPC $\downarrow$ \\
+Model & Size & Runs & BPC \\
 \midrule
-Mamba & 1.003M & 2 & $1.5651\pm0.0012$ \\
-MoSAIC L3C4 & 1.069M & 3 & $1.5916\pm0.0012$ \\
-MoSAIC L2C4 & 1.050M & 3 & $1.5966\pm0.0050$ \\
-MoSAIC L2C8 & 0.973M & 2 & $1.6082\pm0.0019$ \\
-MoSAIC L1C8 & 1.034M & 2 & $1.6369\pm0.0016$ \\
+Mamba & 1.003M & 2 & $1.5657\pm0.0010$ \\
+MoSAIC L3C4 & 1.069M & 3 & $1.5918\pm0.0009$ \\
+MoSAIC L2C4 & 1.050M & 3 & $1.5960\pm0.0058$ \\
+MoSAIC L2C8 & 0.973M & 2 & $1.6084\pm0.0017$ \\
+MoSAIC L1C8 & 1.034M & 2 & $1.6367\pm0.0013$ \\
 GRU L1 & 1.004M & 2 & $1.6807\pm0.0003$ \\
-GRU L2 & 1.014M & 3 & $1.6368\pm0.0018$ \\
-GRU L3 & 0.986M & 2 & $1.6205\pm0.0076$ \\
-Grid-LRU L1C8 & 1.004M & 2 & $1.7473\pm0.0005$ \\
+GRU L2 & 1.014M & 3 & $1.6359\pm0.0007$ \\
+GRU L3 & 0.986M & 2 & $1.6205\pm0.0080$ \\
+Grid-LRU L1C8 & 1.004M & 2 & $1.7471\pm0.0002$ \\
+Grid-LRU L2C4 & 1.049M & 3 & $1.6720\pm0.0006$ \\
 Grid-LRU L2C8 & 1.060M & 2 & $1.7156\pm0.0047$ \\
-Grid-LRU L3C4 & 1.063M & 3 & $1.6690\pm0.0052$ \\
+Grid-LRU L3C4 & 1.063M & 3 & $1.6699\pm0.0042$ \\
+Transformer-256 & 1.002M & 2 & $1.6396\pm0.0098$ \\
 HGRN2 & 0.996M & 2 & $1.6695\pm0.0005$ \\
 mLSTM & 0.996M & 2 & $1.7163\pm0.0039$ \\
-DeltaNet & 1.004M & 2 & $1.7849\pm0.0005$ \\
-RIMs & 0.995M & 2 & $1.8744\pm0.0977$ \\
-BRIMs & 1.000M & 2 & $1.8968\pm0.0318$ \\
-\midrule
-\multicolumn{4}{l}{Separate logged horizons:} \\
-Grid-LRU L2C4$^{\dagger}$ & 1.049M & 3 & $1.6750\pm0.0032$ \\
-Transformer-256$^{\ddagger}$ & 1.002M & 2 & $1.6396\pm0.0098$ \\
+DeltaNet & 1.004M & 2 & $1.7844\pm0.0012$ \\
+RIMs & 0.995M & 2 & $1.8741\pm0.0965$ \\
+BRIMs & 1.000M & 2 & $1.8853\pm0.0179$ \\
 \bottomrule
 \end{tabular}
 \end{table}

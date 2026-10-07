@@ -1,0 +1,43 @@
+{
+  "pdf_pages": 20,
+  "main_pages": 8,
+  "ai_statement_page": 9,
+  "references_pages": [
+    9,
+    10
+  ],
+  "checklist_page": 11,
+  "appendix_pages": [
+    12,
+    20
+  ],
+  "appendix_page_count": 9,
+  "anonymous_author_metadata": true,
+  "letter_page_size": true,
+  "font_types": [
+    "Type0",
+    "Type1"
+  ],
+  "type3_fonts": false,
+  "unresolved_citations_or_references": false,
+  "text_spans_outside_page": [],
+  "resource_tables_15_16_page": 20,
+  "resource_tables_15_16_gap_pt": 37.92,
+  "resource_table_placement": "H",
+  "remaining_tex_warnings": [
+    "Overfull \\hbox (5.1225pt too wide) in paragraph at lines 31--31"
+  ],
+  "underfull_vbox_diagnostics": 6,
+  "pdf_sha256": "9226947ec152833bb3e6607368a9d5362fe7a5144ddf0d480226b8f16f78aeb4",
+  "checked_utc": "2026-10-05T11:57:13.127799+00:00",
+  "source": "article/latex/paper_evidence_only.tex",
+  "base_source": "article/latex/paper.tex",
+  "base_prose_unchanged_except_float_package": true,
+  "same_generated_table_inputs": true,
+  "same_numeric_literals_as_base": true,
+  "earlier_hypothesis_discussions_removed": true,
+  "ai_architectural_design_disclosure_retained": true,
+  "new_training_launched": false,
+  "external_submission_changed": false,
+  "resource_page_visually_reviewed": true
+}

@@ -1,22 +1,22 @@
 % Generated offline by inference/aistats_revision_evidence.py.
 \begin{table*}[t]
 \centering
-\caption{Historical $\sim$10M models, reaggregated at common logged budgets. Text8: 960,036,864 tokens; Transformer BPC is linearly interpolated between bracketing logs, recurrent rows are exact. SDQ: per-launch mean over the same five logs at 950.04--970.04M tokens. Values are mean $\pm$ sample SD; SDQ has three launches per row. Params are for text8. $\dagger$: two text8 launches. Acc++ is an online curriculum diagnostic.}
+\caption{Historical $\sim$10M models with a 1B-token training budget. Values are mean $\pm$ sample SD; SDQ uses the final five diagnostic measurements per launch and has three launches per row. Params are for text8. $\dagger$: two text8 launches. Acc++ is an online curriculum diagnostic.}
 \label{tab:historical}
 \begin{tabular}{lrrrr}
 \toprule
 Model & Params & Text8 $n$ & Val. BPC $\downarrow$ & SDQ Acc++ $\uparrow$ \\
 \midrule
-GRU-L1 & 10.16M & 3 & $1.5641\pm0.0027$ & $0.6159\pm0.0040$ \\
-GRU-L2 & 10.04M & 3 & $1.5005\pm0.0121$ & $0.5409\pm0.0735$ \\
-GRU-L3 & 10.23M & 3 & $1.4839\pm0.0067$ & $0.3177\pm0.0850$ \\
-MoSAIC-L1C8 & 10.11M & 3 & $1.4671\pm0.0030$ & $0.7009\pm0.0186$ \\
-MoSAIC-L2C4 & 10.11M & 3 & $1.4389\pm0.0033$ & $0.8389\pm0.0062$ \\
-MoSAIC-L2C8 & 10.17M & 3 & $1.4401\pm0.0010$ & $0.8641\pm0.0129$ \\
-MoSAIC-L2C16$^{\dagger}$ & 10.09M & 2 & $1.4510\pm0.0014$ & $0.8830\pm0.0116$ \\
-MoSAIC-L3C4 & 9.99M & 3 & $1.4349\pm0.0008$ & $0.9137\pm0.0123$ \\
-Transformer-256 & 10.07M & 3 & $1.4522\pm0.0088$ & --- \\
-Transformer-64 & 10.07M & 3 & $1.4826\pm0.0056$ & --- \\
+GRU-L1 & 10.16M & 3 & $1.5632\pm0.0025$ & $0.6177\pm0.0052$ \\
+GRU-L2 & 10.04M & 3 & $1.5004\pm0.0119$ & $0.5444\pm0.0743$ \\
+GRU-L3 & 10.23M & 3 & $1.4830\pm0.0061$ & $0.3241\pm0.0862$ \\
+MoSAIC-L1C8 & 10.11M & 3 & $1.4687\pm0.0046$ & $0.7051\pm0.0163$ \\
+MoSAIC-L2C4 & 10.11M & 3 & $1.4397\pm0.0050$ & $0.8433\pm0.0055$ \\
+MoSAIC-L2C8 & 10.17M & 3 & $1.4452\pm0.0019$ & $0.8664\pm0.0099$ \\
+MoSAIC-L2C16$^{\dagger}$ & 10.09M & 2 & $1.4548\pm0.0023$ & $0.8911\pm0.0049$ \\
+MoSAIC-L3C4 & 9.99M & 3 & $1.4345\pm0.0017$ & $0.9204\pm0.0128$ \\
+Transformer-256 & 10.07M & 3 & $1.4492\pm0.0120$ & --- \\
+Transformer-64 & 10.07M & 3 & $1.4816\pm0.0049$ & --- \\
 \bottomrule
 \end{tabular}
 \end{table*}
