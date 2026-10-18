@@ -166,6 +166,8 @@ env/
 !knitwork/env/
 knitwork/env/*
 !knitwork/env/aliased_cube.py
+!knitwork/env/popgym_torch.py
+!knitwork/env/popgym_batched.py
 venv/
 ENV/
 env.bak/
