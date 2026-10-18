@@ -19,7 +19,7 @@ class GridRnn(nn.Module):
             n_attn_heads, use_bias=True,
             ln_msg=True,
             bank=2, mha=0,
-            noise_std=0.0, top_k=None,
+            noise_std=0.0, top_k=None, x_add=False,
             dtype, device,
     ):
         super().__init__()
@@ -33,6 +33,8 @@ class GridRnn(nn.Module):
         self.n_layers = n_layers
         self.n_columns = n_columns
         self.n_attn_heads = n_attn_heads
+        # also add the external input to every layer-0 cell input (bypasses routing dilution)
+        self.x_add = x_add
 
         self.dtype = dtype
         self.device = device
@@ -86,6 +88,9 @@ class GridRnn(nn.Module):
         for layer in range(self.n_layers):
             hl = h[layer]
             u, comm_info = self.attn[layer](hl, msg, msg, return_weights=capture)
+            if layer == 0 and self.x_add:
+                # (In, B, H) -> (1, B, H), broadcast over columns
+                u = u + x_ext.sum(0, keepdim=True)
             hln = self.cells(layer, u, hl)
             msg = hln
 

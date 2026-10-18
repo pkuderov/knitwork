@@ -15,7 +15,7 @@ class GridRnn(nn.Module):
     def __init__(
             self, *,
             hidden_size, n_layers, n_columns, n_inputs=1, n_outputs=1,
-            horizon, fb_norm=False,
+            horizon, fb_norm=False, x_add=False, feedback=True,
             dtype, device,
     ):
         super().__init__()
@@ -26,6 +26,10 @@ class GridRnn(nn.Module):
         self.n_inputs = n_inputs
         # parameter-free RMS norm on the top-layer output fed back as the next step's message: bounds the residual loop
         self.fb_norm = fb_norm
+        # x_add: also add the external input to every layer-0 column input (bypasses routing dilution)
+        # feedback=False: drop the previous top-layer outputs from the layer-0 routing sources
+        self.x_add = x_add
+        self.feedback = feedback
         self.n_outputs = n_outputs
         self.hidden_size = hidden_size
         self.n_layers = n_layers
@@ -57,6 +61,8 @@ class GridRnn(nn.Module):
         # (B, C, H)
         # extend prev output (as internal input) with external input
         x_int, x_ext = state['out'], x
+        if not self.feedback:
+            x_int = torch.zeros_like(x_int)
         out = torch.cat([x_int, x_ext], dim=1)
 
         h_t, outs_t = [], []
@@ -68,6 +74,9 @@ class GridRnn(nn.Module):
             msg_out, comm_info = self.comm[layer](outs_tp[layer], msg_in, msg_in, return_weights=capture)
 
             cell_in = msg_out
+            if layer == 0 and self.x_add:
+                # (B, In, H) -> (1, B, H), broadcast over columns
+                cell_in = cell_in + x_ext.sum(1)[None]
             hl_tp = h_tp[layer]
             # in: (C, B, H), out: (B, C, H)
             cell_out, hl_t = self.cells(layer, cell_in, hl_tp)
