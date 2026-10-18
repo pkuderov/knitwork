@@ -103,24 +103,34 @@ class RLTokenModel(nn.Module):
 
 
 class RLVectorModel(nn.Module):
-    """Vector-input recurrent actor-critic built around a core model."""
+    """Vector-input recurrent actor-critic built around a core model.
+
+    readout='columns' feeds all top-layer grid columns to the heads (default: core output only);
+    obs_skip=True also feeds the encoded current observation to the heads.
+    """
 
     def __init__(
             self, *,
             input_size, output_size,
             rnn: dict, rnn_fn,
             dtype, device, feature_norm=False, policy_gain=None,
+            readout='core', obs_skip=False,
     ):
         super().__init__()
+        assert readout in ('core', 'columns')
         self.dtype = dtype
         self.device = device
         self.rnn = rnn_fn(dtype=dtype, device=device, **rnn)
         self.hidden_size = self.rnn.hidden_size
         self.feature_norm = feature_norm
+        self.readout = readout
+        self.obs_skip = obs_skip
 
+        n_feat = getattr(self.rnn, 'n_columns', 1) if readout == 'columns' else 1
+        head_size = self.hidden_size * (n_feat + int(obs_skip))
         self.encoder = nn.Linear(input_size, self.hidden_size)
-        self.policy_head = nn.Linear(self.hidden_size, output_size)
-        self.value_head = nn.Linear(self.hidden_size, 1)
+        self.policy_head = nn.Linear(head_size, output_size)
+        self.value_head = nn.Linear(head_size, 1)
         _init_rl_heads(self, policy_gain)
 
         print(f'Param count: {count_learnable_params(self, as_str=True)}')
@@ -130,9 +140,22 @@ class RLVectorModel(nn.Module):
         if not getattr(self.rnn, 'batch_first', False):
             x = x.transpose(0, 1)
         z, state, info = self.rnn(x, state, capture=capture, **kwargs)
+        B = z.shape[0]
+        # [B, n_feat, H]: core output or all top columns, optionally plus the encoded observation
+        z = self._top_columns(state) if self.readout == 'columns' and hasattr(self.rnn, 'n_columns') else z.view(B, 1, -1)
+        if self.obs_skip:
+            z = torch.cat([z, x.reshape(B, 1, -1)], dim=1)
         if self.feature_norm:
             z = torch.nn.functional.rms_norm(z, (self.hidden_size,))
+        z = z.flatten(1)
         return self.policy_head(z), self.value_head(z).squeeze(-1), state, info
+
+    @staticmethod
+    def _top_columns(state):
+        # grid-LRU family keeps top outputs as outs [L, B, C, H]; grid-GRU keeps h [L, C, B, H]
+        if 'outs' in state:
+            return state['outs'][-1]
+        return state['h'][-1].transpose(0, 1)
 
     def reset_state(self, state, reset_mask):
         return self.rnn.reset_state(state, reset_mask)
