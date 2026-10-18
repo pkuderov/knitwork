@@ -5,6 +5,8 @@ SAME_STEP autoreset; time-limit truncation is treated as episode end without boo
 """
 from __future__ import annotations
 
+import pickle
+
 import gymnasium as gym
 import numpy as np
 import torch
@@ -67,3 +69,11 @@ class PopgymBatchEnv:
                 self._set_obs(i, obs, a, r)
         dev = self.device
         return torch.tensor(self.obs, device=dev), torch.tensor(rewards, device=dev), torch.tensor(dones, device=dev)
+
+    def state_dict(self):
+        return {'envs': pickle.dumps(self.envs), 'rng': self.rng.bit_generator.state, 'obs': self.obs.copy()}
+
+    def load_state_dict(self, state):
+        self.envs = pickle.loads(state['envs'])
+        self.rng.bit_generator.state = state['rng']
+        self.obs[:] = state['obs']

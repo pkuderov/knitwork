@@ -2,7 +2,10 @@
 from __future__ import annotations
 
 import copy
+import re
+import signal
 import time
+from pathlib import Path
 
 import torch
 
@@ -49,21 +52,61 @@ def main(config):
     name = config.get('name') or ''
     config['log']['name'] = f'{model_key}_{config["env"]}_{params} {name}'.strip()
     config['protocol'] = dict(version='popgym_torch_ppo_v1', parameters=count_learnable_params(model))
+
+    ckpt_cfg = config.get('checkpoint') or {}
+    run_id = config.get('run_id') or f'{name}_{model_key}_{config["env"]}_seed{config["seed"]}'
+    ckpt_path = Path(ckpt_cfg.get('dir', 'runs/rl_fast')) / (re.sub(r'[^\w.-]+', '_', run_id) + '.pt')
+    ckpt = torch.load(ckpt_path, map_location=device, weights_only=False) if ckpt_path.exists() else None
+    if ckpt is not None and ckpt.get('finished'):
+        print(f'Already finished: {ckpt_path}')
+        return
+    if ckpt is not None:
+        model.load_state_dict(ckpt['model'])
+        optim.load_state_dict(ckpt['optim'])
+        env.load_state_dict(ckpt['env'])
+        eval_env.load_state_dict(ckpt['eval_env'])
+        torch.set_rng_state(ckpt['rng_cpu'].cpu())
+        if device.type == 'cuda':
+            torch.cuda.set_rng_state(ckpt['rng_cuda'].cpu(), device)
+        config['log']['experiment_key'] = ckpt.get('experiment_key')
+        print(f'Resuming {ckpt_path} at update {ckpt["update"]}')
     logger = start_logger(config, suppress_printing=True)
     print(f'Run: {config["log"]["name"]} | obs_dim={env.obs_dim} actions={env.n_actions} ep_len={env.ep_len}')
 
     try:
         obs = env.reset()
         state = model.rnn.reset_state(None, bsz=config['n_envs'])
+        episodes = EpisodeTracker(config['n_envs'], device)
+        start_update, step = 0, 0
+        if ckpt is not None:
+            obs, state, start_update, step = ckpt['obs'], ckpt['state'], ckpt['update'], ckpt['step']
+            episodes.ret, episodes.fresh = ckpt['episodes']
+            logger.last_flush_step, logger.next_flush = step, step + logger.log_schedule
+
+        stop = []
+        for sig in (signal.SIGTERM, signal.SIGINT):
+            signal.signal(sig, lambda *_: stop.append(True))
+
+        def save(update, finished=False):
+            ckpt_path.parent.mkdir(parents=True, exist_ok=True)
+            tmp = ckpt_path.with_suffix('.tmp')
+            torch.save(dict(
+                model=model.state_dict(), optim=optim.state_dict(), env=env.state_dict(), eval_env=eval_env.state_dict(),
+                obs=obs, state=state, update=update, step=step, episodes=(episodes.ret, episodes.fresh),
+                rng_cpu=torch.get_rng_state(), rng_cuda=torch.cuda.get_rng_state(device) if device.type == 'cuda' else None,
+                experiment_key=logger.logger.get_key() if hasattr(logger.logger, 'get_key') else None,
+                config=config, finished=finished,
+            ), tmp)
+            tmp.replace(ckpt_path)
+
         forward = model
         if config.get('cuda_graphs'):
             forward = GraphedPolicy(
                 model, state, obs, rollout_len=config['rollout_len'],
                 minibatch=config['n_envs'] // rl['minibatches'],
             )
-        episodes = EpisodeTracker(config['n_envs'], device)
-        step, t0 = 0, time.time()
-        for update in range(n_updates):
+        step0, t0 = step, time.time()
+        for update in range(start_update, n_updates):
             if rl.get('lr_anneal'):
                 for group in optim.param_groups:
                     group['lr'] = rl['lr'] * (1 - update / n_updates)
@@ -92,17 +135,25 @@ def main(config):
                 logger.log(step, {
                     'eval/EpRetGreedy': evaluate(eval_env, model, greedy=True),
                     'eval/EpRet': evaluate(eval_env, model, greedy=False),
-                    'perf/sps': step / (time.time() - t0),
+                    'perf/sps': (step - step0) / (time.time() - t0),
                 }, flush=False)
             logger.log(step, flush=True, force=update == n_updates - 1)
             if update % config['print_every'] == 0:
                 print(
-                    f'[{step / 1e6:.2f}M] {step / (time.time() - t0):.0f} sps'
+                    f'[{step / 1e6:.2f}M] {(step - step0) / (time.time() - t0):.0f} sps'
                     f' Acc {metrics["Acc"].item():.3f} H {metrics["H"].item():.3f}'
                     f' KL {metrics["ApproxKL"].item():.4f} EV {metrics["ExplVar"].item():.2f}'
                     + (f' EpRet {metrics["env/EpRet"].item():.3f}' if 'env/EpRet' in metrics else ''),
                     flush=True,
                 )
+            if stop:
+                save(update + 1)
+                print(f'Paused at update {update + 1}/{n_updates}, checkpoint {ckpt_path}', flush=True)
+                # exit code 3 = paused, the queue stops instead of starting the next run
+                raise SystemExit(3)
+            if (update + 1) % ckpt_cfg.get('every_updates', 50) == 0:
+                save(update + 1)
+        save(n_updates, finished=True)
     finally:
         logger.finish()
 

@@ -55,3 +55,19 @@ def test_autoreset_and_features():
     # new episode: previous action/reward features are cleared
     assert obs[:, 4:].abs().sum() == 0
     assert (env.t == 0).all()
+
+
+@pytest.mark.parametrize('task', ['AutoencodeEasy', 'BattleshipEasy'])
+def test_env_state_roundtrip(task):
+    from knitwork.env.popgym_batched import PopgymBatchEnv
+    Env = CardMemoryEnv if task in TASKS else PopgymBatchEnv
+    env, twin = Env(task, 4, device='cpu', seed=3), Env(task, 4, device='cpu', seed=99)
+    env.reset()
+    actions = torch.randint(env.n_actions, (10, 4), generator=torch.Generator().manual_seed(0))
+    for a in actions[:5]:
+        env.step(a)
+    twin.load_state_dict(env.state_dict())
+    for a in actions[5:]:
+        out, out_twin = env.step(a), twin.step(a)
+        for x, y in zip(out, out_twin):
+            assert torch.equal(x, y)

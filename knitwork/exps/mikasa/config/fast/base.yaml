@@ -16,6 +16,11 @@ n_steps: 20000000
 cuda_graphs: true
 cpu_threads: 2
 gpu_mem_frac: 0.3
+# resume: rerunning with the same run_id continues from <dir>/<run_id>.pt
+run_id: null
+checkpoint:
+  dir: runs/rl_fast
+  every_updates: 50
 print_every: 20
 eval:
   n_envs: 512

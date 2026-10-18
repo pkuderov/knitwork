@@ -246,3 +246,6 @@ knitwork/gens/data/*
 .cometml-runs/
 # local agent config; skills/status/SKILL.md carried a Comet API key
 .claude/
+
+# run_fast.py checkpoints
+runs/rl_fast/

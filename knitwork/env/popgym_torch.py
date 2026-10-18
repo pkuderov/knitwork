@@ -143,3 +143,14 @@ class CardMemoryEnv:
         done = self.t >= self.ep_len
         self._new_episodes(done)
         return self._encode(), reward, done
+
+    def state_dict(self):
+        keys = ('codes', 'targets', 't', 'prev_action', 'prev_reward')
+        return {k: getattr(self, k).clone() for k in keys} | {'generator': self.generator.get_state()}
+
+    def load_state_dict(self, state):
+        for k, v in state.items():
+            if k == 'generator':
+                self.generator.set_state(v.cpu())
+            else:
+                setattr(self, k, v.to(self.device))

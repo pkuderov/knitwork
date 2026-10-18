@@ -179,10 +179,13 @@ class CustomCometLogger(Logger):
             _stdout = sys.stdout
             _stderr = sys.stderr
 
+        # an existing experiment_key continues that run (checkpoint resume)
+        resume_kwargs = dict(experiment_key=log_cfg['experiment_key'], mode='get') if log_cfg.get('experiment_key') else {}
         run = comet_ml.start(
             api_key=api_key,
             project_name=log_cfg['project'],
             workspace=workspace,
+            **resume_kwargs,
             experiment_config=comet_ml.ExperimentConfig(
                 name=log_cfg.get('name', None),
                 tags=tags,
