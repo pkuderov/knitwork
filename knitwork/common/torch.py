@@ -222,7 +222,8 @@ def working_set_penalty(x: torch.Tensor, low=None, high=None):
 
 
 def normalize_entropy(h, size):
-    return h / torch.log(h.new([size]))
+    # python-scalar divisor: no host-to-device copy (CUDA-graph safe)
+    return h / float(np.log(size))
 
 
 def get_entropy(p, dim=-1, keepdim=False, normalize=False):

@@ -1,0 +1,75 @@
+# Recurrent PPO on GPU-vectorized POPGym card-memory tasks (run_fast.py).
+seed: 42
+name: null
+log:
+  logger: comet
+  project: knitwork-aistat
+  tags: [rl-fast, popgym-torch]
+  schedule: 262144
+device: cuda
+env: RepeatPreviousEasy
+env_cfg:
+  prev_action_reward: true
+n_envs: 256
+rollout_len: 128
+n_steps: 20000000
+cuda_graphs: true
+cpu_threads: 2
+gpu_mem_frac: 0.3
+print_every: 20
+eval:
+  n_envs: 512
+  every: 20
+rl:
+  lr: 0.0003
+  lr_anneal: false
+  epochs: 4
+  minibatches: 4
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_eps: 0.2
+  value_coef: 0.5
+  entropy_coef: 0.01
+  max_grad_norm: 0.5
+  target_kl: null
+  refresh_state: false
+  supervised: false
+  reward_mult: 1.0
+rl_wrapper:
+  feature_norm: true
+  policy_gain: 0.01
+
+model: rnn.L2
+rnn_L2:
+  hidden_size: 288
+  n_layers: 2
+  use_bias: true
+  dropout: 0.0
+lru_L2:
+  hidden_size: 358
+  n_layers: 2
+  horizon: [1.0, 1000.0]
+grnn_L2C4:
+  hidden_size: 136
+  n_layers: 2
+  n_columns: 4
+  n_attn_heads: 4
+  ln_msg: true
+  bank: 2
+  mha: 2
+  noise_std: 0.0
+grnn_lru_L2C4:
+  hidden_size: 180
+  n_layers: 2
+  n_columns: 4
+  horizon: [1.0, 1000.0]
+  fb_norm: true
+grnn_lru_sparse_dynamic_hub:
+  hidden_size: 180
+  n_layers: 2
+  n_columns: 4
+  horizon: [1.0, 1000.0]
+  fb_norm: true
+  topology: star
+  hub_query_size: 8
+  hub_query_init: zero
