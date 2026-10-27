@@ -10,6 +10,10 @@ device: cuda
 env: RepeatPreviousEasy
 env_cfg:
   prev_action_reward: true
+train_env_cfg:  # training env only, null entries are dropped
+  min_cards: null  # autoencode: deck length per episode in [min_cards, full]
+  grow_cards: null  # adaptive: the upper length starts at min_cards, +grow_cards when Acc >= grow_acc
+  grow_acc: null
 n_envs: 256
 rollout_len: 128
 n_steps: 20000000
@@ -78,3 +82,29 @@ grnn_lru_sparse_dynamic_hub:
   topology: star
   hub_query_size: 8
   hub_query_init: zero
+# p11 E2 candidates, ~1.03M params with the RL heads
+grnn_lru_slots_soft:
+  hidden_size: 200
+  n_layers: 2
+  n_columns: 4
+  horizon: [1.0, 1000.0]
+  fb_norm: true
+  mode: slot_soft
+  hub_query_size: 8
+  n_slots: 8
+  slot_key_size: 16
+  slot_value_size: 32
+  memory_column: 3
+  slot_write_bias: 0.0
+delta_net_L2:
+  hidden_size: 268
+  n_layers: 2
+grnn_bank_L2C4:  # ~1.03M with the RL wrapper, matches the L2C4 dynamic grid at hidden 160
+  hidden_size: 168
+  n_layers: 2
+  n_columns: 4
+  horizon: [1.0, 1000.0]
+grnn_many_C16:  # one layer of 16 shared-weight LRU columns with structured communication (grnn_many.py)
+  hidden_size: 128
+  n_columns: 16
+  horizon: [1.0, 1000.0]

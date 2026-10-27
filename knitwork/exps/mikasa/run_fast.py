@@ -32,7 +32,8 @@ def main(config):
 
     # GPU re-implementation when available, else original POPGym stepped on CPU
     Env = CardMemoryEnv if config['env'] in TASKS else PopgymBatchEnv
-    env = Env(config['env'], config['n_envs'], device=device, seed=config['seed'], **config.get('env_cfg', {}))
+    # train_env_cfg: training env only (e.g. min_cards curriculum); eval stays on the fixed task
+    env = Env(config['env'], config['n_envs'], device=device, seed=config['seed'], **config.get('env_cfg', {}) | {k: v for k, v in (config.get('train_env_cfg') or {}).items() if v is not None})
     eval_env = Env(config['env'], config['eval']['n_envs'], device=device, seed=10_000 + config['seed'], **config.get('env_cfg', {}))
 
     model_key = config['model']
@@ -70,6 +71,10 @@ def main(config):
             torch.cuda.set_rng_state(ckpt['rng_cuda'].cpu(), device)
         config['log']['experiment_key'] = ckpt.get('experiment_key')
         print(f'Resuming {ckpt_path} at update {ckpt["update"]}')
+    elif config.get('init_from'):
+        # warm start (curriculum): model weights only from another run's checkpoint
+        model.load_state_dict(torch.load(config['init_from'], map_location=device, weights_only=False)['model'])
+        print(f'Init weights from {config["init_from"]}')
     logger = start_logger(config, suppress_printing=True)
     print(f'Run: {config["log"]["name"]} | obs_dim={env.obs_dim} actions={env.n_actions} ep_len={env.ep_len}')
 
@@ -106,6 +111,7 @@ def main(config):
                 minibatch=config['n_envs'] // rl['minibatches'],
             )
         step0, t0 = step, time.time()
+        eval_ret = float('nan')
         for update in range(start_update, n_updates):
             if rl.get('lr_anneal'):
                 for group in optim.param_groups:
@@ -118,6 +124,7 @@ def main(config):
                 max_grad_norm=rl['max_grad_norm'], gamma=rl['gamma'], gae_lambda=rl['gae_lambda'],
                 target_kl=rl.get('target_kl'), supervised=rl.get('supervised', False),
                 reward_mult=rl.get('reward_mult', 1.0),
+                aux_coef=rl.get('aux_coef', 0.0), route_entropy_coef=rl.get('route_entropy_coef', 0.0),
             )
             if rl.get('refresh_state'):
                 state = refresh(forward, batch, config['n_envs'])
@@ -125,6 +132,9 @@ def main(config):
 
             rewarded = batch['targets'] >= 0
             metrics['Acc'] = (batch['actions'] == batch['targets'])[rewarded].float().mean()
+            if getattr(env, 'grow_cards', None):
+                env.grow(metrics['Acc'].item())
+                metrics['env/MaxCards'] = env.max_cards
             finished = episodes.update(batch['rewards'], batch['dones'])
             if finished.numel():
                 metrics['env/EpRet'] = finished.mean()
@@ -132,9 +142,10 @@ def main(config):
             logger.log(step, to_loggable_metrics(metrics), flush=False)
 
             if update % config['eval']['every'] == 0 or update == n_updates - 1:
+                eval_ret = evaluate(eval_env, model, greedy=False)
                 logger.log(step, {
                     'eval/EpRetGreedy': evaluate(eval_env, model, greedy=True),
-                    'eval/EpRet': evaluate(eval_env, model, greedy=False),
+                    'eval/EpRet': eval_ret,
                     'perf/sps': (step - step0) / (time.time() - t0),
                 }, flush=False)
             logger.log(step, flush=True, force=update == n_updates - 1)
@@ -143,7 +154,9 @@ def main(config):
                     f'[{step / 1e6:.2f}M] {(step - step0) / (time.time() - t0):.0f} sps'
                     f' Acc {metrics["Acc"].item():.3f} H {metrics["H"].item():.3f}'
                     f' KL {metrics["ApproxKL"].item():.4f} EV {metrics["ExplVar"].item():.2f}'
-                    + (f' EpRet {metrics["env/EpRet"].item():.3f}' if 'env/EpRet' in metrics else ''),
+                    + (f' EpRet {metrics["env/EpRet"].item():.3f}' if 'env/EpRet' in metrics else '')
+                    + (f' Max {env.max_cards}' if 'env/MaxCards' in metrics else '')
+                    + f' Eval {eval_ret:.3f}',
                     flush=True,
                 )
             if stop:
