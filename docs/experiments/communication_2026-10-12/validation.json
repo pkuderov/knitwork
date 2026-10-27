@@ -1,0 +1,35 @@
+{
+  "local_completed_runs": 9,
+  "local_npz_summary_checks": [
+    "dynamic_column0/native_and_fixed_gaps",
+    "dynamic_mean/native_and_fixed_gaps",
+    "none_column0/native_and_fixed_gaps",
+    "static_column0/native_and_fixed_gaps",
+    "dynamic_column0/final_validation",
+    "dynamic_column0/final_test",
+    "dynamic_mean/final_validation",
+    "dynamic_mean/final_test",
+    "none_column0/final_validation",
+    "none_column0/final_test",
+    "static_column0/final_validation",
+    "static_column0/final_test",
+    "static_mean/final_validation",
+    "static_mean/final_test"
+  ],
+  "h100_stdout_api_bpc_matches": 2061,
+  "h100_late_common_tokens": 980037632,
+  "plots_total": 21,
+  "local_plots": 7,
+  "h100_plots": 14,
+  "h100_text_overlap_warnings_in_build": [],
+  "formats": [
+    "PNG",
+    "SVG",
+    "PDF"
+  ],
+  "training_queue_still_paused": true,
+  "all_report_links_valid": true,
+  "source_hashes_match": true,
+  "all_final_figures_have_no_detected_text_overlaps": true,
+  "figure_formatting": "No global titles or footer notes; short English metric axes; compact panel identifiers only; legends outside axes; visual checks completed."
+}

@@ -1,0 +1,2679 @@
+{
+  "run_id": "sdq/L2C4/clean/dynamic_mean/seed42-data42",
+  "task": "sdq",
+  "condition": "dynamic_mean",
+  "checkpoint": {
+    "path": "/home/master/knitwork/runs/communication_1m/sdq/L2C4/clean/dynamic_mean/seed42-data42/final.pt",
+    "sha256": "eda51e1594c227676c401b0d335a95700eab039104de9435581c3a57087b8087"
+  },
+  "step": 999997440,
+  "training_probe_samples": 6738,
+  "validation_probe_samples": 6934,
+  "cka": [
+    [
+      [
+        1.0,
+        0.8243615197792935,
+        0.1103540354375285,
+        0.11198201813150106
+      ],
+      [
+        0.8243615197792941,
+        1.0,
+        0.05936899896716655,
+        0.06028260634854394
+      ],
+      [
+        0.11035403543752843,
+        0.05936899896716655,
+        1.0,
+        0.7352004569954129
+      ],
+      [
+        0.11198201813150109,
+        0.06028260634854396,
+        0.7352004569954131,
+        1.0
+      ]
+    ],
+    [
+      [
+        1.0,
+        0.8919837095302705,
+        0.8693323494284046,
+        0.8813090758814713
+      ],
+      [
+        0.8919837095302705,
+        1.0,
+        0.8069708122656676,
+        0.8921907509694864
+      ],
+      [
+        0.8693323494284044,
+        0.8069708122656671,
+        1.0,
+        0.7380489403938586
+      ],
+      [
+        0.8813090758814713,
+        0.8921907509694864,
+        0.7380489403938582,
+        1.0
+      ]
+    ]
+  ],
+  "native_sample": {
+    "Loss": 0.5292996764183044,
+    "BPC": 0.7636180183128208,
+    "Acc": 0.8066051602363586,
+    "count": 6934
+  },
+  "probes": {
+    "targets": {
+      "C0": {
+        "validation": {
+          "Loss": 0.6382981538772583,
+          "BPC": 0.920869581207301,
+          "Acc": 0.773579478263855,
+          "count": 6934
+        },
+        "training": {
+          "Loss": 0.40556490421295166,
+          "BPC": 0.5851064760666328,
+          "Acc": 0.8397021293640137,
+          "count": 5103
+        },
+        "calibration": {
+          "Loss": 0.43561121821403503,
+          "BPC": 0.6284541442729884,
+          "Acc": 0.8330275416374207,
+          "count": 1635
+        },
+        "trace": [
+          {
+            "update": 50,
+            "penalty": 0.0,
+            "training_batch_Loss": 0.5161703824996948,
+            "calibration_Loss": 0.47321122884750366
+          },
+          {
+            "update": 100,
+            "penalty": 0.0,
+            "training_batch_Loss": 0.46236830949783325,
+            "calibration_Loss": 0.45812132954597473
+          },
+          {
+            "update": 150,
+            "penalty": 0.0,
+            "training_batch_Loss": 0.3839653432369232,
+            "calibration_Loss": 0.4455886781215668
+          },
+          {
+            "update": 200,
+            "penalty": 0.0,
+            "training_batch_Loss": 0.4855380058288574,
+            "calibration_Loss": 0.4500219523906708
+          },
+          {
+            "update": 250,
+            "penalty": 0.0,
+            "training_batch_Loss": 0.4035305976867676,
+            "calibration_Loss": 0.44553181529045105
+          },
+          {
+            "update": 300,
+            "penalty": 0.0,
+            "training_batch_Loss": 0.35997626185417175,
+            "calibration_Loss": 0.44463983178138733
+          },
+          {
+            "update": 350,
+            "penalty": 0.0,
+            "training_batch_Loss": 0.3325786292552948,
+            "calibration_Loss": 0.4637733995914459
+          },
+          {
+            "update": 400,
+            "penalty": 0.0,
+            "training_batch_Loss": 0.34060558676719666,
+            "calibration_Loss": 0.45741572976112366
+          },
+          {
+            "update": 50,
+            "penalty": 0.01,
+            "training_batch_Loss": 0.5164612531661987,
+            "calibration_Loss": 0.4719677269458771
+          },
+          {
+            "update": 100,
+            "penalty": 0.01,
+            "training_batch_Loss": 0.46797671914100647,
+            "calibration_Loss": 0.4566766619682312
+          },
+          {
+            "update": 150,
+            "penalty": 0.01,
+            "training_batch_Loss": 0.39458009600639343,
+            "calibration_Loss": 0.4417249262332916
+          },
+          {
+            "update": 200,
+            "penalty": 0.01,
+            "training_batch_Loss": 0.4998384118080139,
+            "calibration_Loss": 0.44603684544563293
+          },
+          {
+            "update": 250,
+            "penalty": 0.01,
+            "training_batch_Loss": 0.41760069131851196,
+            "calibration_Loss": 0.4380456507205963
+          },
+          {
+            "update": 300,
+            "penalty": 0.01,
+            "training_batch_Loss": 0.37202873826026917,
+            "calibration_Loss": 0.43561121821403503
+          },
+          {
+            "update": 350,
+            "penalty": 0.01,
+            "training_batch_Loss": 0.34947383403778076,
+            "calibration_Loss": 0.4521549642086029
+          },
+          {
+            "update": 400,
+            "penalty": 0.01,
+            "training_batch_Loss": 0.3592270016670227,
+            "calibration_Loss": 0.4428828954696655
+          },
+          {
+            "update": 50,
+            "penalty": 0.1,
+            "training_batch_Loss": 0.5327202677726746,
+            "calibration_Loss": 0.4736541211605072
+          },
+          {
+            "update": 100,
+            "penalty": 0.1,
+            "training_batch_Loss": 0.5313434600830078,
+            "calibration_Loss": 0.4678736925125122
+          },
+          {
+            "update": 150,
+            "penalty": 0.1,
+            "training_batch_Loss": 0.481173038482666,
+            "calibration_Loss": 0.4541807770729065
+          },
+          {
+            "update": 200,
+            "penalty": 0.1,
+            "training_batch_Loss": 0.6054878830909729,
+            "calibration_Loss": 0.4643269181251526
+          },
+          {
+            "update": 250,
+            "penalty": 0.1,
+            "training_batch_Loss": 0.5006884336471558,
+            "calibration_Loss": 0.45142626762390137
+          },
+          {
+            "update": 300,
+            "penalty": 0.1,
+            "training_batch_Loss": 0.4515785574913025,
+            "calibration_Loss": 0.45136409997940063
+          },
+          {
+            "update": 350,
+            "penalty": 0.1,
+            "training_batch_Loss": 0.43513625860214233,
+            "calibration_Loss": 0.46276310086250305
+          },
+          {
+            "update": 400,
+            "penalty": 0.1,
+            "training_batch_Loss": 0.4568672478199005,
+            "calibration_Loss": 0.451596736907959
+          }
+        ],
+        "selection": {
+          "update": 300,
+          "penalty": 0.01,
+          "fitting_samples": 5103,
+          "calibration_samples": 1635
+        },
+        "gaps": [
+          {
+            "lo": 0,
+            "hi": 8,
+            "count": 996,
+            "Acc": 0.7911646586345381
+          },
+          {
+            "lo": 8,
+            "hi": 32,
+            "count": 2396,
+            "Acc": 0.7888146911519198
+          },
+          {
+            "lo": 32,
+            "hi": 128,
+            "count": 3110,
+            "Acc": 0.7681672025723473
+          },
+          {
+            "lo": 128,
+            "hi": 256,
+            "count": 401,
+            "Acc": 0.6807980049875312
+          },
+          {
+            "lo": 256,
+            "hi": 512,
+            "count": 31,
+            "Acc": 0.7741935483870968
+          },
+          {
+            "lo": 512,
+            "hi": null,
+            "count": 0,
+            "Acc": null
+          }
+        ]
+      },
+      "C1": {
+        "validation": {
+          "Loss": 0.6985969543457031,
+          "BPC": 1.0078623616146796,
+          "Acc": 0.7515142560005188,
+          "count": 6934
+        },
+        "training": {
+          "Loss": 0.5001647472381592,
+          "BPC": 0.7215852004679741,
+          "Acc": 0.8077601194381714,
+          "count": 5103
+        },
+        "calibration": {
+          "Loss": 0.5004140138626099,
+          "BPC": 0.7219448161909282,
+          "Acc": 0.8116207718849182,
+          "count": 1635
+        },
+        "trace": [
+          {
+            "update": 50,
+            "penalty": 0.0,
+            "training_batch_Loss": 0.698935329914093,
+            "calibration_Loss": 0.5520976781845093
+          },
+          {
+            "update": 100,
+            "penalty": 0.0,
+            "training_batch_Loss": 0.49209675192832947,
+            "calibration_Loss": 0.5233969688415527
+          },
+          {
+            "update": 150,
+            "penalty": 0.0,
+            "training_batch_Loss": 0.5351026058197021,
+            "calibration_Loss": 0.5103986263275146
+          },
+          {
+            "update": 200,
+            "penalty": 0.0,
+            "training_batch_Loss": 0.5835326910018921,
+            "calibration_Loss": 0.5138983130455017
+          },
+          {
+            "update": 250,
+            "penalty": 0.0,
+            "training_batch_Loss": 0.49510738253593445,
+            "calibration_Loss": 0.5090174674987793
+          },
+          {
+            "update": 300,
+            "penalty": 0.0,
+            "training_batch_Loss": 0.4341016709804535,
+            "calibration_Loss": 0.5195500254631042
+          },
+          {
+            "update": 350,
+            "penalty": 0.0,
+            "training_batch_Loss": 0.4255563020706177,
+            "calibration_Loss": 0.5256373286247253
+          },
+          {
+            "update": 400,
+            "penalty": 0.0,
+            "training_batch_Loss": 0.45881861448287964,
+            "calibration_Loss": 0.5195984244346619
+          },
+          {
+            "update": 50,
+            "penalty": 0.01,
+            "training_batch_Loss": 0.696770429611206,
+            "calibration_Loss": 0.5496950149536133
+          },
+          {
+            "update": 100,
+            "penalty": 0.01,
+            "training_batch_Loss": 0.4895377457141876,
+            "calibration_Loss": 0.520949125289917
+          },
+          {
+            "update": 150,
+            "penalty": 0.01,
+            "training_batch_Loss": 0.536284863948822,
+            "calibration_Loss": 0.5055850148200989
+          },
+          {
+            "update": 200,
+            "penalty": 0.01,
+            "training_batch_Loss": 0.5905513167381287,
+            "calibration_Loss": 0.5076727271080017
+          },
+          {
+            "update": 250,
+            "penalty": 0.01,
+            "training_batch_Loss": 0.508155345916748,
+            "calibration_Loss": 0.5004140138626099
+          },
+          {
+            "update": 300,
+            "penalty": 0.01,
+            "training_batch_Loss": 0.4517078697681427,
+            "calibration_Loss": 0.508802592754364
+          },
+          {
+            "update": 350,
+            "penalty": 0.01,
+            "training_batch_Loss": 0.44244882464408875,
+            "calibration_Loss": 0.5126282572746277
+          },
+          {
+            "update": 400,
+            "penalty": 0.01,
+            "training_batch_Loss": 0.48081985116004944,
+            "calibration_Loss": 0.5029537677764893
+          },
+          {
+            "update": 50,
+            "penalty": 0.1,
+            "training_batch_Loss": 0.700710117816925,
+            "calibration_Loss": 0.5489808320999146
+          },
+          {
+            "update": 100,
+            "penalty": 0.1,
+            "training_batch_Loss": 0.5073063969612122,
+            "calibration_Loss": 0.5356388092041016
+          },
+          {
+            "update": 150,
+            "penalty": 0.1,
+            "training_batch_Loss": 0.5850340127944946,
+            "calibration_Loss": 0.5195111036300659
+          },
+          {
+            "update": 200,
+            "penalty": 0.1,
+            "training_batch_Loss": 0.6644639372825623,
+            "calibration_Loss": 0.5262479782104492
+          },
+          {
+            "update": 250,
+            "penalty": 0.1,
+            "training_batch_Loss": 0.5989675521850586,
+            "calibration_Loss": 0.5192768573760986
+          },
+          {
+            "update": 300,
+            "penalty": 0.1,
+            "training_batch_Loss": 0.5661202669143677,
+            "calibration_Loss": 0.5258534550666809
+          },
+          {
+            "update": 350,
+            "penalty": 0.1,
+            "training_batch_Loss": 0.5515986084938049,
+            "calibration_Loss": 0.5264331698417664
+          },
+          {
+            "update": 400,
+            "penalty": 0.1,
+            "training_batch_Loss": 0.5866150856018066,
+            "calibration_Loss": 0.5113990306854248
+          }
+        ],
+        "selection": {
+          "update": 250,
+          "penalty": 0.01,
+          "fitting_samples": 5103,
+          "calibration_samples": 1635
+        },
+        "gaps": [
+          {
+            "lo": 0,
+            "hi": 8,
+            "count": 996,
+            "Acc": 0.7670682730923695
+          },
+          {
+            "lo": 8,
+            "hi": 32,
+            "count": 2396,
+            "Acc": 0.7725375626043406
+          },
+          {
+            "lo": 32,
+            "hi": 128,
+            "count": 3110,
+            "Acc": 0.7414790996784566
+          },
+          {
+            "lo": 128,
+            "hi": 256,
+            "count": 401,
+            "Acc": 0.6708229426433915
+          },
+          {
+            "lo": 256,
+            "hi": 512,
+            "count": 31,
+            "Acc": 0.6774193548387096
+          },
+          {
+            "lo": 512,
+            "hi": null,
+            "count": 0,
+            "Acc": null
+          }
+        ]
+      },
+      "C2": {
+        "validation": {
+          "Loss": 0.7597280144691467,
+          "BPC": 1.0960558388990567,
+          "Acc": 0.7349293231964111,
+          "count": 6934
+        },
+        "training": {
+          "Loss": 0.5263224840164185,
+          "BPC": 0.7593228375988477,
+          "Acc": 0.8061924576759338,
+          "count": 5103
+        },
+        "calibration": {
+          "Loss": 0.47073715925216675,
+          "BPC": 0.6791301652152593,
+          "Acc": 0.8079510927200317,
+          "count": 1635
+        },
+        "trace": [
+          {
+            "update": 50,
+            "penalty": 0.0,
+            "training_batch_Loss": 0.6570187211036682,
+            "calibration_Loss": 0.5583730340003967
+          },
+          {
+            "update": 100,
+            "penalty": 0.0,
+            "training_batch_Loss": 0.5824959874153137,
+            "calibration_Loss": 0.508664071559906
+          },
+          {
+            "update": 150,
+            "penalty": 0.0,
+            "training_batch_Loss": 0.5381699800491333,
+            "calibration_Loss": 0.4849209487438202
+          },
+          {
+            "update": 200,
+            "penalty": 0.0,
+            "training_batch_Loss": 0.611735999584198,
+            "calibration_Loss": 0.48789581656455994
+          },
+          {
+            "update": 250,
+            "penalty": 0.0,
+            "training_batch_Loss": 0.5125824809074402,
+            "calibration_Loss": 0.4831410348415375
+          },
+          {
+            "update": 300,
+            "penalty": 0.0,
+            "training_batch_Loss": 0.5285466909408569,
+            "calibration_Loss": 0.4881361126899719
+          },
+          {
+            "update": 350,
+            "penalty": 0.0,
+            "training_batch_Loss": 0.4603015184402466,
+            "calibration_Loss": 0.484428346157074
+          },
+          {
+            "update": 400,
+            "penalty": 0.0,
+            "training_batch_Loss": 0.5380333662033081,
+            "calibration_Loss": 0.48014938831329346
+          },
+          {
+            "update": 50,
+            "penalty": 0.01,
+            "training_batch_Loss": 0.6585884094238281,
+            "calibration_Loss": 0.558872401714325
+          },
+          {
+            "update": 100,
+            "penalty": 0.01,
+            "training_batch_Loss": 0.5887678861618042,
+            "calibration_Loss": 0.5098584890365601
+          },
+          {
+            "update": 150,
+            "penalty": 0.01,
+            "training_batch_Loss": 0.5468342304229736,
+            "calibration_Loss": 0.4849812388420105
+          },
+          {
+            "update": 200,
+            "penalty": 0.01,
+            "training_batch_Loss": 0.6243677735328674,
+            "calibration_Loss": 0.48621368408203125
+          },
+          {
+            "update": 250,
+            "penalty": 0.01,
+            "training_batch_Loss": 0.5333776473999023,
+            "calibration_Loss": 0.4801015555858612
+          },
+          {
+            "update": 300,
+            "penalty": 0.01,
+            "training_batch_Loss": 0.5565683841705322,
+            "calibration_Loss": 0.48408204317092896
+          },
+          {
+            "update": 350,
+            "penalty": 0.01,
+            "training_batch_Loss": 0.4787822961807251,
+            "calibration_Loss": 0.47855401039123535
+          },
+          {
+            "update": 400,
+            "penalty": 0.01,
+            "training_batch_Loss": 0.5665714740753174,
+            "calibration_Loss": 0.47073715925216675
+          },
+          {
+            "update": 50,
+            "penalty": 0.1,
+            "training_batch_Loss": 0.6815762519836426,
+            "calibration_Loss": 0.5755030512809753
+          },
+          {
+            "update": 100,
+            "penalty": 0.1,
+            "training_batch_Loss": 0.6673325300216675,
+            "calibration_Loss": 0.5453290939331055
+          },
+          {
+            "update": 150,
+            "penalty": 0.1,
+            "training_batch_Loss": 0.6289921402931213,
+            "calibration_Loss": 0.5264623761177063
+          },
+          {
+            "update": 200,
+            "penalty": 0.1,
+            "training_batch_Loss": 0.7342548966407776,
+            "calibration_Loss": 0.5318958759307861
+          },
+          {
+            "update": 250,
+            "penalty": 0.1,
+            "training_batch_Loss": 0.6612975001335144,
+            "calibration_Loss": 0.5269609689712524
+          },
+          {
+            "update": 300,
+            "penalty": 0.1,
+            "training_batch_Loss": 0.6979954838752747,
+            "calibration_Loss": 0.5304146409034729
+          },
+          {
+            "update": 350,
+            "penalty": 0.1,
+            "training_batch_Loss": 0.5831843018531799,
+            "calibration_Loss": 0.52679443359375
+          },
+          {
+            "update": 400,
+            "penalty": 0.1,
+            "training_batch_Loss": 0.6930454969406128,
+            "calibration_Loss": 0.5189560651779175
+          }
+        ],
+        "selection": {
+          "update": 400,
+          "penalty": 0.01,
+          "fitting_samples": 5103,
+          "calibration_samples": 1635
+        },
+        "gaps": [
+          {
+            "lo": 0,
+            "hi": 8,
+            "count": 996,
+            "Acc": 0.7359437751004017
+          },
+          {
+            "lo": 8,
+            "hi": 32,
+            "count": 2396,
+            "Acc": 0.738313856427379
+          },
+          {
+            "lo": 32,
+            "hi": 128,
+            "count": 3110,
+            "Acc": 0.737620578778135
+          },
+          {
+            "lo": 128,
+            "hi": 256,
+            "count": 401,
+            "Acc": 0.6907730673316709
+          },
+          {
+            "lo": 256,
+            "hi": 512,
+            "count": 31,
+            "Acc": 0.7419354838709677
+          },
+          {
+            "lo": 512,
+            "hi": null,
+            "count": 0,
+            "Acc": null
+          }
+        ]
+      },
+      "C3": {
+        "validation": {
+          "Loss": 0.6951854825019836,
+          "BPC": 1.0029406481036132,
+          "Acc": 0.7492067813873291,
+          "count": 6934
+        },
+        "training": {
+          "Loss": 0.4650372266769409,
+          "BPC": 0.6709069007555795,
+          "Acc": 0.8183421492576599,
+          "count": 5103
+        },
+        "calibration": {
+          "Loss": 0.5213738083839417,
+          "BPC": 0.7521834078049053,
+          "Acc": 0.8079510927200317,
+          "count": 1635
+        },
+        "trace": [
+          {
+            "update": 50,
+            "penalty": 0.0,
+            "training_batch_Loss": 0.5002922415733337,
+            "calibration_Loss": 0.5809103846549988
+          },
+          {
+            "update": 100,
+            "penalty": 0.0,
+            "training_batch_Loss": 0.5017857551574707,
+            "calibration_Loss": 0.550058901309967
+          },
+          {
+            "update": 150,
+            "penalty": 0.0,
+            "training_batch_Loss": 0.44760942459106445,
+            "calibration_Loss": 0.5499383211135864
+          },
+          {
+            "update": 200,
+            "penalty": 0.0,
+            "training_batch_Loss": 0.49918273091316223,
+            "calibration_Loss": 0.551385223865509
+          },
+          {
+            "update": 250,
+            "penalty": 0.0,
+            "training_batch_Loss": 0.44639959931373596,
+            "calibration_Loss": 0.5284062623977661
+          },
+          {
+            "update": 300,
+            "penalty": 0.0,
+            "training_batch_Loss": 0.37355753779411316,
+            "calibration_Loss": 0.5307530760765076
+          },
+          {
+            "update": 350,
+            "penalty": 0.0,
+            "training_batch_Loss": 0.4104248285293579,
+            "calibration_Loss": 0.5445365309715271
+          },
+          {
+            "update": 400,
+            "penalty": 0.0,
+            "training_batch_Loss": 0.3621046543121338,
+            "calibration_Loss": 0.5343239307403564
+          },
+          {
+            "update": 50,
+            "penalty": 0.01,
+            "training_batch_Loss": 0.5028432011604309,
+            "calibration_Loss": 0.5810049176216125
+          },
+          {
+            "update": 100,
+            "penalty": 0.01,
+            "training_batch_Loss": 0.5084180235862732,
+            "calibration_Loss": 0.5500783324241638
+          },
+          {
+            "update": 150,
+            "penalty": 0.01,
+            "training_batch_Loss": 0.4574429988861084,
+            "calibration_Loss": 0.5466777682304382
+          },
+          {
+            "update": 200,
+            "penalty": 0.01,
+            "training_batch_Loss": 0.5125887989997864,
+            "calibration_Loss": 0.545839250087738
+          },
+          {
+            "update": 250,
+            "penalty": 0.01,
+            "training_batch_Loss": 0.46228736639022827,
+            "calibration_Loss": 0.5213738083839417
+          },
+          {
+            "update": 300,
+            "penalty": 0.01,
+            "training_batch_Loss": 0.3946407437324524,
+            "calibration_Loss": 0.5224025845527649
+          },
+          {
+            "update": 350,
+            "penalty": 0.01,
+            "training_batch_Loss": 0.4321567416191101,
+            "calibration_Loss": 0.5328243374824524
+          },
+          {
+            "update": 400,
+            "penalty": 0.01,
+            "training_batch_Loss": 0.38131725788116455,
+            "calibration_Loss": 0.5225164890289307
+          },
+          {
+            "update": 50,
+            "penalty": 0.1,
+            "training_batch_Loss": 0.5410224199295044,
+            "calibration_Loss": 0.5968704223632812
+          },
+          {
+            "update": 100,
+            "penalty": 0.1,
+            "training_batch_Loss": 0.5859318971633911,
+            "calibration_Loss": 0.5790215134620667
+          },
+          {
+            "update": 150,
+            "penalty": 0.1,
+            "training_batch_Loss": 0.5437189936637878,
+            "calibration_Loss": 0.5705974698066711
+          },
+          {
+            "update": 200,
+            "penalty": 0.1,
+            "training_batch_Loss": 0.6262672543525696,
+            "calibration_Loss": 0.5757757425308228
+          },
+          {
+            "update": 250,
+            "penalty": 0.1,
+            "training_batch_Loss": 0.5666617751121521,
+            "calibration_Loss": 0.5567380785942078
+          },
+          {
+            "update": 300,
+            "penalty": 0.1,
+            "training_batch_Loss": 0.5208914875984192,
+            "calibration_Loss": 0.5596928596496582
+          },
+          {
+            "update": 350,
+            "penalty": 0.1,
+            "training_batch_Loss": 0.5551643967628479,
+            "calibration_Loss": 0.5652889609336853
+          },
+          {
+            "update": 400,
+            "penalty": 0.1,
+            "training_batch_Loss": 0.47917062044143677,
+            "calibration_Loss": 0.5636770725250244
+          }
+        ],
+        "selection": {
+          "update": 250,
+          "penalty": 0.01,
+          "fitting_samples": 5103,
+          "calibration_samples": 1635
+        },
+        "gaps": [
+          {
+            "lo": 0,
+            "hi": 8,
+            "count": 996,
+            "Acc": 0.7600401606425703
+          },
+          {
+            "lo": 8,
+            "hi": 32,
+            "count": 2396,
+            "Acc": 0.7650250417362271
+          },
+          {
+            "lo": 32,
+            "hi": 128,
+            "count": 3110,
+            "Acc": 0.7466237942122187
+          },
+          {
+            "lo": 128,
+            "hi": 256,
+            "count": 401,
+            "Acc": 0.6583541147132169
+          },
+          {
+            "lo": 256,
+            "hi": 512,
+            "count": 31,
+            "Acc": 0.6129032258064516
+          },
+          {
+            "lo": 512,
+            "hi": null,
+            "count": 0,
+            "Acc": null
+          }
+        ]
+      },
+      "Mean": {
+        "validation": {
+          "Loss": 0.4724612832069397,
+          "BPC": 0.681617550294688,
+          "Acc": 0.8178540468215942,
+          "count": 6934
+        },
+        "training": {
+          "Loss": 0.36924251914024353,
+          "BPC": 0.5327043512489775,
+          "Acc": 0.8540074229240417,
+          "count": 5103
+        },
+        "calibration": {
+          "Loss": 0.2881389260292053,
+          "BPC": 0.41569659966940636,
+          "Acc": 0.884403645992279,
+          "count": 1635
+        },
+        "trace": [
+          {
+            "update": 50,
+            "penalty": 0.0,
+            "training_batch_Loss": 0.35360878705978394,
+            "calibration_Loss": 0.2965078353881836
+          },
+          {
+            "update": 100,
+            "penalty": 0.0,
+            "training_batch_Loss": 0.32179102301597595,
+            "calibration_Loss": 0.305575966835022
+          },
+          {
+            "update": 150,
+            "penalty": 0.0,
+            "training_batch_Loss": 0.31929346919059753,
+            "calibration_Loss": 0.3025658428668976
+          },
+          {
+            "update": 200,
+            "penalty": 0.0,
+            "training_batch_Loss": 0.3831063210964203,
+            "calibration_Loss": 0.31247690320014954
+          },
+          {
+            "update": 250,
+            "penalty": 0.0,
+            "training_batch_Loss": 0.33573415875434875,
+            "calibration_Loss": 0.314904123544693
+          },
+          {
+            "update": 300,
+            "penalty": 0.0,
+            "training_batch_Loss": 0.2881394326686859,
+            "calibration_Loss": 0.31849783658981323
+          },
+          {
+            "update": 350,
+            "penalty": 0.0,
+            "training_batch_Loss": 0.27412834763526917,
+            "calibration_Loss": 0.32938575744628906
+          },
+          {
+            "update": 400,
+            "penalty": 0.0,
+            "training_batch_Loss": 0.28082334995269775,
+            "calibration_Loss": 0.3332708179950714
+          },
+          {
+            "update": 50,
+            "penalty": 0.01,
+            "training_batch_Loss": 0.35408878326416016,
+            "calibration_Loss": 0.29546990990638733
+          },
+          {
+            "update": 100,
+            "penalty": 0.01,
+            "training_batch_Loss": 0.3250664472579956,
+            "calibration_Loss": 0.3031204044818878
+          },
+          {
+            "update": 150,
+            "penalty": 0.01,
+            "training_batch_Loss": 0.3252638280391693,
+            "calibration_Loss": 0.2973359525203705
+          },
+          {
+            "update": 200,
+            "penalty": 0.01,
+            "training_batch_Loss": 0.38921642303466797,
+            "calibration_Loss": 0.3048233985900879
+          },
+          {
+            "update": 250,
+            "penalty": 0.01,
+            "training_batch_Loss": 0.3417571783065796,
+            "calibration_Loss": 0.30332961678504944
+          },
+          {
+            "update": 300,
+            "penalty": 0.01,
+            "training_batch_Loss": 0.3019261956214905,
+            "calibration_Loss": 0.303950697183609
+          },
+          {
+            "update": 350,
+            "penalty": 0.01,
+            "training_batch_Loss": 0.28881680965423584,
+            "calibration_Loss": 0.3123786151409149
+          },
+          {
+            "update": 400,
+            "penalty": 0.01,
+            "training_batch_Loss": 0.2976449429988861,
+            "calibration_Loss": 0.31147900223731995
+          },
+          {
+            "update": 50,
+            "penalty": 0.1,
+            "training_batch_Loss": 0.36043983697891235,
+            "calibration_Loss": 0.2910555601119995
+          },
+          {
+            "update": 100,
+            "penalty": 0.1,
+            "training_batch_Loss": 0.34817105531692505,
+            "calibration_Loss": 0.29665446281433105
+          },
+          {
+            "update": 150,
+            "penalty": 0.1,
+            "training_batch_Loss": 0.35331258177757263,
+            "calibration_Loss": 0.2881389260292053
+          },
+          {
+            "update": 200,
+            "penalty": 0.1,
+            "training_batch_Loss": 0.418234258890152,
+            "calibration_Loss": 0.294033020734787
+          },
+          {
+            "update": 250,
+            "penalty": 0.1,
+            "training_batch_Loss": 0.3644905686378479,
+            "calibration_Loss": 0.2886190712451935
+          },
+          {
+            "update": 300,
+            "penalty": 0.1,
+            "training_batch_Loss": 0.3466624319553375,
+            "calibration_Loss": 0.28922584652900696
+          },
+          {
+            "update": 350,
+            "penalty": 0.1,
+            "training_batch_Loss": 0.3252946138381958,
+            "calibration_Loss": 0.297704815864563
+          },
+          {
+            "update": 400,
+            "penalty": 0.1,
+            "training_batch_Loss": 0.3352646231651306,
+            "calibration_Loss": 0.2930983006954193
+          }
+        ],
+        "selection": {
+          "update": 150,
+          "penalty": 0.1,
+          "fitting_samples": 5103,
+          "calibration_samples": 1635
+        },
+        "gaps": [
+          {
+            "lo": 0,
+            "hi": 8,
+            "count": 996,
+            "Acc": 0.8142570281124498
+          },
+          {
+            "lo": 8,
+            "hi": 32,
+            "count": 2396,
+            "Acc": 0.8259599332220368
+          },
+          {
+            "lo": 32,
+            "hi": 128,
+            "count": 3110,
+            "Acc": 0.8163987138263665
+          },
+          {
+            "lo": 128,
+            "hi": 256,
+            "count": 401,
+            "Acc": 0.7880299251870324
+          },
+          {
+            "lo": 256,
+            "hi": 512,
+            "count": 31,
+            "Acc": 0.8387096774193549
+          },
+          {
+            "lo": 512,
+            "hi": null,
+            "count": 0,
+            "Acc": null
+          }
+        ]
+      },
+      "Concat": {
+        "validation": {
+          "Loss": 0.5360633134841919,
+          "BPC": 0.7733758839661494,
+          "Acc": 0.807470440864563,
+          "count": 6934
+        },
+        "training": {
+          "Loss": 0.33798453211784363,
+          "BPC": 0.4876086083835896,
+          "Acc": 0.8710562586784363,
+          "count": 5103
+        },
+        "calibration": {
+          "Loss": 0.3182222843170166,
+          "BPC": 0.4590977114845176,
+          "Acc": 0.8770642280578613,
+          "count": 1635
+        },
+        "trace": [
+          {
+            "update": 50,
+            "penalty": 0.0,
+            "training_batch_Loss": 0.33433982729911804,
+            "calibration_Loss": 0.3492166996002197
+          },
+          {
+            "update": 100,
+            "penalty": 0.0,
+            "training_batch_Loss": 0.26381343603134155,
+            "calibration_Loss": 0.37494784593582153
+          },
+          {
+            "update": 150,
+            "penalty": 0.0,
+            "training_batch_Loss": 0.2360469251871109,
+            "calibration_Loss": 0.37807023525238037
+          },
+          {
+            "update": 200,
+            "penalty": 0.0,
+            "training_batch_Loss": 0.2862938940525055,
+            "calibration_Loss": 0.39932170510292053
+          },
+          {
+            "update": 250,
+            "penalty": 0.0,
+            "training_batch_Loss": 0.24298442900180817,
+            "calibration_Loss": 0.41166046261787415
+          },
+          {
+            "update": 300,
+            "penalty": 0.0,
+            "training_batch_Loss": 0.18788312375545502,
+            "calibration_Loss": 0.4269140064716339
+          },
+          {
+            "update": 350,
+            "penalty": 0.0,
+            "training_batch_Loss": 0.19819407165050507,
+            "calibration_Loss": 0.4736976623535156
+          },
+          {
+            "update": 400,
+            "penalty": 0.0,
+            "training_batch_Loss": 0.18760602176189423,
+            "calibration_Loss": 0.45847100019454956
+          },
+          {
+            "update": 50,
+            "penalty": 0.01,
+            "training_batch_Loss": 0.33596017956733704,
+            "calibration_Loss": 0.34681761264801025
+          },
+          {
+            "update": 100,
+            "penalty": 0.01,
+            "training_batch_Loss": 0.27069994807243347,
+            "calibration_Loss": 0.36432531476020813
+          },
+          {
+            "update": 150,
+            "penalty": 0.01,
+            "training_batch_Loss": 0.24877075850963593,
+            "calibration_Loss": 0.360164999961853
+          },
+          {
+            "update": 200,
+            "penalty": 0.01,
+            "training_batch_Loss": 0.30530864000320435,
+            "calibration_Loss": 0.3732430338859558
+          },
+          {
+            "update": 250,
+            "penalty": 0.01,
+            "training_batch_Loss": 0.26820725202560425,
+            "calibration_Loss": 0.3779813051223755
+          },
+          {
+            "update": 300,
+            "penalty": 0.01,
+            "training_batch_Loss": 0.21601398289203644,
+            "calibration_Loss": 0.3797542154788971
+          },
+          {
+            "update": 350,
+            "penalty": 0.01,
+            "training_batch_Loss": 0.22608450055122375,
+            "calibration_Loss": 0.42148149013519287
+          },
+          {
+            "update": 400,
+            "penalty": 0.01,
+            "training_batch_Loss": 0.2197938859462738,
+            "calibration_Loss": 0.3954131007194519
+          },
+          {
+            "update": 50,
+            "penalty": 0.1,
+            "training_batch_Loss": 0.3508080840110779,
+            "calibration_Loss": 0.33346521854400635
+          },
+          {
+            "update": 100,
+            "penalty": 0.1,
+            "training_batch_Loss": 0.319677472114563,
+            "calibration_Loss": 0.3290892541408539
+          },
+          {
+            "update": 150,
+            "penalty": 0.1,
+            "training_batch_Loss": 0.31637632846832275,
+            "calibration_Loss": 0.32350513339042664
+          },
+          {
+            "update": 200,
+            "penalty": 0.1,
+            "training_batch_Loss": 0.3805117905139923,
+            "calibration_Loss": 0.32813072204589844
+          },
+          {
+            "update": 250,
+            "penalty": 0.1,
+            "training_batch_Loss": 0.3577589690685272,
+            "calibration_Loss": 0.32714033126831055
+          },
+          {
+            "update": 300,
+            "penalty": 0.1,
+            "training_batch_Loss": 0.31467190384864807,
+            "calibration_Loss": 0.3182222843170166
+          },
+          {
+            "update": 350,
+            "penalty": 0.1,
+            "training_batch_Loss": 0.3152672052383423,
+            "calibration_Loss": 0.3552940785884857
+          },
+          {
+            "update": 400,
+            "penalty": 0.1,
+            "training_batch_Loss": 0.31978699564933777,
+            "calibration_Loss": 0.33238887786865234
+          }
+        ],
+        "selection": {
+          "update": 300,
+          "penalty": 0.1,
+          "fitting_samples": 5103,
+          "calibration_samples": 1635
+        },
+        "gaps": [
+          {
+            "lo": 0,
+            "hi": 8,
+            "count": 996,
+            "Acc": 0.8192771084337349
+          },
+          {
+            "lo": 8,
+            "hi": 32,
+            "count": 2396,
+            "Acc": 0.82220367278798
+          },
+          {
+            "lo": 32,
+            "hi": 128,
+            "count": 3110,
+            "Acc": 0.8003215434083601
+          },
+          {
+            "lo": 128,
+            "hi": 256,
+            "count": 401,
+            "Acc": 0.743142144638404
+          },
+          {
+            "lo": 256,
+            "hi": 512,
+            "count": 31,
+            "Acc": 0.8387096774193549
+          },
+          {
+            "lo": 512,
+            "hi": null,
+            "count": 0,
+            "Acc": null
+          }
+        ]
+      }
+    },
+    "stored_values": {
+      "C0": {
+        "validation": {
+          "Loss": 2.2655742168426514,
+          "BPC": 3.2685326874047904,
+          "Acc": 0.2053648680448532,
+          "count": 6934
+        },
+        "training": {
+          "Loss": 1.786539912223816,
+          "BPC": 2.5774322717155034,
+          "Acc": 0.3425436019897461,
+          "count": 5103
+        },
+        "calibration": {
+          "Loss": 2.0932812690734863,
+          "BPC": 3.0199665060780747,
+          "Acc": 0.20489296317100525,
+          "count": 1635
+        },
+        "trace": [
+          {
+            "update": 50,
+            "penalty": 0.0,
+            "training_batch_Loss": 1.91010320186615,
+            "calibration_Loss": 2.111018657684326
+          },
+          {
+            "update": 100,
+            "penalty": 0.0,
+            "training_batch_Loss": 1.8925628662109375,
+            "calibration_Loss": 2.1002204418182373
+          },
+          {
+            "update": 150,
+            "penalty": 0.0,
+            "training_batch_Loss": 1.8301596641540527,
+            "calibration_Loss": 2.1058189868927
+          },
+          {
+            "update": 200,
+            "penalty": 0.0,
+            "training_batch_Loss": 1.7564072608947754,
+            "calibration_Loss": 2.1025381088256836
+          },
+          {
+            "update": 250,
+            "penalty": 0.0,
+            "training_batch_Loss": 1.7523722648620605,
+            "calibration_Loss": 2.1424224376678467
+          },
+          {
+            "update": 300,
+            "penalty": 0.0,
+            "training_batch_Loss": 1.7067859172821045,
+            "calibration_Loss": 2.1307380199432373
+          },
+          {
+            "update": 350,
+            "penalty": 0.0,
+            "training_batch_Loss": 1.7893245220184326,
+            "calibration_Loss": 2.1341724395751953
+          },
+          {
+            "update": 400,
+            "penalty": 0.0,
+            "training_batch_Loss": 1.7832586765289307,
+            "calibration_Loss": 2.1395816802978516
+          },
+          {
+            "update": 50,
+            "penalty": 0.01,
+            "training_batch_Loss": 1.913737177848816,
+            "calibration_Loss": 2.1106770038604736
+          },
+          {
+            "update": 100,
+            "penalty": 0.01,
+            "training_batch_Loss": 1.8983222246170044,
+            "calibration_Loss": 2.09726881980896
+          },
+          {
+            "update": 150,
+            "penalty": 0.01,
+            "training_batch_Loss": 1.8379768133163452,
+            "calibration_Loss": 2.0995750427246094
+          },
+          {
+            "update": 200,
+            "penalty": 0.01,
+            "training_batch_Loss": 1.7710963487625122,
+            "calibration_Loss": 2.0932812690734863
+          },
+          {
+            "update": 250,
+            "penalty": 0.01,
+            "training_batch_Loss": 1.770009160041809,
+            "calibration_Loss": 2.1271750926971436
+          },
+          {
+            "update": 300,
+            "penalty": 0.01,
+            "training_batch_Loss": 1.7245495319366455,
+            "calibration_Loss": 2.1121623516082764
+          },
+          {
+            "update": 350,
+            "penalty": 0.01,
+            "training_batch_Loss": 1.8057785034179688,
+            "calibration_Loss": 2.112065553665161
+          },
+          {
+            "update": 400,
+            "penalty": 0.01,
+            "training_batch_Loss": 1.7944639921188354,
+            "calibration_Loss": 2.113518714904785
+          },
+          {
+            "update": 50,
+            "penalty": 0.1,
+            "training_batch_Loss": 1.94815194606781,
+            "calibration_Loss": 2.113485097885132
+          },
+          {
+            "update": 100,
+            "penalty": 0.1,
+            "training_batch_Loss": 1.9569021463394165,
+            "calibration_Loss": 2.098372220993042
+          },
+          {
+            "update": 150,
+            "penalty": 0.1,
+            "training_batch_Loss": 1.9184283018112183,
+            "calibration_Loss": 2.099898338317871
+          },
+          {
+            "update": 200,
+            "penalty": 0.1,
+            "training_batch_Loss": 1.8898816108703613,
+            "calibration_Loss": 2.095249891281128
+          },
+          {
+            "update": 250,
+            "penalty": 0.1,
+            "training_batch_Loss": 1.9020940065383911,
+            "calibration_Loss": 2.1192686557769775
+          },
+          {
+            "update": 300,
+            "penalty": 0.1,
+            "training_batch_Loss": 1.8594629764556885,
+            "calibration_Loss": 2.1028575897216797
+          },
+          {
+            "update": 350,
+            "penalty": 0.1,
+            "training_batch_Loss": 1.9351067543029785,
+            "calibration_Loss": 2.1057751178741455
+          },
+          {
+            "update": 400,
+            "penalty": 0.1,
+            "training_batch_Loss": 1.9106183052062988,
+            "calibration_Loss": 2.0990452766418457
+          }
+        ],
+        "selection": {
+          "update": 200,
+          "penalty": 0.01,
+          "fitting_samples": 5103,
+          "calibration_samples": 1635
+        },
+        "gaps": [
+          {
+            "lo": 0,
+            "hi": 8,
+            "count": 996,
+            "Acc": 0.22389558232931728
+          },
+          {
+            "lo": 8,
+            "hi": 32,
+            "count": 2396,
+            "Acc": 0.20158597662771285
+          },
+          {
+            "lo": 32,
+            "hi": 128,
+            "count": 3110,
+            "Acc": 0.20739549839228297
+          },
+          {
+            "lo": 128,
+            "hi": 256,
+            "count": 401,
+            "Acc": 0.17955112219451372
+          },
+          {
+            "lo": 256,
+            "hi": 512,
+            "count": 31,
+            "Acc": 0.03225806451612903
+          },
+          {
+            "lo": 512,
+            "hi": null,
+            "count": 0,
+            "Acc": null
+          }
+        ]
+      },
+      "C1": {
+        "validation": {
+          "Loss": 2.1251673698425293,
+          "BPC": 3.065968425530859,
+          "Acc": 0.21445053815841675,
+          "count": 6934
+        },
+        "training": {
+          "Loss": 1.8264741897583008,
+          "BPC": 2.6350452558759883,
+          "Acc": 0.3356848955154419,
+          "count": 5103
+        },
+        "calibration": {
+          "Loss": 2.069416046142578,
+          "BPC": 2.985536267305944,
+          "Acc": 0.23608562350273132,
+          "count": 1635
+        },
+        "trace": [
+          {
+            "update": 50,
+            "penalty": 0.0,
+            "training_batch_Loss": 1.8496085405349731,
+            "calibration_Loss": 2.087564468383789
+          },
+          {
+            "update": 100,
+            "penalty": 0.0,
+            "training_batch_Loss": 1.7922316789627075,
+            "calibration_Loss": 2.0891103744506836
+          },
+          {
+            "update": 150,
+            "penalty": 0.0,
+            "training_batch_Loss": 1.7498952150344849,
+            "calibration_Loss": 2.084257125854492
+          },
+          {
+            "update": 200,
+            "penalty": 0.0,
+            "training_batch_Loss": 1.691328763961792,
+            "calibration_Loss": 2.083968162536621
+          },
+          {
+            "update": 250,
+            "penalty": 0.0,
+            "training_batch_Loss": 1.6364140510559082,
+            "calibration_Loss": 2.1034250259399414
+          },
+          {
+            "update": 300,
+            "penalty": 0.0,
+            "training_batch_Loss": 1.651180386543274,
+            "calibration_Loss": 2.1184589862823486
+          },
+          {
+            "update": 350,
+            "penalty": 0.0,
+            "training_batch_Loss": 1.6956244707107544,
+            "calibration_Loss": 2.1199276447296143
+          },
+          {
+            "update": 400,
+            "penalty": 0.0,
+            "training_batch_Loss": 1.6751466989517212,
+            "calibration_Loss": 2.100970506668091
+          },
+          {
+            "update": 50,
+            "penalty": 0.01,
+            "training_batch_Loss": 1.8523684740066528,
+            "calibration_Loss": 2.0863468647003174
+          },
+          {
+            "update": 100,
+            "penalty": 0.01,
+            "training_batch_Loss": 1.7997794151306152,
+            "calibration_Loss": 2.0847885608673096
+          },
+          {
+            "update": 150,
+            "penalty": 0.01,
+            "training_batch_Loss": 1.7598358392715454,
+            "calibration_Loss": 2.0767757892608643
+          },
+          {
+            "update": 200,
+            "penalty": 0.01,
+            "training_batch_Loss": 1.7058271169662476,
+            "calibration_Loss": 2.073406934738159
+          },
+          {
+            "update": 250,
+            "penalty": 0.01,
+            "training_batch_Loss": 1.6547341346740723,
+            "calibration_Loss": 2.087604284286499
+          },
+          {
+            "update": 300,
+            "penalty": 0.01,
+            "training_batch_Loss": 1.6662266254425049,
+            "calibration_Loss": 2.1000008583068848
+          },
+          {
+            "update": 350,
+            "penalty": 0.01,
+            "training_batch_Loss": 1.7149535417556763,
+            "calibration_Loss": 2.097425937652588
+          },
+          {
+            "update": 400,
+            "penalty": 0.01,
+            "training_batch_Loss": 1.7007373571395874,
+            "calibration_Loss": 2.0750954151153564
+          },
+          {
+            "update": 50,
+            "penalty": 0.1,
+            "training_batch_Loss": 1.8820022344589233,
+            "calibration_Loss": 2.084195137023926
+          },
+          {
+            "update": 100,
+            "penalty": 0.1,
+            "training_batch_Loss": 1.8705058097839355,
+            "calibration_Loss": 2.0821592807769775
+          },
+          {
+            "update": 150,
+            "penalty": 0.1,
+            "training_batch_Loss": 1.8534257411956787,
+            "calibration_Loss": 2.078105926513672
+          },
+          {
+            "update": 200,
+            "penalty": 0.1,
+            "training_batch_Loss": 1.8209761381149292,
+            "calibration_Loss": 2.075639486312866
+          },
+          {
+            "update": 250,
+            "penalty": 0.1,
+            "training_batch_Loss": 1.7890625,
+            "calibration_Loss": 2.0837249755859375
+          },
+          {
+            "update": 300,
+            "penalty": 0.1,
+            "training_batch_Loss": 1.7899914979934692,
+            "calibration_Loss": 2.0915632247924805
+          },
+          {
+            "update": 350,
+            "penalty": 0.1,
+            "training_batch_Loss": 1.8509336709976196,
+            "calibration_Loss": 2.0892536640167236
+          },
+          {
+            "update": 400,
+            "penalty": 0.1,
+            "training_batch_Loss": 1.8500760793685913,
+            "calibration_Loss": 2.069416046142578
+          }
+        ],
+        "selection": {
+          "update": 400,
+          "penalty": 0.1,
+          "fitting_samples": 5103,
+          "calibration_samples": 1635
+        },
+        "gaps": [
+          {
+            "lo": 0,
+            "hi": 8,
+            "count": 996,
+            "Acc": 0.22590361445783133
+          },
+          {
+            "lo": 8,
+            "hi": 32,
+            "count": 2396,
+            "Acc": 0.21702838063439064
+          },
+          {
+            "lo": 32,
+            "hi": 128,
+            "count": 3110,
+            "Acc": 0.21286173633440514
+          },
+          {
+            "lo": 128,
+            "hi": 256,
+            "count": 401,
+            "Acc": 0.1970074812967581
+          },
+          {
+            "lo": 256,
+            "hi": 512,
+            "count": 31,
+            "Acc": 0.03225806451612903
+          },
+          {
+            "lo": 512,
+            "hi": null,
+            "count": 0,
+            "Acc": null
+          }
+        ]
+      },
+      "C2": {
+        "validation": {
+          "Loss": 2.2105607986450195,
+          "BPC": 3.189165101788716,
+          "Acc": 0.19656763970851898,
+          "count": 6934
+        },
+        "training": {
+          "Loss": 1.8959240913391113,
+          "BPC": 2.73524028447685,
+          "Acc": 0.3262786567211151,
+          "count": 5103
+        },
+        "calibration": {
+          "Loss": 2.1404330730438232,
+          "BPC": 3.0879921798350485,
+          "Acc": 0.21223241090774536,
+          "count": 1635
+        },
+        "trace": [
+          {
+            "update": 50,
+            "penalty": 0.0,
+            "training_batch_Loss": 1.9005680084228516,
+            "calibration_Loss": 2.1605138778686523
+          },
+          {
+            "update": 100,
+            "penalty": 0.0,
+            "training_batch_Loss": 1.8607383966445923,
+            "calibration_Loss": 2.1532068252563477
+          },
+          {
+            "update": 150,
+            "penalty": 0.0,
+            "training_batch_Loss": 1.7789971828460693,
+            "calibration_Loss": 2.164316177368164
+          },
+          {
+            "update": 200,
+            "penalty": 0.0,
+            "training_batch_Loss": 1.8108563423156738,
+            "calibration_Loss": 2.166550636291504
+          },
+          {
+            "update": 250,
+            "penalty": 0.0,
+            "training_batch_Loss": 1.7456530332565308,
+            "calibration_Loss": 2.1901626586914062
+          },
+          {
+            "update": 300,
+            "penalty": 0.0,
+            "training_batch_Loss": 1.7154855728149414,
+            "calibration_Loss": 2.1902220249176025
+          },
+          {
+            "update": 350,
+            "penalty": 0.0,
+            "training_batch_Loss": 1.8001798391342163,
+            "calibration_Loss": 2.2162845134735107
+          },
+          {
+            "update": 400,
+            "penalty": 0.0,
+            "training_batch_Loss": 1.73141348361969,
+            "calibration_Loss": 2.2072551250457764
+          },
+          {
+            "update": 50,
+            "penalty": 0.01,
+            "training_batch_Loss": 1.903632640838623,
+            "calibration_Loss": 2.1589748859405518
+          },
+          {
+            "update": 100,
+            "penalty": 0.01,
+            "training_batch_Loss": 1.8677407503128052,
+            "calibration_Loss": 2.1491358280181885
+          },
+          {
+            "update": 150,
+            "penalty": 0.01,
+            "training_batch_Loss": 1.7905713319778442,
+            "calibration_Loss": 2.1563191413879395
+          },
+          {
+            "update": 200,
+            "penalty": 0.01,
+            "training_batch_Loss": 1.8216170072555542,
+            "calibration_Loss": 2.1545798778533936
+          },
+          {
+            "update": 250,
+            "penalty": 0.01,
+            "training_batch_Loss": 1.7608765363693237,
+            "calibration_Loss": 2.1736857891082764
+          },
+          {
+            "update": 300,
+            "penalty": 0.01,
+            "training_batch_Loss": 1.731476902961731,
+            "calibration_Loss": 2.170586347579956
+          },
+          {
+            "update": 350,
+            "penalty": 0.01,
+            "training_batch_Loss": 1.8158537149429321,
+            "calibration_Loss": 2.189155340194702
+          },
+          {
+            "update": 400,
+            "penalty": 0.01,
+            "training_batch_Loss": 1.7530064582824707,
+            "calibration_Loss": 2.174241065979004
+          },
+          {
+            "update": 50,
+            "penalty": 0.1,
+            "training_batch_Loss": 1.9345606565475464,
+            "calibration_Loss": 2.1536102294921875
+          },
+          {
+            "update": 100,
+            "penalty": 0.1,
+            "training_batch_Loss": 1.9336103200912476,
+            "calibration_Loss": 2.144335985183716
+          },
+          {
+            "update": 150,
+            "penalty": 0.1,
+            "training_batch_Loss": 1.889777660369873,
+            "calibration_Loss": 2.14754056930542
+          },
+          {
+            "update": 200,
+            "penalty": 0.1,
+            "training_batch_Loss": 1.9190189838409424,
+            "calibration_Loss": 2.1404330730438232
+          },
+          {
+            "update": 250,
+            "penalty": 0.1,
+            "training_batch_Loss": 1.8863153457641602,
+            "calibration_Loss": 2.1563727855682373
+          },
+          {
+            "update": 300,
+            "penalty": 0.1,
+            "training_batch_Loss": 1.8555299043655396,
+            "calibration_Loss": 2.1547112464904785
+          },
+          {
+            "update": 350,
+            "penalty": 0.1,
+            "training_batch_Loss": 1.9410051107406616,
+            "calibration_Loss": 2.161332130432129
+          },
+          {
+            "update": 400,
+            "penalty": 0.1,
+            "training_batch_Loss": 1.8931446075439453,
+            "calibration_Loss": 2.143885850906372
+          }
+        ],
+        "selection": {
+          "update": 200,
+          "penalty": 0.1,
+          "fitting_samples": 5103,
+          "calibration_samples": 1635
+        },
+        "gaps": [
+          {
+            "lo": 0,
+            "hi": 8,
+            "count": 996,
+            "Acc": 0.20481927710843373
+          },
+          {
+            "lo": 8,
+            "hi": 32,
+            "count": 2396,
+            "Acc": 0.1911519198664441
+          },
+          {
+            "lo": 32,
+            "hi": 128,
+            "count": 3110,
+            "Acc": 0.20096463022508038
+          },
+          {
+            "lo": 128,
+            "hi": 256,
+            "count": 401,
+            "Acc": 0.18703241895261846
+          },
+          {
+            "lo": 256,
+            "hi": 512,
+            "count": 31,
+            "Acc": 0.03225806451612903
+          },
+          {
+            "lo": 512,
+            "hi": null,
+            "count": 0,
+            "Acc": null
+          }
+        ]
+      },
+      "C3": {
+        "validation": {
+          "Loss": 2.1559057235717773,
+          "BPC": 3.1103144960211355,
+          "Acc": 0.20781655609607697,
+          "count": 6934
+        },
+        "training": {
+          "Loss": 1.746766209602356,
+          "BPC": 2.5200509481857307,
+          "Acc": 0.3495982885360718,
+          "count": 5103
+        },
+        "calibration": {
+          "Loss": 2.03119158744812,
+          "BPC": 2.9303900303067842,
+          "Acc": 0.2391437292098999,
+          "count": 1635
+        },
+        "trace": [
+          {
+            "update": 50,
+            "penalty": 0.0,
+            "training_batch_Loss": 1.8400604724884033,
+            "calibration_Loss": 2.0537235736846924
+          },
+          {
+            "update": 100,
+            "penalty": 0.0,
+            "training_batch_Loss": 1.8215510845184326,
+            "calibration_Loss": 2.049645185470581
+          },
+          {
+            "update": 150,
+            "penalty": 0.0,
+            "training_batch_Loss": 1.7742902040481567,
+            "calibration_Loss": 2.038910388946533
+          },
+          {
+            "update": 200,
+            "penalty": 0.0,
+            "training_batch_Loss": 1.7455917596817017,
+            "calibration_Loss": 2.038119077682495
+          },
+          {
+            "update": 250,
+            "penalty": 0.0,
+            "training_batch_Loss": 1.746551752090454,
+            "calibration_Loss": 2.0675439834594727
+          },
+          {
+            "update": 300,
+            "penalty": 0.0,
+            "training_batch_Loss": 1.6733847856521606,
+            "calibration_Loss": 2.072692394256592
+          },
+          {
+            "update": 350,
+            "penalty": 0.0,
+            "training_batch_Loss": 1.7571512460708618,
+            "calibration_Loss": 2.073092222213745
+          },
+          {
+            "update": 400,
+            "penalty": 0.0,
+            "training_batch_Loss": 1.7806507349014282,
+            "calibration_Loss": 2.092585802078247
+          },
+          {
+            "update": 50,
+            "penalty": 0.01,
+            "training_batch_Loss": 1.8442617654800415,
+            "calibration_Loss": 2.0539324283599854
+          },
+          {
+            "update": 100,
+            "penalty": 0.01,
+            "training_batch_Loss": 1.8282675743103027,
+            "calibration_Loss": 2.04856276512146
+          },
+          {
+            "update": 150,
+            "penalty": 0.01,
+            "training_batch_Loss": 1.7850722074508667,
+            "calibration_Loss": 2.035505771636963
+          },
+          {
+            "update": 200,
+            "penalty": 0.01,
+            "training_batch_Loss": 1.7571216821670532,
+            "calibration_Loss": 2.03119158744812
+          },
+          {
+            "update": 250,
+            "penalty": 0.01,
+            "training_batch_Loss": 1.7619104385375977,
+            "calibration_Loss": 2.055250644683838
+          },
+          {
+            "update": 300,
+            "penalty": 0.01,
+            "training_batch_Loss": 1.6890337467193604,
+            "calibration_Loss": 2.0571610927581787
+          },
+          {
+            "update": 350,
+            "penalty": 0.01,
+            "training_batch_Loss": 1.7738800048828125,
+            "calibration_Loss": 2.054391860961914
+          },
+          {
+            "update": 400,
+            "penalty": 0.01,
+            "training_batch_Loss": 1.7918308973312378,
+            "calibration_Loss": 2.0680038928985596
+          },
+          {
+            "update": 50,
+            "penalty": 0.1,
+            "training_batch_Loss": 1.8852684497833252,
+            "calibration_Loss": 2.063413143157959
+          },
+          {
+            "update": 100,
+            "penalty": 0.1,
+            "training_batch_Loss": 1.8960669040679932,
+            "calibration_Loss": 2.0636038780212402
+          },
+          {
+            "update": 150,
+            "penalty": 0.1,
+            "training_batch_Loss": 1.8818196058273315,
+            "calibration_Loss": 2.053339958190918
+          },
+          {
+            "update": 200,
+            "penalty": 0.1,
+            "training_batch_Loss": 1.862025499343872,
+            "calibration_Loss": 2.0469276905059814
+          },
+          {
+            "update": 250,
+            "penalty": 0.1,
+            "training_batch_Loss": 1.8822752237319946,
+            "calibration_Loss": 2.0655677318573
+          },
+          {
+            "update": 300,
+            "penalty": 0.1,
+            "training_batch_Loss": 1.8151637315750122,
+            "calibration_Loss": 2.0675740242004395
+          },
+          {
+            "update": 350,
+            "penalty": 0.1,
+            "training_batch_Loss": 1.9051446914672852,
+            "calibration_Loss": 2.0671024322509766
+          },
+          {
+            "update": 400,
+            "penalty": 0.1,
+            "training_batch_Loss": 1.8970757722854614,
+            "calibration_Loss": 2.0705225467681885
+          }
+        ],
+        "selection": {
+          "update": 200,
+          "penalty": 0.01,
+          "fitting_samples": 5103,
+          "calibration_samples": 1635
+        },
+        "gaps": [
+          {
+            "lo": 0,
+            "hi": 8,
+            "count": 996,
+            "Acc": 0.21887550200803213
+          },
+          {
+            "lo": 8,
+            "hi": 32,
+            "count": 2396,
+            "Acc": 0.2028380634390651
+          },
+          {
+            "lo": 32,
+            "hi": 128,
+            "count": 3110,
+            "Acc": 0.2135048231511254
+          },
+          {
+            "lo": 128,
+            "hi": 256,
+            "count": 401,
+            "Acc": 0.18204488778054864
+          },
+          {
+            "lo": 256,
+            "hi": 512,
+            "count": 31,
+            "Acc": 0.0
+          },
+          {
+            "lo": 512,
+            "hi": null,
+            "count": 0,
+            "Acc": null
+          }
+        ]
+      },
+      "Mean": {
+        "validation": {
+          "Loss": 2.1514196395874023,
+          "BPC": 3.1038424449038664,
+          "Acc": 0.20983558893203735,
+          "count": 6934
+        },
+        "training": {
+          "Loss": 1.7875005006790161,
+          "BPC": 2.5788181079161556,
+          "Acc": 0.34607094526290894,
+          "count": 5103
+        },
+        "calibration": {
+          "Loss": 2.0685606002807617,
+          "BPC": 2.984302119803352,
+          "Acc": 0.21957185864448547,
+          "count": 1635
+        },
+        "trace": [
+          {
+            "update": 50,
+            "penalty": 0.0,
+            "training_batch_Loss": 1.9112298488616943,
+            "calibration_Loss": 2.119516134262085
+          },
+          {
+            "update": 100,
+            "penalty": 0.0,
+            "training_batch_Loss": 1.8770956993103027,
+            "calibration_Loss": 2.1048548221588135
+          },
+          {
+            "update": 150,
+            "penalty": 0.0,
+            "training_batch_Loss": 1.8234999179840088,
+            "calibration_Loss": 2.0872628688812256
+          },
+          {
+            "update": 200,
+            "penalty": 0.0,
+            "training_batch_Loss": 1.796168565750122,
+            "calibration_Loss": 2.0726089477539062
+          },
+          {
+            "update": 250,
+            "penalty": 0.0,
+            "training_batch_Loss": 1.7358840703964233,
+            "calibration_Loss": 2.1061434745788574
+          },
+          {
+            "update": 300,
+            "penalty": 0.0,
+            "training_batch_Loss": 1.7016494274139404,
+            "calibration_Loss": 2.100797653198242
+          },
+          {
+            "update": 350,
+            "penalty": 0.0,
+            "training_batch_Loss": 1.7498680353164673,
+            "calibration_Loss": 2.10062837600708
+          },
+          {
+            "update": 400,
+            "penalty": 0.0,
+            "training_batch_Loss": 1.7992992401123047,
+            "calibration_Loss": 2.111860513687134
+          },
+          {
+            "update": 50,
+            "penalty": 0.01,
+            "training_batch_Loss": 1.9147762060165405,
+            "calibration_Loss": 2.1195743083953857
+          },
+          {
+            "update": 100,
+            "penalty": 0.01,
+            "training_batch_Loss": 1.8848726749420166,
+            "calibration_Loss": 2.1041414737701416
+          },
+          {
+            "update": 150,
+            "penalty": 0.01,
+            "training_batch_Loss": 1.83558988571167,
+            "calibration_Loss": 2.0858986377716064
+          },
+          {
+            "update": 200,
+            "penalty": 0.01,
+            "training_batch_Loss": 1.8116549253463745,
+            "calibration_Loss": 2.0685606002807617
+          },
+          {
+            "update": 250,
+            "penalty": 0.01,
+            "training_batch_Loss": 1.753674864768982,
+            "calibration_Loss": 2.099534034729004
+          },
+          {
+            "update": 300,
+            "penalty": 0.01,
+            "training_batch_Loss": 1.7221496105194092,
+            "calibration_Loss": 2.0905745029449463
+          },
+          {
+            "update": 350,
+            "penalty": 0.01,
+            "training_batch_Loss": 1.7763550281524658,
+            "calibration_Loss": 2.085756301879883
+          },
+          {
+            "update": 400,
+            "penalty": 0.01,
+            "training_batch_Loss": 1.8187553882598877,
+            "calibration_Loss": 2.0944879055023193
+          },
+          {
+            "update": 50,
+            "penalty": 0.1,
+            "training_batch_Loss": 1.9492597579956055,
+            "calibration_Loss": 2.1257972717285156
+          },
+          {
+            "update": 100,
+            "penalty": 0.1,
+            "training_batch_Loss": 1.956408143043518,
+            "calibration_Loss": 2.1191928386688232
+          },
+          {
+            "update": 150,
+            "penalty": 0.1,
+            "training_batch_Loss": 1.9378858804702759,
+            "calibration_Loss": 2.1120071411132812
+          },
+          {
+            "update": 200,
+            "penalty": 0.1,
+            "training_batch_Loss": 1.9329454898834229,
+            "calibration_Loss": 2.0948729515075684
+          },
+          {
+            "update": 250,
+            "penalty": 0.1,
+            "training_batch_Loss": 1.8880985975265503,
+            "calibration_Loss": 2.1240832805633545
+          },
+          {
+            "update": 300,
+            "penalty": 0.1,
+            "training_batch_Loss": 1.8693333864212036,
+            "calibration_Loss": 2.1140007972717285
+          },
+          {
+            "update": 350,
+            "penalty": 0.1,
+            "training_batch_Loss": 1.9406408071517944,
+            "calibration_Loss": 2.1087827682495117
+          },
+          {
+            "update": 400,
+            "penalty": 0.1,
+            "training_batch_Loss": 1.9535062313079834,
+            "calibration_Loss": 2.1133029460906982
+          }
+        ],
+        "selection": {
+          "update": 200,
+          "penalty": 0.01,
+          "fitting_samples": 5103,
+          "calibration_samples": 1635
+        },
+        "gaps": [
+          {
+            "lo": 0,
+            "hi": 8,
+            "count": 996,
+            "Acc": 0.2289156626506024
+          },
+          {
+            "lo": 8,
+            "hi": 32,
+            "count": 2396,
+            "Acc": 0.20993322203672787
+          },
+          {
+            "lo": 32,
+            "hi": 128,
+            "count": 3110,
+            "Acc": 0.20868167202572346
+          },
+          {
+            "lo": 128,
+            "hi": 256,
+            "count": 401,
+            "Acc": 0.1770573566084788
+          },
+          {
+            "lo": 256,
+            "hi": 512,
+            "count": 31,
+            "Acc": 0.12903225806451613
+          },
+          {
+            "lo": 512,
+            "hi": null,
+            "count": 0,
+            "Acc": null
+          }
+        ]
+      },
+      "Concat": {
+        "validation": {
+          "Loss": 2.1630475521087646,
+          "BPC": 3.1206179766343265,
+          "Acc": 0.230458602309227,
+          "count": 6934
+        },
+        "training": {
+          "Loss": 1.5107934474945068,
+          "BPC": 2.1796142145078656,
+          "Acc": 0.4395453631877899,
+          "count": 5103
+        },
+        "calibration": {
+          "Loss": 2.021721601486206,
+          "BPC": 2.916727728522243,
+          "Acc": 0.2538226246833801,
+          "count": 1635
+        },
+        "trace": [
+          {
+            "update": 50,
+            "penalty": 0.0,
+            "training_batch_Loss": 1.555450677871704,
+            "calibration_Loss": 2.0693259239196777
+          },
+          {
+            "update": 100,
+            "penalty": 0.0,
+            "training_batch_Loss": 1.4378787279129028,
+            "calibration_Loss": 2.1140522956848145
+          },
+          {
+            "update": 150,
+            "penalty": 0.0,
+            "training_batch_Loss": 1.2849841117858887,
+            "calibration_Loss": 2.1901557445526123
+          },
+          {
+            "update": 200,
+            "penalty": 0.0,
+            "training_batch_Loss": 1.2690486907958984,
+            "calibration_Loss": 2.1825156211853027
+          },
+          {
+            "update": 250,
+            "penalty": 0.0,
+            "training_batch_Loss": 1.2056254148483276,
+            "calibration_Loss": 2.257042646408081
+          },
+          {
+            "update": 300,
+            "penalty": 0.0,
+            "training_batch_Loss": 1.2132903337478638,
+            "calibration_Loss": 2.3482847213745117
+          },
+          {
+            "update": 350,
+            "penalty": 0.0,
+            "training_batch_Loss": 1.290459394454956,
+            "calibration_Loss": 2.3994204998016357
+          },
+          {
+            "update": 400,
+            "penalty": 0.0,
+            "training_batch_Loss": 1.2657012939453125,
+            "calibration_Loss": 2.427868366241455
+          },
+          {
+            "update": 50,
+            "penalty": 0.01,
+            "training_batch_Loss": 1.5599098205566406,
+            "calibration_Loss": 2.0654656887054443
+          },
+          {
+            "update": 100,
+            "penalty": 0.01,
+            "training_batch_Loss": 1.4485059976577759,
+            "calibration_Loss": 2.099026918411255
+          },
+          {
+            "update": 150,
+            "penalty": 0.01,
+            "training_batch_Loss": 1.3029284477233887,
+            "calibration_Loss": 2.162658214569092
+          },
+          {
+            "update": 200,
+            "penalty": 0.01,
+            "training_batch_Loss": 1.296067714691162,
+            "calibration_Loss": 2.141227960586548
+          },
+          {
+            "update": 250,
+            "penalty": 0.01,
+            "training_batch_Loss": 1.2410573959350586,
+            "calibration_Loss": 2.1955840587615967
+          },
+          {
+            "update": 300,
+            "penalty": 0.01,
+            "training_batch_Loss": 1.2437479496002197,
+            "calibration_Loss": 2.2636733055114746
+          },
+          {
+            "update": 350,
+            "penalty": 0.01,
+            "training_batch_Loss": 1.3173167705535889,
+            "calibration_Loss": 2.2898342609405518
+          },
+          {
+            "update": 400,
+            "penalty": 0.01,
+            "training_batch_Loss": 1.307037353515625,
+            "calibration_Loss": 2.310023784637451
+          },
+          {
+            "update": 50,
+            "penalty": 0.1,
+            "training_batch_Loss": 1.6026698350906372,
+            "calibration_Loss": 2.044403314590454
+          },
+          {
+            "update": 100,
+            "penalty": 0.1,
+            "training_batch_Loss": 1.5527266263961792,
+            "calibration_Loss": 2.0310988426208496
+          },
+          {
+            "update": 150,
+            "penalty": 0.1,
+            "training_batch_Loss": 1.4606993198394775,
+            "calibration_Loss": 2.0668091773986816
+          },
+          {
+            "update": 200,
+            "penalty": 0.1,
+            "training_batch_Loss": 1.493764877319336,
+            "calibration_Loss": 2.021721601486206
+          },
+          {
+            "update": 250,
+            "penalty": 0.1,
+            "training_batch_Loss": 1.4724780321121216,
+            "calibration_Loss": 2.0327138900756836
+          },
+          {
+            "update": 300,
+            "penalty": 0.1,
+            "training_batch_Loss": 1.4519497156143188,
+            "calibration_Loss": 2.069398880004883
+          },
+          {
+            "update": 350,
+            "penalty": 0.1,
+            "training_batch_Loss": 1.522106409072876,
+            "calibration_Loss": 2.0656328201293945
+          },
+          {
+            "update": 400,
+            "penalty": 0.1,
+            "training_batch_Loss": 1.549659252166748,
+            "calibration_Loss": 2.0778937339782715
+          }
+        ],
+        "selection": {
+          "update": 200,
+          "penalty": 0.1,
+          "fitting_samples": 5103,
+          "calibration_samples": 1635
+        },
+        "gaps": [
+          {
+            "lo": 0,
+            "hi": 8,
+            "count": 996,
+            "Acc": 0.24497991967871485
+          },
+          {
+            "lo": 8,
+            "hi": 32,
+            "count": 2396,
+            "Acc": 0.22829716193656094
+          },
+          {
+            "lo": 32,
+            "hi": 128,
+            "count": 3110,
+            "Acc": 0.2347266881028939
+          },
+          {
+            "lo": 128,
+            "hi": 256,
+            "count": 401,
+            "Acc": 0.18703241895261846
+          },
+          {
+            "lo": 256,
+            "hi": 512,
+            "count": 31,
+            "Acc": 0.06451612903225806
+          },
+          {
+            "lo": 512,
+            "hi": null,
+            "count": 0,
+            "Acc": null
+          }
+        ]
+      }
+    }
+  },
+  "concat_standardized_weight_norm": [
+    3.9814486503601074,
+    3.9412970542907715,
+    3.8016958236694336,
+    4.024216175079346
+  ],
+  "concat_weight_share": [
+    0.2528119385242462,
+    0.25026240944862366,
+    0.24139809608459473,
+    0.2555275857448578
+  ],
+  "concat_column_replacement": [
+    {
+      "Loss": 0.6682766675949097,
+      "BPC": 0.9641194342809785,
+      "Acc": 0.7646380066871643,
+      "count": 6934,
+      "delta_BPC": 0.19074355031482904,
+      "delta_Acc": -0.04283243417739868
+    },
+    {
+      "Loss": 0.6330971121788025,
+      "BPC": 0.9133660641414821,
+      "Acc": 0.7836746573448181,
+      "count": 6934,
+      "delta_BPC": 0.1399901801753327,
+      "delta_Acc": -0.023795783519744873
+    },
+    {
+      "Loss": 0.6354386210441589,
+      "BPC": 0.9167441473697294,
+      "Acc": 0.7717046141624451,
+      "count": 6934,
+      "delta_BPC": 0.14336826340358,
+      "delta_Acc": -0.03576582670211792
+    },
+    {
+      "Loss": 0.6139935255050659,
+      "BPC": 0.8858054143840899,
+      "Acc": 0.7843957543373108,
+      "count": 6934,
+      "delta_BPC": 0.11242953041794046,
+      "delta_Acc": -0.023074686527252197
+    }
+  ],
+  "query_state_lesions": [
+    {
+      "Loss": 9.455591201782227,
+      "BPC": 13.641534535484533,
+      "Acc": 0.05076434835791588,
+      "count": 6934,
+      "delta_Acc": -0.7558408118784428
+    },
+    {
+      "Loss": 12.535640716552734,
+      "BPC": 18.085106696136403,
+      "Acc": 0.022497836500406265,
+      "count": 6934,
+      "delta_Acc": -0.7841073237359524
+    },
+    {
+      "Loss": 4.77250862121582,
+      "BPC": 6.885274520427888,
+      "Acc": 0.09878857433795929,
+      "count": 6934,
+      "delta_Acc": -0.7078165858983994
+    },
+    {
+      "Loss": 3.8674232959747314,
+      "BPC": 5.579512410121195,
+      "Acc": 0.09691375494003296,
+      "count": 6934,
+      "delta_Acc": -0.7096914052963257
+    }
+  ],
+  "analysis_seconds": 23.74306537600205,
+  "feature_source": {
+    "path": "/home/master/knitwork/docs/experiments/communication_diagnostics_2026-10-12/runs/sdq/dynamic_mean/features.npz",
+    "sha256": "bfb11a3cd16797013ecf9386d0c3921ec3de8697f5356fe25de3706a16b2ef56"
+  }
+}

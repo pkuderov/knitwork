@@ -1,0 +1,234 @@
+{
+  "method": "Zero both layers of one column immediately before a token; every fourth cached validation step after first scored step. No trajectory propagation, refit or backbone update.",
+  "source": {
+    "path": "/home/master/knitwork/inference/text8_column_lesions.py",
+    "sha256": "0a2167db7436f8ff4d2a109e85c2af0fdacbece9f4dd6985d47d4b82c569f948"
+  },
+  "rows": [
+    {
+      "run_id": "text8/L2C4/clean/dynamic_column0/seed42-data42",
+      "condition": "dynamic_column0",
+      "native": {
+        "Loss": 1.06342351436615,
+        "BPC": 1.534195830540758,
+        "Acc": 0.6579241156578064,
+        "count": 3584
+      },
+      "column_lesions": [
+        {
+          "Loss": 1.6624566316604614,
+          "BPC": 2.398417938189518,
+          "Acc": 0.4946986734867096,
+          "count": 3584,
+          "delta_BPC": 0.86422210764876
+        },
+        {
+          "Loss": 1.4000988006591797,
+          "BPC": 2.0199155964655837,
+          "Acc": 0.5608258843421936,
+          "count": 3584,
+          "delta_BPC": 0.4857197659248258
+        },
+        {
+          "Loss": 1.316601037979126,
+          "BPC": 1.8994537883217468,
+          "Acc": 0.5853794813156128,
+          "count": 3584,
+          "delta_BPC": 0.3652579577809889
+        },
+        {
+          "Loss": 1.345062494277954,
+          "BPC": 1.940514990180544,
+          "Acc": 0.5669642686843872,
+          "count": 3584,
+          "delta_BPC": 0.40631915963978615
+        }
+      ],
+      "checkpoint": {
+        "path": "/home/master/knitwork/runs/communication_1m/text8/L2C4/clean/dynamic_column0/seed42-data42/final.pt",
+        "sha256": "49928da795727e26bf3af22525157886cb7ebcf193dc66006b378f002a361fec"
+      },
+      "features_sha256": "2bff59fc1367f0963c14aa7a5cc94cc4c27bcd4a60aabc06dbfecdf69151796c"
+    },
+    {
+      "run_id": "text8/L2C4/clean/dynamic_mean/seed42-data42",
+      "condition": "dynamic_mean",
+      "native": {
+        "Loss": 1.0689619779586792,
+        "BPC": 1.542186144499844,
+        "Acc": 0.6579241156578064,
+        "count": 3584
+      },
+      "column_lesions": [
+        {
+          "Loss": 1.339800477027893,
+          "BPC": 1.9329235039888089,
+          "Acc": 0.5823102593421936,
+          "count": 3584,
+          "delta_BPC": 0.39073735948896493
+        },
+        {
+          "Loss": 1.385175347328186,
+          "BPC": 1.9983856043520216,
+          "Acc": 0.56640625,
+          "count": 3584,
+          "delta_BPC": 0.4561994598521777
+        },
+        {
+          "Loss": 1.3131803274154663,
+          "BPC": 1.8945187461552386,
+          "Acc": 0.5890067219734192,
+          "count": 3584,
+          "delta_BPC": 0.3523326016553947
+        },
+        {
+          "Loss": 1.3981397151947021,
+          "BPC": 2.0170892335813044,
+          "Acc": 0.5602678656578064,
+          "count": 3584,
+          "delta_BPC": 0.4749030890814605
+        }
+      ],
+      "checkpoint": {
+        "path": "/home/master/knitwork/runs/communication_1m/text8/L2C4/clean/dynamic_mean/seed42-data42/final.pt",
+        "sha256": "d5df4c4d6d5e2b31311f34054b997eaec5491aad46cedb2a49de883164456261"
+      },
+      "features_sha256": "b60854163dea3d026272bebf1c275fa3741debf857c3f6981dd37239619e483b"
+    },
+    {
+      "run_id": "text8/L2C4/clean/none_column0/seed42-data42",
+      "condition": "none_column0",
+      "native": {
+        "Loss": 1.1297369003295898,
+        "BPC": 1.6298658236147685,
+        "Acc": 0.6353236436843872,
+        "count": 3584
+      },
+      "column_lesions": [
+        {
+          "Loss": 2.5813193321228027,
+          "BPC": 3.7240565994043786,
+          "Acc": 0.2410714328289032,
+          "count": 3584,
+          "delta_BPC": 2.09419077578961
+        },
+        {
+          "Loss": 1.1297369003295898,
+          "BPC": 1.6298658236147685,
+          "Acc": 0.6353236436843872,
+          "count": 3584,
+          "delta_BPC": 0.0
+        },
+        {
+          "Loss": 1.1297369003295898,
+          "BPC": 1.6298658236147685,
+          "Acc": 0.6353236436843872,
+          "count": 3584,
+          "delta_BPC": 0.0
+        },
+        {
+          "Loss": 1.1297369003295898,
+          "BPC": 1.6298658236147685,
+          "Acc": 0.6353236436843872,
+          "count": 3584,
+          "delta_BPC": 0.0
+        }
+      ],
+      "checkpoint": {
+        "path": "/home/master/knitwork/runs/communication_1m/text8/L2C4/clean/none_column0/seed42-data42/final.pt",
+        "sha256": "a5bd7c39722c87a6b0139e5626853ca47a22a104a1fc3fbcad3e1468cd84d1c1"
+      },
+      "features_sha256": "44c9f2f2d2220f34e8eaba1e4ada7edcfb7a7da2005fba3c7e0980bae4dd6b42"
+    },
+    {
+      "run_id": "text8/L2C4/clean/static_column0/seed42-data42",
+      "condition": "static_column0",
+      "native": {
+        "Loss": 1.0652121305465698,
+        "BPC": 1.5367762582343034,
+        "Acc": 0.6629464030265808,
+        "count": 3584
+      },
+      "column_lesions": [
+        {
+          "Loss": 1.4284924268722534,
+          "BPC": 2.0608789401960403,
+          "Acc": 0.568359375,
+          "count": 3584,
+          "delta_BPC": 0.5241026819617369
+        },
+        {
+          "Loss": 1.3868005275726318,
+          "BPC": 2.000730243831234,
+          "Acc": 0.5666852593421936,
+          "count": 3584,
+          "delta_BPC": 0.4639539855969308
+        },
+        {
+          "Loss": 1.4016934633255005,
+          "BPC": 2.0222162083861757,
+          "Acc": 0.5647321343421936,
+          "count": 3584,
+          "delta_BPC": 0.48543995015187225
+        },
+        {
+          "Loss": 1.3709962368011475,
+          "BPC": 1.9779294719104465,
+          "Acc": 0.5719866156578064,
+          "count": 3584,
+          "delta_BPC": 0.44115321367614313
+        }
+      ],
+      "checkpoint": {
+        "path": "/home/master/knitwork/runs/communication_1m/text8/L2C4/clean/static_column0/seed42-data42/final.pt",
+        "sha256": "16503bc4cb830ed1004009d4bb90386934dcd9d514647b5645a14674fe8b0e45"
+      },
+      "features_sha256": "dc6727a497b4b4361ad44d2191a485df3db3354869673613c6f7fb9ad2e54a60"
+    },
+    {
+      "run_id": "text8/L2C4/clean/static_mean/seed42-data42",
+      "condition": "static_mean",
+      "native": {
+        "Loss": 1.0636178255081177,
+        "BPC": 1.5344761622616643,
+        "Acc": 0.6579241156578064,
+        "count": 3584
+      },
+      "column_lesions": [
+        {
+          "Loss": 1.3281066417694092,
+          "BPC": 1.9160528658524216,
+          "Acc": 0.5756138563156128,
+          "count": 3584,
+          "delta_BPC": 0.38157670359075735
+        },
+        {
+          "Loss": 1.319667100906372,
+          "BPC": 1.9038771821019382,
+          "Acc": 0.5915178656578064,
+          "count": 3584,
+          "delta_BPC": 0.36940101984027396
+        },
+        {
+          "Loss": 1.324279546737671,
+          "BPC": 1.910531534829122,
+          "Acc": 0.5772879719734192,
+          "count": 3584,
+          "delta_BPC": 0.3760553725674578
+        },
+        {
+          "Loss": 1.334443211555481,
+          "BPC": 1.9251946036590344,
+          "Acc": 0.5795201063156128,
+          "count": 3584,
+          "delta_BPC": 0.3907184413973701
+        }
+      ],
+      "checkpoint": {
+        "path": "/home/master/knitwork/runs/communication_1m/text8/L2C4/clean/static_mean/seed42-data42/final.pt",
+        "sha256": "db4d4f3f32f56f0b16656b0699bc4f520e790fb56c5e6e9e6f7c1c68c8a9139d"
+      },
+      "features_sha256": "ba8d1f1035df394a28b078a2711cb5e3c7b8f5de29357cb7ad84de743d6cf5de"
+    }
+  ]
+}

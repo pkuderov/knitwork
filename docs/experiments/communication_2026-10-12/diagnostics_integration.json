@@ -1,0 +1,33 @@
+{
+  "diagnostic_report": "docs/experiments/communication_diagnostics_2026-10-12_selected/report.md",
+  "diagnostic_report_sha256": "85a80f074bff36a590152e0013861cead9105e3037efcad1e855cca0867f6325",
+  "diagnostic_figures": 13,
+  "combined_figures": 20,
+  "combined_pdf_pages": 20,
+  "report_sha256": "e15d340a6bcce4ca0aaf8ea605387326cb31b009cd390b1df0f4bf88f2a8a449",
+  "diagnostic_images": {
+    "../communication_diagnostics_2026-10-12_selected/cka_text8_L1.png": "9a86603d13d45691bb68ba15430bc9361faca610b543f6a37a5d219591e407d6",
+    "../communication_diagnostics_2026-10-12_selected/cka_text8_L2.png": "7c66fd082c5a6ce3f609cc5c5ef6ddd89d5cad0cc81069ee6157132c54dea46b",
+    "../communication_diagnostics_2026-10-12_selected/cka_sdq_L1.png": "35692a48ec0ef5521fcaee9da96fbf48c77b2de577f559eac951bddef9a1dbe6",
+    "../communication_diagnostics_2026-10-12_selected/cka_sdq_L2.png": "927232e047b45fededec52bd0194d4125660ce6eaef0337e206789a4b85d8c77",
+    "../communication_diagnostics_2026-10-12_selected/sdq_stored_value.png": "843dc9eeb138ef48e8d6f6538fd25df0dbd219cc30914f948e507de37200148f",
+    "../communication_diagnostics_2026-10-12_selected/sdq_query_answer.png": "5d9ea7e81be35625b9b01b89c988e2b9f28afffe0a0ef7f9047d626aab7fd8e1",
+    "../communication_diagnostics_2026-10-12_selected/sdq_query_state_lesions.png": "c765944351e5b8ed05df9597b13b73fd1013907b4f00d481ede995d7e4a8d7fd",
+    "../communication_diagnostics_2026-10-12_selected/sdq_stored_value_gaps.png": "e8ff96f310c58cb1b42e3bee5f9efd66e26ce9e0ba4a443ad7aa2b5069064c88",
+    "../communication_diagnostics_2026-10-12_selected/text8_readouts.png": "283436f970eb8276d0e395dfd16e7587058da0bbfb1b04a4fee8e59414d9026e",
+    "../communication_diagnostics_2026-10-12_selected/text8_concat_weights.png": "a7d826390c173cf7fe7b22a540f80b2cbbe4b0ef6aed2d7fd2956a7e7559da04",
+    "../communication_diagnostics_2026-10-12_selected/text8_concat_column_replacement.png": "bc1885b2a1d521b81fe57a2c90ff603c35157bfb8a4557fe2614349110cdda1e",
+    "../communication_diagnostics_2026-10-12_selected/sdq_concat_column_replacement.png": "9c743824a51560403376e748a37c11bf1778ab104b64e5fd8097ca066d431ae9",
+    "../communication_diagnostics_2026-10-12_selected/text8_native_column_lesions.png": "55c0c9bad4b4648bcc5fc3594fd25666ad517160e4fcabefd11129b1ed24f6fa"
+  },
+  "snapshot_refreshed": false,
+  "updated_main_figures": {
+    "../communication_2026-10-13/main_plots/01_learning.png": "39a0c753538edf0272f5ca937efbcc98aca3292ea71950b91b2a4560f806e583",
+    "../communication_2026-10-13/main_plots/02_final_quality.png": "4a8c7b0b0b4eec360a6ebff5997ab5fd6bf9320d0539af2e0f054f21df9d3569",
+    "../communication_2026-10-13/main_plots/03_memory_gaps.png": "9c35de126009b22e5859cc38efa6303f842f6f96b6f0641f9773529ff8628acc"
+  },
+  "main_results_source": "../communication_2026-10-13/data.json",
+  "diagnostic_checkpoint_count": 9,
+  "main_completed_run_count": 11,
+  "combined_pdf_sha256": "7655a7527c26eb4bd32dd6394388d8d62ec7e455971791fb81c6f3697970afa2"
+}

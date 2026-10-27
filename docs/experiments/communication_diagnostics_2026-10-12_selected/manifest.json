@@ -1,0 +1,514 @@
+{
+  "settings": {
+    "root": "runs/communication_1m",
+    "output": "/home/master/knitwork/docs/experiments/communication_diagnostics_2026-10-12_selected",
+    "device": "cpu",
+    "threads": 1,
+    "streams": 16,
+    "warmup_steps": 128,
+    "text_steps": 1024,
+    "sdq_steps": 2048,
+    "train_seed": 2026101201,
+    "validation_seed": 2026101202,
+    "probe_seed": 2026101203,
+    "probe_updates": 400,
+    "probe_batch": 512,
+    "probe_lr": 0.01,
+    "probe_weight_decay": 0.0001,
+    "probe_penalties": [
+      0.0,
+      0.01,
+      0.1
+    ],
+    "probe_selection": "last quarter of probe-training streams",
+    "probe_initialization": "native-head-compatible for task targets, zero for stored value"
+  },
+  "analysis_source_hashes": {
+    "inference/select_communication_readouts.py": "40ce656244f96af5d66f1c1f4834d9436a60b0f1df2fa62275b87fbe7a7aaf50",
+    "inference/communication_diagnostics.py": "0ee74e2d38106270c85dcb09fca75062d6b7584f5cbf171f0ea62429b439471b",
+    "inference/communication_diagnostics_report.py": "04fd84578d873dcf797451f222b8ca157779a562074c2f94cf00f9b6a900cd71",
+    "inference/report_plot_style.py": "24aa1a6be44c558f3068edb3676f54fc96178504006b61a8669ebf89acefd900"
+  },
+  "runs": [
+    {
+      "checkpoint": {
+        "path": "/home/master/knitwork/runs/communication_1m/sdq/L2C4/clean/dynamic_column0/seed42-data42/final.pt",
+        "sha256": "3436e19846bee2b0de631fde8daf7f7eec62bf5ae317587f16832fa66803e127"
+      },
+      "step": 999997440,
+      "native_source_hashes": {
+        "knitwork/models/grnn_core.py": "ce9e1bf6a6c643cbe584db3537f673e4e822e3e48e355be0cfa3751f05cf44fa",
+        "knitwork/models/grnn_communication.py": "410208deefa1eac1eb76f670b35c7cd57a8b7c4fea90b7c2e849205177e95c0c",
+        "knitwork/models/wrappers.py": "9aa1f38b076907917bdfdf5638b277cc69f5eac8af5a7ade4005d37f419a8f79",
+        "knitwork/gens/sdq.py": "86b2d2c0d21632e4353ff005096425b6028c629878c65ba98bac66a39ed34146",
+        "knitwork/gens/text.py": "c92497ba2d881aa9baf79560e2f39d8a0ff36566670d48658c30cc72afddbcf1",
+        "knitwork/exps/communication/run.py": "21d12fa5c87d9d7e95183b22cf088d0b9e2cfcb46df4576220e2beb3d58d9486",
+        "knitwork/exps/communication/protocol.py": "0c732688daf0d70b7af96432222c04493a81d9be1e552e725421243947352454",
+        "knitwork/exps/communication/evaluation.py": "b3e868850ef430802587fc9792823f0129210171e5e7a6de5eddc7abc70d68de",
+        "knitwork/exps/communication/runtime.py": "c2bedf97ccdff451c275b7816a282eac7d1a49f58a6ba96cdccf375903c6ed54",
+        "knitwork/common/dynamic_param.py": "fb7138fb4e06b056a08bd721cfc86dc5f076fd90186bedf521ab46f29c702006",
+        "knitwork/common/scheduler.py": "bbc6f43e9da4f64885101d7e64df7562243ec883098954b6be399b051ff06bee",
+        "knitwork/common/logging_alt.py": "9bcdce1d78887248308506a371aaa010bc8b4dd95be3b6c2fbc733ff420c7761",
+        "knitwork/common/tracking.py": "3792078c5637a711f50e484ceeeeda21437e540ed23df930f393e9a8f4fa9fd4",
+        "knitwork/common/torch.py": "ff1507f8015cb0dffd066ab72577b27c0e3383fbe07e733f421b0d39bc91917a",
+        "knitwork/common/utils.py": "33bb398a9b9b7e4557302a9872d635e5888526dc16ea74e8fbe1c572dde0fdf7",
+        "knitwork/models/utils.py": "c4f447459a41078925a79a3c85cbdb02a05144eb5f8ebb7f3a0a8004042d57ef"
+      },
+      "config_fingerprint": "fe57dc66626daca2961a9942499497ddda6a3fc686429abfaeab8a45d49eb14f",
+      "data_identity": {
+        "generator": {
+          "n_keys": 5,
+          "n_vals": 10,
+          "T": 10,
+          "p_store": 0.35,
+          "p_query": 0.35,
+          "count_stored": true,
+          "count_queried": true
+        },
+        "seed": 42
+      },
+      "run_id": "sdq/L2C4/clean/dynamic_column0/seed42-data42"
+    },
+    {
+      "checkpoint": {
+        "path": "/home/master/knitwork/runs/communication_1m/sdq/L2C4/clean/dynamic_mean/seed42-data42/final.pt",
+        "sha256": "eda51e1594c227676c401b0d335a95700eab039104de9435581c3a57087b8087"
+      },
+      "step": 999997440,
+      "native_source_hashes": {
+        "knitwork/models/grnn_core.py": "ce9e1bf6a6c643cbe584db3537f673e4e822e3e48e355be0cfa3751f05cf44fa",
+        "knitwork/models/grnn_communication.py": "410208deefa1eac1eb76f670b35c7cd57a8b7c4fea90b7c2e849205177e95c0c",
+        "knitwork/models/wrappers.py": "9aa1f38b076907917bdfdf5638b277cc69f5eac8af5a7ade4005d37f419a8f79",
+        "knitwork/gens/sdq.py": "86b2d2c0d21632e4353ff005096425b6028c629878c65ba98bac66a39ed34146",
+        "knitwork/gens/text.py": "c92497ba2d881aa9baf79560e2f39d8a0ff36566670d48658c30cc72afddbcf1",
+        "knitwork/exps/communication/run.py": "21d12fa5c87d9d7e95183b22cf088d0b9e2cfcb46df4576220e2beb3d58d9486",
+        "knitwork/exps/communication/protocol.py": "0c732688daf0d70b7af96432222c04493a81d9be1e552e725421243947352454",
+        "knitwork/exps/communication/evaluation.py": "b3e868850ef430802587fc9792823f0129210171e5e7a6de5eddc7abc70d68de",
+        "knitwork/exps/communication/runtime.py": "c2bedf97ccdff451c275b7816a282eac7d1a49f58a6ba96cdccf375903c6ed54",
+        "knitwork/common/dynamic_param.py": "fb7138fb4e06b056a08bd721cfc86dc5f076fd90186bedf521ab46f29c702006",
+        "knitwork/common/scheduler.py": "bbc6f43e9da4f64885101d7e64df7562243ec883098954b6be399b051ff06bee",
+        "knitwork/common/logging_alt.py": "9bcdce1d78887248308506a371aaa010bc8b4dd95be3b6c2fbc733ff420c7761",
+        "knitwork/common/tracking.py": "3792078c5637a711f50e484ceeeeda21437e540ed23df930f393e9a8f4fa9fd4",
+        "knitwork/common/torch.py": "ff1507f8015cb0dffd066ab72577b27c0e3383fbe07e733f421b0d39bc91917a",
+        "knitwork/common/utils.py": "33bb398a9b9b7e4557302a9872d635e5888526dc16ea74e8fbe1c572dde0fdf7",
+        "knitwork/models/utils.py": "c4f447459a41078925a79a3c85cbdb02a05144eb5f8ebb7f3a0a8004042d57ef"
+      },
+      "config_fingerprint": "f1f8ef921378ac14498f840b7a24b6ad8b63f2dfa5fe70a0bcfcdd81c7217c3b",
+      "data_identity": {
+        "generator": {
+          "n_keys": 5,
+          "n_vals": 10,
+          "T": 10,
+          "p_store": 0.35,
+          "p_query": 0.35,
+          "count_stored": true,
+          "count_queried": true
+        },
+        "seed": 42
+      },
+      "run_id": "sdq/L2C4/clean/dynamic_mean/seed42-data42"
+    },
+    {
+      "checkpoint": {
+        "path": "/home/master/knitwork/runs/communication_1m/sdq/L2C4/clean/none_column0/seed42-data42/final.pt",
+        "sha256": "23b93544149c4302a15a2b55ec26347ac0090a23bdd7a859fc7c9ffdb64a639e"
+      },
+      "step": 999997440,
+      "native_source_hashes": {
+        "knitwork/models/grnn_core.py": "ce9e1bf6a6c643cbe584db3537f673e4e822e3e48e355be0cfa3751f05cf44fa",
+        "knitwork/models/grnn_communication.py": "410208deefa1eac1eb76f670b35c7cd57a8b7c4fea90b7c2e849205177e95c0c",
+        "knitwork/models/wrappers.py": "9aa1f38b076907917bdfdf5638b277cc69f5eac8af5a7ade4005d37f419a8f79",
+        "knitwork/gens/sdq.py": "86b2d2c0d21632e4353ff005096425b6028c629878c65ba98bac66a39ed34146",
+        "knitwork/gens/text.py": "c92497ba2d881aa9baf79560e2f39d8a0ff36566670d48658c30cc72afddbcf1",
+        "knitwork/exps/communication/run.py": "21d12fa5c87d9d7e95183b22cf088d0b9e2cfcb46df4576220e2beb3d58d9486",
+        "knitwork/exps/communication/protocol.py": "0c732688daf0d70b7af96432222c04493a81d9be1e552e725421243947352454",
+        "knitwork/exps/communication/evaluation.py": "b3e868850ef430802587fc9792823f0129210171e5e7a6de5eddc7abc70d68de",
+        "knitwork/exps/communication/runtime.py": "c2bedf97ccdff451c275b7816a282eac7d1a49f58a6ba96cdccf375903c6ed54",
+        "knitwork/common/dynamic_param.py": "fb7138fb4e06b056a08bd721cfc86dc5f076fd90186bedf521ab46f29c702006",
+        "knitwork/common/scheduler.py": "bbc6f43e9da4f64885101d7e64df7562243ec883098954b6be399b051ff06bee",
+        "knitwork/common/logging_alt.py": "9bcdce1d78887248308506a371aaa010bc8b4dd95be3b6c2fbc733ff420c7761",
+        "knitwork/common/tracking.py": "3792078c5637a711f50e484ceeeeda21437e540ed23df930f393e9a8f4fa9fd4",
+        "knitwork/common/torch.py": "ff1507f8015cb0dffd066ab72577b27c0e3383fbe07e733f421b0d39bc91917a",
+        "knitwork/common/utils.py": "33bb398a9b9b7e4557302a9872d635e5888526dc16ea74e8fbe1c572dde0fdf7",
+        "knitwork/models/utils.py": "c4f447459a41078925a79a3c85cbdb02a05144eb5f8ebb7f3a0a8004042d57ef"
+      },
+      "config_fingerprint": "3ed6ae5377e1dba15f48422ea568201443153a10da9a91c60976121f18e9e5a7",
+      "data_identity": {
+        "generator": {
+          "n_keys": 5,
+          "n_vals": 10,
+          "T": 10,
+          "p_store": 0.35,
+          "p_query": 0.35,
+          "count_stored": true,
+          "count_queried": true
+        },
+        "seed": 42
+      },
+      "run_id": "sdq/L2C4/clean/none_column0/seed42-data42"
+    },
+    {
+      "checkpoint": {
+        "path": "/home/master/knitwork/runs/communication_1m/sdq/L2C4/clean/static_column0/seed42-data42/final.pt",
+        "sha256": "70dcaa64e900184afcaac8bfd525ff0e371a4f66ac8ff22e0b04a61ea793ab35"
+      },
+      "step": 999997440,
+      "native_source_hashes": {
+        "knitwork/models/grnn_core.py": "ce9e1bf6a6c643cbe584db3537f673e4e822e3e48e355be0cfa3751f05cf44fa",
+        "knitwork/models/grnn_communication.py": "410208deefa1eac1eb76f670b35c7cd57a8b7c4fea90b7c2e849205177e95c0c",
+        "knitwork/models/wrappers.py": "9aa1f38b076907917bdfdf5638b277cc69f5eac8af5a7ade4005d37f419a8f79",
+        "knitwork/gens/sdq.py": "86b2d2c0d21632e4353ff005096425b6028c629878c65ba98bac66a39ed34146",
+        "knitwork/gens/text.py": "c92497ba2d881aa9baf79560e2f39d8a0ff36566670d48658c30cc72afddbcf1",
+        "knitwork/exps/communication/run.py": "21d12fa5c87d9d7e95183b22cf088d0b9e2cfcb46df4576220e2beb3d58d9486",
+        "knitwork/exps/communication/protocol.py": "0c732688daf0d70b7af96432222c04493a81d9be1e552e725421243947352454",
+        "knitwork/exps/communication/evaluation.py": "b3e868850ef430802587fc9792823f0129210171e5e7a6de5eddc7abc70d68de",
+        "knitwork/exps/communication/runtime.py": "c2bedf97ccdff451c275b7816a282eac7d1a49f58a6ba96cdccf375903c6ed54",
+        "knitwork/common/dynamic_param.py": "fb7138fb4e06b056a08bd721cfc86dc5f076fd90186bedf521ab46f29c702006",
+        "knitwork/common/scheduler.py": "bbc6f43e9da4f64885101d7e64df7562243ec883098954b6be399b051ff06bee",
+        "knitwork/common/logging_alt.py": "9bcdce1d78887248308506a371aaa010bc8b4dd95be3b6c2fbc733ff420c7761",
+        "knitwork/common/tracking.py": "3792078c5637a711f50e484ceeeeda21437e540ed23df930f393e9a8f4fa9fd4",
+        "knitwork/common/torch.py": "ff1507f8015cb0dffd066ab72577b27c0e3383fbe07e733f421b0d39bc91917a",
+        "knitwork/common/utils.py": "33bb398a9b9b7e4557302a9872d635e5888526dc16ea74e8fbe1c572dde0fdf7",
+        "knitwork/models/utils.py": "c4f447459a41078925a79a3c85cbdb02a05144eb5f8ebb7f3a0a8004042d57ef"
+      },
+      "config_fingerprint": "48507cf01f91380eae5a65e9d4115f25c953943b60b346a512476820411937ba",
+      "data_identity": {
+        "generator": {
+          "n_keys": 5,
+          "n_vals": 10,
+          "T": 10,
+          "p_store": 0.35,
+          "p_query": 0.35,
+          "count_stored": true,
+          "count_queried": true
+        },
+        "seed": 42
+      },
+      "run_id": "sdq/L2C4/clean/static_column0/seed42-data42"
+    },
+    {
+      "checkpoint": {
+        "path": "/home/master/knitwork/runs/communication_1m/text8/L2C4/clean/dynamic_column0/seed42-data42/final.pt",
+        "sha256": "49928da795727e26bf3af22525157886cb7ebcf193dc66006b378f002a361fec"
+      },
+      "step": 999981056,
+      "native_source_hashes": {
+        "knitwork/models/grnn_core.py": "ce9e1bf6a6c643cbe584db3537f673e4e822e3e48e355be0cfa3751f05cf44fa",
+        "knitwork/models/grnn_communication.py": "410208deefa1eac1eb76f670b35c7cd57a8b7c4fea90b7c2e849205177e95c0c",
+        "knitwork/models/wrappers.py": "9aa1f38b076907917bdfdf5638b277cc69f5eac8af5a7ade4005d37f419a8f79",
+        "knitwork/gens/sdq.py": "86b2d2c0d21632e4353ff005096425b6028c629878c65ba98bac66a39ed34146",
+        "knitwork/gens/text.py": "c92497ba2d881aa9baf79560e2f39d8a0ff36566670d48658c30cc72afddbcf1",
+        "knitwork/exps/communication/run.py": "21d12fa5c87d9d7e95183b22cf088d0b9e2cfcb46df4576220e2beb3d58d9486",
+        "knitwork/exps/communication/protocol.py": "0c732688daf0d70b7af96432222c04493a81d9be1e552e725421243947352454",
+        "knitwork/exps/communication/evaluation.py": "b3e868850ef430802587fc9792823f0129210171e5e7a6de5eddc7abc70d68de",
+        "knitwork/exps/communication/runtime.py": "c2bedf97ccdff451c275b7816a282eac7d1a49f58a6ba96cdccf375903c6ed54",
+        "knitwork/common/dynamic_param.py": "fb7138fb4e06b056a08bd721cfc86dc5f076fd90186bedf521ab46f29c702006",
+        "knitwork/common/scheduler.py": "bbc6f43e9da4f64885101d7e64df7562243ec883098954b6be399b051ff06bee",
+        "knitwork/common/logging_alt.py": "9bcdce1d78887248308506a371aaa010bc8b4dd95be3b6c2fbc733ff420c7761",
+        "knitwork/common/tracking.py": "3792078c5637a711f50e484ceeeeda21437e540ed23df930f393e9a8f4fa9fd4",
+        "knitwork/common/torch.py": "ff1507f8015cb0dffd066ab72577b27c0e3383fbe07e733f421b0d39bc91917a",
+        "knitwork/common/utils.py": "33bb398a9b9b7e4557302a9872d635e5888526dc16ea74e8fbe1c572dde0fdf7",
+        "knitwork/models/utils.py": "c4f447459a41078925a79a3c85cbdb02a05144eb5f8ebb7f3a0a8004042d57ef"
+      },
+      "config_fingerprint": "67075c6d05c4d8f1938ecf0e89fa723ca0542feb0c389fa411ecf270e2753a1c",
+      "data_identity": {
+        "sha256": "6e890197040d37d85beb962ae1f041ff1d9a9ca8d20c7d99c85027eebf51dca7",
+        "sizes": [
+          90000000,
+          5000000,
+          5000000
+        ],
+        "charset": [
+          32,
+          97,
+          98,
+          99,
+          100,
+          101,
+          102,
+          103,
+          104,
+          105,
+          106,
+          107,
+          108,
+          109,
+          110,
+          111,
+          112,
+          113,
+          114,
+          115,
+          116,
+          117,
+          118,
+          119,
+          120,
+          121,
+          122
+        ]
+      },
+      "run_id": "text8/L2C4/clean/dynamic_column0/seed42-data42"
+    },
+    {
+      "checkpoint": {
+        "path": "/home/master/knitwork/runs/communication_1m/text8/L2C4/clean/dynamic_mean/seed42-data42/final.pt",
+        "sha256": "d5df4c4d6d5e2b31311f34054b997eaec5491aad46cedb2a49de883164456261"
+      },
+      "step": 999981056,
+      "native_source_hashes": {
+        "knitwork/models/grnn_core.py": "ce9e1bf6a6c643cbe584db3537f673e4e822e3e48e355be0cfa3751f05cf44fa",
+        "knitwork/models/grnn_communication.py": "410208deefa1eac1eb76f670b35c7cd57a8b7c4fea90b7c2e849205177e95c0c",
+        "knitwork/models/wrappers.py": "9aa1f38b076907917bdfdf5638b277cc69f5eac8af5a7ade4005d37f419a8f79",
+        "knitwork/gens/sdq.py": "86b2d2c0d21632e4353ff005096425b6028c629878c65ba98bac66a39ed34146",
+        "knitwork/gens/text.py": "c92497ba2d881aa9baf79560e2f39d8a0ff36566670d48658c30cc72afddbcf1",
+        "knitwork/exps/communication/run.py": "21d12fa5c87d9d7e95183b22cf088d0b9e2cfcb46df4576220e2beb3d58d9486",
+        "knitwork/exps/communication/protocol.py": "0c732688daf0d70b7af96432222c04493a81d9be1e552e725421243947352454",
+        "knitwork/exps/communication/evaluation.py": "b3e868850ef430802587fc9792823f0129210171e5e7a6de5eddc7abc70d68de",
+        "knitwork/exps/communication/runtime.py": "c2bedf97ccdff451c275b7816a282eac7d1a49f58a6ba96cdccf375903c6ed54",
+        "knitwork/common/dynamic_param.py": "fb7138fb4e06b056a08bd721cfc86dc5f076fd90186bedf521ab46f29c702006",
+        "knitwork/common/scheduler.py": "bbc6f43e9da4f64885101d7e64df7562243ec883098954b6be399b051ff06bee",
+        "knitwork/common/logging_alt.py": "9bcdce1d78887248308506a371aaa010bc8b4dd95be3b6c2fbc733ff420c7761",
+        "knitwork/common/tracking.py": "3792078c5637a711f50e484ceeeeda21437e540ed23df930f393e9a8f4fa9fd4",
+        "knitwork/common/torch.py": "ff1507f8015cb0dffd066ab72577b27c0e3383fbe07e733f421b0d39bc91917a",
+        "knitwork/common/utils.py": "33bb398a9b9b7e4557302a9872d635e5888526dc16ea74e8fbe1c572dde0fdf7",
+        "knitwork/models/utils.py": "c4f447459a41078925a79a3c85cbdb02a05144eb5f8ebb7f3a0a8004042d57ef"
+      },
+      "config_fingerprint": "76ae79cd9b16e43b9d9e8e62acbf135ad9fc7b3ba08fae27b95194d18da693e8",
+      "data_identity": {
+        "sha256": "6e890197040d37d85beb962ae1f041ff1d9a9ca8d20c7d99c85027eebf51dca7",
+        "sizes": [
+          90000000,
+          5000000,
+          5000000
+        ],
+        "charset": [
+          32,
+          97,
+          98,
+          99,
+          100,
+          101,
+          102,
+          103,
+          104,
+          105,
+          106,
+          107,
+          108,
+          109,
+          110,
+          111,
+          112,
+          113,
+          114,
+          115,
+          116,
+          117,
+          118,
+          119,
+          120,
+          121,
+          122
+        ]
+      },
+      "run_id": "text8/L2C4/clean/dynamic_mean/seed42-data42"
+    },
+    {
+      "checkpoint": {
+        "path": "/home/master/knitwork/runs/communication_1m/text8/L2C4/clean/none_column0/seed42-data42/final.pt",
+        "sha256": "a5bd7c39722c87a6b0139e5626853ca47a22a104a1fc3fbcad3e1468cd84d1c1"
+      },
+      "step": 999981056,
+      "native_source_hashes": {
+        "knitwork/models/grnn_core.py": "ce9e1bf6a6c643cbe584db3537f673e4e822e3e48e355be0cfa3751f05cf44fa",
+        "knitwork/models/grnn_communication.py": "410208deefa1eac1eb76f670b35c7cd57a8b7c4fea90b7c2e849205177e95c0c",
+        "knitwork/models/wrappers.py": "9aa1f38b076907917bdfdf5638b277cc69f5eac8af5a7ade4005d37f419a8f79",
+        "knitwork/gens/sdq.py": "86b2d2c0d21632e4353ff005096425b6028c629878c65ba98bac66a39ed34146",
+        "knitwork/gens/text.py": "c92497ba2d881aa9baf79560e2f39d8a0ff36566670d48658c30cc72afddbcf1",
+        "knitwork/exps/communication/run.py": "21d12fa5c87d9d7e95183b22cf088d0b9e2cfcb46df4576220e2beb3d58d9486",
+        "knitwork/exps/communication/protocol.py": "0c732688daf0d70b7af96432222c04493a81d9be1e552e725421243947352454",
+        "knitwork/exps/communication/evaluation.py": "b3e868850ef430802587fc9792823f0129210171e5e7a6de5eddc7abc70d68de",
+        "knitwork/exps/communication/runtime.py": "c2bedf97ccdff451c275b7816a282eac7d1a49f58a6ba96cdccf375903c6ed54",
+        "knitwork/common/dynamic_param.py": "fb7138fb4e06b056a08bd721cfc86dc5f076fd90186bedf521ab46f29c702006",
+        "knitwork/common/scheduler.py": "bbc6f43e9da4f64885101d7e64df7562243ec883098954b6be399b051ff06bee",
+        "knitwork/common/logging_alt.py": "9bcdce1d78887248308506a371aaa010bc8b4dd95be3b6c2fbc733ff420c7761",
+        "knitwork/common/tracking.py": "3792078c5637a711f50e484ceeeeda21437e540ed23df930f393e9a8f4fa9fd4",
+        "knitwork/common/torch.py": "ff1507f8015cb0dffd066ab72577b27c0e3383fbe07e733f421b0d39bc91917a",
+        "knitwork/common/utils.py": "33bb398a9b9b7e4557302a9872d635e5888526dc16ea74e8fbe1c572dde0fdf7",
+        "knitwork/models/utils.py": "c4f447459a41078925a79a3c85cbdb02a05144eb5f8ebb7f3a0a8004042d57ef"
+      },
+      "config_fingerprint": "b27b5e959026f78386a48e29091b1ffa8bdae9910b67e7f690920e15ce233bcc",
+      "data_identity": {
+        "sha256": "6e890197040d37d85beb962ae1f041ff1d9a9ca8d20c7d99c85027eebf51dca7",
+        "sizes": [
+          90000000,
+          5000000,
+          5000000
+        ],
+        "charset": [
+          32,
+          97,
+          98,
+          99,
+          100,
+          101,
+          102,
+          103,
+          104,
+          105,
+          106,
+          107,
+          108,
+          109,
+          110,
+          111,
+          112,
+          113,
+          114,
+          115,
+          116,
+          117,
+          118,
+          119,
+          120,
+          121,
+          122
+        ]
+      },
+      "run_id": "text8/L2C4/clean/none_column0/seed42-data42"
+    },
+    {
+      "checkpoint": {
+        "path": "/home/master/knitwork/runs/communication_1m/text8/L2C4/clean/static_column0/seed42-data42/final.pt",
+        "sha256": "16503bc4cb830ed1004009d4bb90386934dcd9d514647b5645a14674fe8b0e45"
+      },
+      "step": 999981056,
+      "native_source_hashes": {
+        "knitwork/models/grnn_core.py": "ce9e1bf6a6c643cbe584db3537f673e4e822e3e48e355be0cfa3751f05cf44fa",
+        "knitwork/models/grnn_communication.py": "410208deefa1eac1eb76f670b35c7cd57a8b7c4fea90b7c2e849205177e95c0c",
+        "knitwork/models/wrappers.py": "9aa1f38b076907917bdfdf5638b277cc69f5eac8af5a7ade4005d37f419a8f79",
+        "knitwork/gens/sdq.py": "86b2d2c0d21632e4353ff005096425b6028c629878c65ba98bac66a39ed34146",
+        "knitwork/gens/text.py": "c92497ba2d881aa9baf79560e2f39d8a0ff36566670d48658c30cc72afddbcf1",
+        "knitwork/exps/communication/run.py": "21d12fa5c87d9d7e95183b22cf088d0b9e2cfcb46df4576220e2beb3d58d9486",
+        "knitwork/exps/communication/protocol.py": "0c732688daf0d70b7af96432222c04493a81d9be1e552e725421243947352454",
+        "knitwork/exps/communication/evaluation.py": "b3e868850ef430802587fc9792823f0129210171e5e7a6de5eddc7abc70d68de",
+        "knitwork/exps/communication/runtime.py": "c2bedf97ccdff451c275b7816a282eac7d1a49f58a6ba96cdccf375903c6ed54",
+        "knitwork/common/dynamic_param.py": "fb7138fb4e06b056a08bd721cfc86dc5f076fd90186bedf521ab46f29c702006",
+        "knitwork/common/scheduler.py": "bbc6f43e9da4f64885101d7e64df7562243ec883098954b6be399b051ff06bee",
+        "knitwork/common/logging_alt.py": "9bcdce1d78887248308506a371aaa010bc8b4dd95be3b6c2fbc733ff420c7761",
+        "knitwork/common/tracking.py": "3792078c5637a711f50e484ceeeeda21437e540ed23df930f393e9a8f4fa9fd4",
+        "knitwork/common/torch.py": "ff1507f8015cb0dffd066ab72577b27c0e3383fbe07e733f421b0d39bc91917a",
+        "knitwork/common/utils.py": "33bb398a9b9b7e4557302a9872d635e5888526dc16ea74e8fbe1c572dde0fdf7",
+        "knitwork/models/utils.py": "c4f447459a41078925a79a3c85cbdb02a05144eb5f8ebb7f3a0a8004042d57ef"
+      },
+      "config_fingerprint": "051319e588cb4f73708af723a5e20ed1b6fd8968772f6708c7f5b0bd9eca97f0",
+      "data_identity": {
+        "sha256": "6e890197040d37d85beb962ae1f041ff1d9a9ca8d20c7d99c85027eebf51dca7",
+        "sizes": [
+          90000000,
+          5000000,
+          5000000
+        ],
+        "charset": [
+          32,
+          97,
+          98,
+          99,
+          100,
+          101,
+          102,
+          103,
+          104,
+          105,
+          106,
+          107,
+          108,
+          109,
+          110,
+          111,
+          112,
+          113,
+          114,
+          115,
+          116,
+          117,
+          118,
+          119,
+          120,
+          121,
+          122
+        ]
+      },
+      "run_id": "text8/L2C4/clean/static_column0/seed42-data42"
+    },
+    {
+      "checkpoint": {
+        "path": "/home/master/knitwork/runs/communication_1m/text8/L2C4/clean/static_mean/seed42-data42/final.pt",
+        "sha256": "db4d4f3f32f56f0b16656b0699bc4f520e790fb56c5e6e9e6f7c1c68c8a9139d"
+      },
+      "step": 999981056,
+      "native_source_hashes": {
+        "knitwork/models/grnn_core.py": "ce9e1bf6a6c643cbe584db3537f673e4e822e3e48e355be0cfa3751f05cf44fa",
+        "knitwork/models/grnn_communication.py": "410208deefa1eac1eb76f670b35c7cd57a8b7c4fea90b7c2e849205177e95c0c",
+        "knitwork/models/wrappers.py": "9aa1f38b076907917bdfdf5638b277cc69f5eac8af5a7ade4005d37f419a8f79",
+        "knitwork/gens/sdq.py": "86b2d2c0d21632e4353ff005096425b6028c629878c65ba98bac66a39ed34146",
+        "knitwork/gens/text.py": "c92497ba2d881aa9baf79560e2f39d8a0ff36566670d48658c30cc72afddbcf1",
+        "knitwork/exps/communication/run.py": "21d12fa5c87d9d7e95183b22cf088d0b9e2cfcb46df4576220e2beb3d58d9486",
+        "knitwork/exps/communication/protocol.py": "0c732688daf0d70b7af96432222c04493a81d9be1e552e725421243947352454",
+        "knitwork/exps/communication/evaluation.py": "b3e868850ef430802587fc9792823f0129210171e5e7a6de5eddc7abc70d68de",
+        "knitwork/exps/communication/runtime.py": "c2bedf97ccdff451c275b7816a282eac7d1a49f58a6ba96cdccf375903c6ed54",
+        "knitwork/common/dynamic_param.py": "fb7138fb4e06b056a08bd721cfc86dc5f076fd90186bedf521ab46f29c702006",
+        "knitwork/common/scheduler.py": "bbc6f43e9da4f64885101d7e64df7562243ec883098954b6be399b051ff06bee",
+        "knitwork/common/logging_alt.py": "9bcdce1d78887248308506a371aaa010bc8b4dd95be3b6c2fbc733ff420c7761",
+        "knitwork/common/tracking.py": "3792078c5637a711f50e484ceeeeda21437e540ed23df930f393e9a8f4fa9fd4",
+        "knitwork/common/torch.py": "ff1507f8015cb0dffd066ab72577b27c0e3383fbe07e733f421b0d39bc91917a",
+        "knitwork/common/utils.py": "33bb398a9b9b7e4557302a9872d635e5888526dc16ea74e8fbe1c572dde0fdf7",
+        "knitwork/models/utils.py": "c4f447459a41078925a79a3c85cbdb02a05144eb5f8ebb7f3a0a8004042d57ef"
+      },
+      "config_fingerprint": "3d2d3cc064af7b802af7d033c9a5ce16699ede9716f036d7023dd4fe47f7e45f",
+      "data_identity": {
+        "sha256": "6e890197040d37d85beb962ae1f041ff1d9a9ca8d20c7d99c85027eebf51dca7",
+        "sizes": [
+          90000000,
+          5000000,
+          5000000
+        ],
+        "charset": [
+          32,
+          97,
+          98,
+          99,
+          100,
+          101,
+          102,
+          103,
+          104,
+          105,
+          106,
+          107,
+          108,
+          109,
+          110,
+          111,
+          112,
+          113,
+          114,
+          115,
+          116,
+          117,
+          118,
+          119,
+          120,
+          121,
+          122
+        ]
+      },
+      "run_id": "text8/L2C4/clean/static_mean/seed42-data42"
+    }
+  ],
+  "feature_source_manifest": {
+    "path": "/home/master/knitwork/docs/experiments/communication_diagnostics_2026-10-12/manifest.json",
+    "sha256": "0df795c6448bb2e28a09236c461de5cec243ae8071920ef5842113f4aaf9f8dd"
+  }
+}

@@ -1,0 +1,368 @@
+<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Коммуникация MoSAIC</title><style>body{font:16px/1.6 system-ui;max-width:1400px;margin:32px auto;padding:0 24px;color:#222}img{display:block;max-width:100%;height:auto;margin:24px auto}table{display:block;overflow-x:auto;border-collapse:collapse;margin:24px 0}td,th{border-bottom:1px solid #ddd;padding:8px 12px;text-align:left}pre{overflow-x:auto;padding:16px;background:#f5f5f5}a{color:#355c7d}h2{margin-top:42px}</style><h1>Коммуникация MoSAIC: простая постановка и текущие результаты</h1>
+<p>Основные результаты и первые три графика обновлены по данным 13 октября 2026: <strong>11 завершённых запусков из 16</strong>, два приостановлены с сохранением checkpoint, три ещё не начаты. Все обучения остановлены по просьбе пользователя. На кривых обучения приостановленные запуски отмечены чёрным пунктиром; в итоговые сравнения включены только завершённые обучения.</p>
+<p>Подробный анализ новых результатов, частичных запусков и сравнений при равном промежуточном бюджете: <a href="../communication_2026-10-13/report.md">отчёт за 13 октября</a>. Диагностики CKA, чтения памяти и вкладов колонок ниже относятся к прежним девяти checkpoints; два новых завершённых запуска в них ещё не включены. Краткие объяснения всех вариантов: <a href="../communication_variant_reference.md">справочник вариантов</a>. Конфиги очереди и команды: <a href="../../../knitwork/exps/communication/config/README.md">config/README.md</a>.</p>
+<h2>Что проверяем</h2>
+<p>У модели есть четыре колонки памяти, каждая состоит из двух последовательно работающих GRU-ячеек. На каждом шаге она получает новый символ или событие, обновляет память и делает предсказание. Мы меняем только правила обмена между колонками и способ, которым предсказание читает их память. Вопрос: помогает ли само общение колонок, нужно ли выбирать связи по текущему содержимому памяти и достаточно ли просто открыть предсказанию всю память?</p>
+<p>На <strong>Text8</strong> нужно предсказать следующий символ текста. Ошибка измеряется в BPC: меньше лучше. Текст разделён на 90M символов обучения, 5M validation и 5M test. Validation и test проходят непрерывно, без случайных сбросов памяти; test читается после обучения.</p>
+<p>В <strong>SDQ</strong> модель запоминает пары «ключ — значение», встречает отвлекающие события и отвечает на запросы. Правильный ответ учитывает также счётчики store/query и накопленные отвлекающие значения, поэтому это задача вычисления с памятью, а не простого копирования. Основная оценка — доля правильных ответов на отдельном неизменном генераторе. Дополнительная проверка задаёт расстояния 8, 32, 128, 256 и 512 шагов; нужная запись там не перезаписывается.</p>
+<h2>Что одинаково</h2>
+<p>Топология L2C4, ширина каждой ячейки 136, четыре attention-heads. Около 1M весов: Text8 <strong>1 050 499</strong>, SDQ <strong>1 053 338</strong>, включая вход и prediction head. На один поток выделено <strong>1088 чисел recurrent state</strong>. Все условия внутри задачи начинают с одинаковых весов; seed модели и данных равен <strong>42</strong>. Нет routing noise, штрафа коммуникации и entropy bonus: это рецепт <code>clean</code>.</p>
+<p>Каждому завершённому запуску дано около <strong>1B training tokens</strong>. Batch — 512 потоков; градиент проходит через 64 шага для Text8 и 32 для SDQ. Поэтому фактические бюджеты составляют 999 981 056 / 999 997 440 токенов и 30 517 / 61 035 updates. Optimizer RMSprop, clipping нормы до 1, одинаковое расписание LR внутри задачи. SDQ постепенно усложняется до T=500; оценка с самого начала использует фиксированный T=500. Проверка качества каждые 20M токенов, локальные метрики примерно каждые 5M.</p>
+<h2>Как реализованы dynamic, static и none</h2>
+<p><strong>Dynamic — общение зависит от того, что сейчас хранится.</strong> К текущим сообщениям добавляются обучаемые идентификаторы колонок. Из этих сумм линейные Q/K-проекции и SiLU строят запросы и ключи; V-проекция переносит само содержимое сообщения. Q и K определяют attention-веса. Чем изменилось содержимое памяти, тем могут измениться связи. Это исходный production <code>StochasticMessagePassingLayer</code>.</p>
+<p><strong>Static — связи обучаются, но не зависят от текущего содержимого.</strong> Q и K строятся только из обучаемых идентификаторов колонок. V по-прежнему содержит текущую память или вход. Во время обучения веса связей могут меняться вместе с параметрами. При фиксированных параметрах один и тот же маршрут используется для любого текста или события. Это не замороженная случайная матрица и не простое равное усреднение. Полные проекции пересчитываются на каждом шаге, без кэширования.</p>
+<p><strong>None — колонки не читают состояние друг друга.</strong> Сначала вычисляются те же dense-проекции. Затем перед softmax маска закрывает межколоночные связи. В нижнем слое каждой колонке доступны внешний ввод и собственное задержанное состояние верхнего слоя; выше — только сообщение собственной колонки снизу. Локальное смешивание ввода и собственной памяти остаётся обучаемым и зависит от содержимого. Общие веса проекций не означают обмен состояниями. Отключается именно межколоночный обмен, а не весь attention.</p>
+<p>Во всех трёх режимах после смешивания работают одинаковые выходная проекция, LayerNorm и GRU-ячейки. Везде четыре heads. В текущих <code>clean</code> запусках шум и вспомогательные штрафы равны нулю.</p>
+<p>Если нужны точные формулы, для каждой attention-head в текущем clean-режиме:</p>
+<pre><code class="language-text">dynamic: q = SiLU(Wq · (h_prev + id_q) + bq)
+         k = SiLU(Wk · (message + id_k) + bk)
+static:  q = SiLU(Wq · id_q + bq)
+         k = SiLU(Wk · id_k + bk)
+both:    v = SiLU(Wv · message + bv)
+         score = softplus(temp) · (q @ k.T) / sqrt(head_dim)
+none:    запрещённым межколоночным score присваивается −∞
+         остальные score строятся как в dynamic
+all:     weights = softmax(score)
+         msg = LayerNorm(Wo · concat_heads(weights @ v) + bo)
+         h_next = GRU(msg, h_prev)
+</code></pre>
+<p>В нижнем слое <code>message</code> содержит предыдущие верхние состояния всех колонок и текущий внешний ввод. В верхнем слое — свежие состояния нижнего слоя. При none маска оставляет только свою колонку; внешний ввод доступен каждой колонке нижнего слоя. Здесь head_dim = 136 / 4 = 34.</p>
+<p>Код: <a href="../../../knitwork/models/grnn_core.py">production Grid и dynamic router</a>, <a href="../../../knitwork/models/grnn_communication.py">static/none и readout</a>. Это matched-контроль с четырьмя heads, а не отдельный старый класс <code>StaticMessagePassingLayer</code>, у которого другая конструкция.</p>
+<p><strong>Чтение column0:</strong> prediction head получает только верхнюю память колонки 0. <strong>Чтение mean:</strong> получает среднее верхних состояний всех четырёх колонок. Mean не добавляет весов и не возвращает смесь назад в recurrent state.</p>
+<h2>Каждая ablation</h2>
+<table>
+<thead>
+<tr>
+<th>Условие</th>
+<th>Что меняем</th>
+<th>Какой вопрос задаём</th>
+<th>Завершено</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>dynamic_column0</code></td>
+<td>Исходные dynamic-связи; читаем колонку 0</td>
+<td>Опорный communicating grid</td>
+<td>Text8, SDQ</td>
+</tr>
+<tr>
+<td><code>static_column0</code></td>
+<td>Q/K только из идентификаторов; читаем колонку 0</td>
+<td>Нужно ли менять связи по содержимому?</td>
+<td>Text8, SDQ</td>
+</tr>
+<tr>
+<td><code>none_column0</code></td>
+<td>Запрещаем межколоночные связи; читаем колонку 0</td>
+<td>Что происходит при потере доступа к остальным колонкам?</td>
+<td>Text8, SDQ</td>
+</tr>
+<tr>
+<td><code>dynamic_mean</code></td>
+<td>Dynamic-связи; читаем среднее всех колонок</td>
+<td>Меняет ли результат доступ head ко всей верхней памяти?</td>
+<td>Text8, SDQ</td>
+</tr>
+<tr>
+<td><code>static_mean</code></td>
+<td>Static-связи; читаем среднее всех колонок</td>
+<td>Нужны ли dynamic-связи, когда вся память доступна head?</td>
+<td>Text8, SDQ</td>
+</tr>
+<tr>
+<td><code>none_mean</code></td>
+<td>Нет межколоночного обмена; читаем все колонки через mean</td>
+<td>Достаточно ли независимой памяти без общения?</td>
+<td>Только Text8; SDQ приостановлен</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Особенность none_column0:</strong> остальные три колонки не имеют пути к предсказанию. Выделено 1088 state-чисел, но к ответу могут повлиять только 272. Его проигрыш может объясняться потерей доступной памяти. Главный контроль, который снимает эту проблему, — <code>none_mean</code>: Text8 уже завершён, SDQ приостановлен на 477 560 832 токенах. Одноколоночный Text8 L2C1 приостановлен на 333 250 560 токенах; это отдельный контроль с 456 активными state-числами.</p>
+<p>Полные dense matrix products совпадают: примерно 3,06M forward FLOPs/token внутри каждой задачи; matching проверялся также для dense forward/backward. Softmax, elementwise операции, optimizer и эффективное число параметров с ненулевым task gradient этим не уравнены. Мы не делаем из номинального равенства весов вывод о равной полезной ёмкости.</p>
+<h2>Итоговые числа</h2>
+<table>
+<thead>
+<tr>
+<th>Условие</th>
+<th style="text-align:right">Text8 val BPC ↓</th>
+<th style="text-align:right">Text8 test BPC ↓</th>
+<th style="text-align:right">SDQ held-out accuracy ↑</th>
+<th style="text-align:right">SDQ fixed-gap macro ↑</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>dynamic_column0</code></td>
+<td style="text-align:right">1.6006</td>
+<td style="text-align:right">1.6662</td>
+<td style="text-align:right">45.71%</td>
+<td style="text-align:right">52.68%</td>
+</tr>
+<tr>
+<td><code>static_column0</code></td>
+<td style="text-align:right">1.6004</td>
+<td style="text-align:right">1.6653</td>
+<td style="text-align:right">85.54%</td>
+<td style="text-align:right">72.89%</td>
+</tr>
+<tr>
+<td><code>none_column0</code></td>
+<td style="text-align:right">1.7235</td>
+<td style="text-align:right">1.7805</td>
+<td style="text-align:right">23.32%</td>
+<td style="text-align:right">44.80%</td>
+</tr>
+<tr>
+<td><code>dynamic_mean</code></td>
+<td style="text-align:right">1.6204</td>
+<td style="text-align:right">1.6825</td>
+<td style="text-align:right">79.79%</td>
+<td style="text-align:right">70.88%</td>
+</tr>
+<tr>
+<td><code>static_mean</code></td>
+<td style="text-align:right">1.6144</td>
+<td style="text-align:right">1.6791</td>
+<td style="text-align:right">82.26%</td>
+<td style="text-align:right">70.27%</td>
+</tr>
+<tr>
+<td><code>none_mean</code></td>
+<td style="text-align:right">1.6452</td>
+<td style="text-align:right">1.7055</td>
+<td style="text-align:right">—</td>
+<td style="text-align:right">—</td>
+</tr>
+</tbody>
+</table>
+<p>«—» означает отсутствие завершённого результата. Это не ноль. Итоговые числа относятся к последнему checkpoint после полного бюджета, а не к лучшей точке кривой.</p>
+<h2>Что уже видно</h2>
+<p>На Text8 <code>dynamic_column0</code> и <code>static_column0</code> практически совпали: 1,6006 и 1,6004 BPC. В варианте mean static также немного ниже: 1,6144 против 1,6204. В этом seed преимущества изменения маршрутов по содержимому не наблюдаем.</p>
+<p>На SDQ <code>static_column0</code> дал 85,54% held-out accuracy, <code>dynamic_column0</code> — 45,71%: static выше на <strong>39,83 процентного пункта</strong>. Чтение всей памяти у dynamic подняло результат до 79,79%, то есть на <strong>34,08 пункта</strong> относительно column0. Это описательные разницы конкретных запусков, а не проверка статистической значимости.</p>
+<p>У SDQ dynamic/column0 качество заметно меняется ближе к концу: лучшая записанная held-out accuracy — 66,01% около 840M, финальная — 45,71%. Поэтому итог по последнему checkpoint и лучший результат за всё обучение — разные критерии. Основной итог здесь финальный; график не скрывает ухудшение.</p>
+<p>None/column0 хуже communicating-вариантов: Text8 1,7235 BPC, SDQ 23,32%. Из-за недоступности остальных колонок это само по себе ещё не доказательство необходимости общения. Новый Text8 none_mean даёт 1,6452 BPC: чтение всей независимой памяти улучшило качество, но осталось хуже dynamic_mean на 0,0247 и static_mean на 0,0307 BPC. Это описательные данные в пользу обмена при одинаковом readout mean и номинальном state; преимущества dynamic над static не видно. На SDQ static_mean завершён с 82,26%: выше dynamic_mean на 2,47 процентного пункта, ниже static_column0 на 3,28 пункта. Главный SDQ-контроль none_mean ещё не завершён.</p>
+<p>Проверки дальних gaps дают другую картину, чем общая accuracy. Например, на gap=512 dynamic/mean даёт 30,27%, static/column0 — 4,98%, dynamic/column0 — 3,32%. Static/column0 лучше по коротким и средним gaps и по общей accuracy, но это не универсальное преимущество на всех расстояниях.</p>
+<h2>Графики и как их читать</h2>
+<h3>Как меняется качество по мере обучения</h3>
+<p><img src="../communication_2026-10-13/main_plots/01_learning.png" alt="Как меняется качество по мере обучения" /></p>
+<p>Основная серия L2C4, около 1M параметров, clean, seed 42. Добавлены завершённые Text8 none_mean и SDQ static_mean. Чёрным пунктиром показаны приостановленные SDQ none_mean и одноколоночный Text8 L2C1; их последние validation предшествуют checkpoint остановки. SDQ train меняет сложность по curriculum, validation всегда использует T=500. X validation восстановлен по расписанию; полос неопределённости нет.</p>
+<h3>Финальное качество: одинаковый бюджет около 1B токенов</h3>
+<p><img src="../communication_2026-10-13/main_plots/02_final_quality.png" alt="Финальное качество: одинаковый бюджет около 1B токенов" /></p>
+<p>L2C4, около 1M параметров, clean, seed 42. Только завершённые запуски; полос неопределённости нет. Отсутствующие условия показаны серым; это не нулевой результат. Точки с разными маркерами измеряют разные критерии.</p>
+<h3>Как далеко модель сохраняет полезную память</h3>
+<p><img src="../communication_2026-10-13/main_plots/03_memory_gaps.png" alt="Как далеко модель сохраняет полезную память" /></p>
+<p>L2C4, около 1M параметров, clean, seed 42. Только завершённые запуски; полос неопределённости нет. Слева реальные queries с известным store; counts: 17130 / 41872 / 51513 / 6286 / 393 / 0. Справа 1024 примера на gap.</p>
+<h3>SDQ: финальное качество и устойчивость траектории</h3>
+<p>Дополнительные графики 4–7 ниже сохраняют исторический срез за 12 октября: девять завершённых запусков. Новые результаты отражены в первых трёх графиках и в <a href="../communication_2026-10-13/report.md">отчёте за 13 октября</a>.</p>
+<p><img src="04_sdq_stability.png" alt="SDQ: финальное качество и устойчивость траектории" /></p>
+<p>L2C4, около 1M параметров, clean, seed 42. Только завершённые запуски; полос неопределённости нет. Градиенты показаны до ограничения нормы до 1; большие нормы не означают пропуск optimizer update.</p>
+<h3>Качество относительно измеренного времени обучения</h3>
+<p><img src="05_quality_time.png" alt="Качество относительно измеренного времени обучения" /></p>
+<p>L2C4, около 1M параметров, clean, seed 42. Только завершённые запуски; полос неопределённости нет. Время без ночных пауз и evaluations, с Python/compile overhead. Два совместных GPU-процесса: не isolated latency benchmark.</p>
+<h3>Фактически записанные время и память</h3>
+<p><img src="06_resources.png" alt="Фактически записанные время и память" /></p>
+<p>L2C4, около 1M параметров, clean, seed 42. Только завершённые запуски; полос неопределённости нет. CUDA peak относится к последнему процессу/сеансу: счётчик сбрасывается при resume. Ресурсы между разными задачами не уравнены.</p>
+<h3>Доступные сравнения: маршруты и способ чтения памяти</h3>
+<p><img src="07_contrasts.png" alt="Доступные сравнения: маршруты и способ чтения памяти" /></p>
+<p>L2C4, около 1M параметров, clean, seed 42. Только завершённые запуски; полос неопределённости нет. Строки readout — отдельная диагностика. Главные контрасты с none_mean пока отсутствуют; сравнение с none_column0 их не заменяет.</p>
+<!-- checkpoint-diagnostics:start -->
+<h2>Диагностика памяти и участия колонок</h2>
+<p>В основной отчёт встроены 13 дополнительных графиков по девяти локальным checkpoints из среза за 12 октября 2026. Основные результаты и первые три графика обновлены за 13 октября, но эта диагностика остаётся на прежних девяти моделях. Новые головы и повреждения памяти оцениваются на отдельной диагностической выборке.</p>
+<p><a href="all_figures_with_diagnostics.pdf">Все 20 графиков одним PDF</a>.</p>
+<p>Проанализированы 9 финальных checkpoints на полном бюджете около 1B токенов: 5 Text8 и 4 SDQ. Все модели — L2C4/H136, clean, seed 42. Незавершённые запуски не включены. Основные веса не менялись; дополнительные линейные головы обучены отдельно на CPU. Это диагностические результаты одного seed, а не новые полноценные обучения backbone.</p>
+<h3>Что измерено</h3>
+<p>Linear CKA сравнивает геометрию состояний двух колонок на одних и тех же событиях: ||XᵀY||²_F / (||XᵀX||_F · ||YᵀY||_F), после центрирования признаков. Значения близки к 1 при сходных представлениях. CKA не доказывает независимость, специализацию или причинный обмен. Общий вход может сделать состояния похожими даже у независимых колонок. Для none_column0 колонки 1–3 не обучаются основной задачей; их CKA не следует трактовать как приобретённую специализацию.</p>
+<p>Каждая новая голова — единственный линейный слой с bias. Проверены C0, C1, C2, C3, Mean и Concat. Последние четыре из шестнадцати probe-train потоков используются только для выбора: по их cross-entropy выбирается L2-штраф 0/0.01/0.1 на отклонение от начальных весов и checkpoint 0/50/100/…/400 updates. Остальные двенадцать потоков используются для градиентов. Mean/std признаков вычислены только по fitting-потокам. Основная validation не участвует в выборе. Optimizer AdamW, batch 512, LR=0.01, weight_decay=0.0001. Для полного ответа головы начинают с исходной trained head: concat сначала точно воспроизводит исходный column0 или mean readout; для декодирования сырого сохранённого значения используется нулевая инициализация. Сохранены эквивалентные веса в исходных координатах. Недостаток информации и недостаточное обучение probe не всегда различимы; плохой линейный probe не доказывает отсутствия нелинейно закодированной памяти.</p>
+<p>Text8: 16 случайно выбранных непрерывных отрывков по 1024 шага отдельно из train и validation; первые 128 шагов каждого отрывка служат прогревом. Проверка содержит 14336 предсказаний, поэтому её BPC не заменяет основной full-validation BPC. Шесть новых голов обучаются предсказывать следующий символ из замороженных верхних состояний. Norm/share блоков concat-головы дополнены заменой каждого блока его train-средним при неизменных остальных блоках и весах головы.</p>
+<p>SDQ: 16 потоков × 2048 шагов, T=500, p_store=0.1, p_query=0.25. Probe-train и validation используют разные генераторы и seed; первые 128 шагов исключены. Все модели получают одинаковые последовательности. Анализируется только query с известной предшествующей записью. Одна группа probes декодирует последнее сохранённое значение запрошенного ключа; вторая — полный ответ с накопителем distractors и счётчиками. Это разные цели. Native accuracy здесь тоже измерена только на таких queries и не равна общей held-out accuracy отчёта.</p>
+<p>В отдельной SDQ-интервенции непосредственно перед query обнуляется состояние обоих слоёв одной колонки. Query-токен, правильный ответ, остальные состояния и исходная голова сохраняются; исходная траектория продолжается без этого изменения. Такая проверка учитывает доступ через коммуникацию, в отличие от простого удаления блока в новой выходной голове.</p>
+<h3>Числа на диагностической выборке</h3>
+<table>
+<thead>
+<tr>
+<th>Задача</th>
+<th>Условие</th>
+<th style="text-align:right">Queries/tokens</th>
+<th style="text-align:right">Native</th>
+<th style="text-align:right">Probe C0</th>
+<th style="text-align:right">Probe Concat</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>sdq</td>
+<td>dynamic_column0</td>
+<td style="text-align:right">6934</td>
+<td style="text-align:right">39.905%</td>
+<td style="text-align:right">49.308%</td>
+<td style="text-align:right">45.010%</td>
+</tr>
+<tr>
+<td>sdq</td>
+<td>static_column0</td>
+<td style="text-align:right">6934</td>
+<td style="text-align:right">84.569%</td>
+<td style="text-align:right">84.569%</td>
+<td style="text-align:right">84.569%</td>
+</tr>
+<tr>
+<td>sdq</td>
+<td>none_column0</td>
+<td style="text-align:right">6934</td>
+<td style="text-align:right">16.340%</td>
+<td style="text-align:right">17.032%</td>
+<td style="text-align:right">16.340%</td>
+</tr>
+<tr>
+<td>sdq</td>
+<td>dynamic_mean</td>
+<td style="text-align:right">6934</td>
+<td style="text-align:right">80.661%</td>
+<td style="text-align:right">77.358%</td>
+<td style="text-align:right">80.747%</td>
+</tr>
+<tr>
+<td>text8</td>
+<td>dynamic_column0</td>
+<td style="text-align:right">14336</td>
+<td style="text-align:right">1.555</td>
+<td style="text-align:right">1.555</td>
+<td style="text-align:right">1.555</td>
+</tr>
+<tr>
+<td>text8</td>
+<td>static_column0</td>
+<td style="text-align:right">14336</td>
+<td style="text-align:right">1.554</td>
+<td style="text-align:right">1.554</td>
+<td style="text-align:right">1.554</td>
+</tr>
+<tr>
+<td>text8</td>
+<td>none_column0</td>
+<td style="text-align:right">14336</td>
+<td style="text-align:right">1.667</td>
+<td style="text-align:right">1.667</td>
+<td style="text-align:right">1.667</td>
+</tr>
+<tr>
+<td>text8</td>
+<td>dynamic_mean</td>
+<td style="text-align:right">14336</td>
+<td style="text-align:right">1.570</td>
+<td style="text-align:right">1.966</td>
+<td style="text-align:right">1.570</td>
+</tr>
+<tr>
+<td>text8</td>
+<td>static_mean</td>
+<td style="text-align:right">14336</td>
+<td style="text-align:right">1.561</td>
+<td style="text-align:right">1.942</td>
+<td style="text-align:right">1.561</td>
+</tr>
+</tbody>
+</table>
+<h3>Что уже видно в памяти</h3>
+<p>В SDQ dynamic_column0 верхние колонки 2 и 3 очень похожи: CKA=0.920. Из колонки 0 небольшой линейный probe декодирует полный ответ с accuracy 49.31%, из остальных — около 10%. Исходная голова на этой отдельной выборке известных записей даёт 39.90%. Значит, часть ухудшения можно уменьшить заменой декодера, но этот probe не восстанавливает результат static_column0. Подобие двух колонок — признак избыточности представлений на выбранных событиях, не доказательство общей причины провала.</p>
+<p>При обнулении памяти каждой колонки SDQ dynamic_column0 ухудшается. Остальные колонки функционально используются, даже если полный ответ плохо читается из них отдельной линейной головой. Для dynamic_mean ответ доступен линейному чтению из каждой верхней колонки существенно лучше. Это разные организации информации; из этих наблюдений нельзя выбрать единственную причину различий без дополнительных controlled trainings.</p>
+<p>В Text8 train-калибровка выбрала исходные веса concat-кандидата, update=0, у всех пяти моделей. Маленькая выборка не поддержала улучшение исходного декодера; обученные кандидаты переобучались. Поэтому нормы concat-блоков в этой серии в основном отражают исходную схему column0/mean. Их нельзя выдавать за обнаруженные уникальные вклады колонок. Для оценки функционального участия дополнительно выполнено удаление recurrent memory перед токеном при неизменном исходном декодере.</p>
+<p>Probe сырого сохранённого SDQ-значения заметно слабее probe полного ответа. Это не доказывает отсутствия записи: SDQ требует ответа с дополнительной арифметикой, и память может кодировать преобразованное значение. Линейный decoder имеет ограниченную выразительность.</p>
+<h4>Участие колонок в исходном Text8-предсказании</h4>
+<table>
+<thead>
+<tr>
+<th>Условие</th>
+<th style="text-align:right">ΔBPC C0</th>
+<th style="text-align:right">ΔBPC C1</th>
+<th style="text-align:right">ΔBPC C2</th>
+<th style="text-align:right">ΔBPC C3</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>dynamic_column0</td>
+<td style="text-align:right">+0.864</td>
+<td style="text-align:right">+0.486</td>
+<td style="text-align:right">+0.365</td>
+<td style="text-align:right">+0.406</td>
+</tr>
+<tr>
+<td>static_column0</td>
+<td style="text-align:right">+0.524</td>
+<td style="text-align:right">+0.464</td>
+<td style="text-align:right">+0.485</td>
+<td style="text-align:right">+0.441</td>
+</tr>
+<tr>
+<td>none_column0</td>
+<td style="text-align:right">+2.094</td>
+<td style="text-align:right">+0.000</td>
+<td style="text-align:right">+0.000</td>
+<td style="text-align:right">+0.000</td>
+</tr>
+<tr>
+<td>dynamic_mean</td>
+<td style="text-align:right">+0.391</td>
+<td style="text-align:right">+0.456</td>
+<td style="text-align:right">+0.352</td>
+<td style="text-align:right">+0.475</td>
+</tr>
+<tr>
+<td>static_mean</td>
+<td style="text-align:right">+0.382</td>
+<td style="text-align:right">+0.369</td>
+<td style="text-align:right">+0.376</td>
+<td style="text-align:right">+0.391</td>
+</tr>
+</tbody>
+</table>
+<p>Все числа — увеличение BPC при обнулении обоих слоёв указанной колонки перед текущим токеном. В communicating column0 моделях колонки 1–3 влияют на ответ косвенно через router, хотя выходная голова читает только колонку 0. У none_column0 удаление 1–3 не меняет ни одного logit: это проверено точным сравнением массивов. Падения при удалении разных колонок не складываются в проценты уникальных вкладов; повреждение памяти — сильная интервенция.</p>
+<h3>Как это связано с низкой SDQ accuracy dynamic_column0</h3>
+<p>Хороший серверный Grid-GRU из отчёта H100 оценивался на Text8: 1.5966 ± 0.0050 BPC у L2C4 против локальных 1.6006 BPC. Это не демонстрация успешного SDQ в той серверной серии. Серверная Text8-конфигурация также использовала routing noise 0.05, communication penalty 0.05 и entropy bonus 0.005; локальные clean-controls их отключают.</p>
+<p>На SDQ локальная training EMA dynamic_column0 доходит до 69.84%, а полная независимая accuracy последнего checkpoint — 45.71%. Лучшая записанная независимая accuracy — 66.01% около 840M; в поздних точках она резко колеблется. Dynamic_mean даёт 79.79%, static_column0 — 85.54%. Это указывает на чувствительность dynamic/single-column readout, но не устанавливает единственную причину. Новые probes и интервенции помогают отделить отсутствие доступной информации от ограничения исходного декодера. Они не доказывают, что выключение регуляризаторов вызвало падение: для этого нужен отдельный matched paper/clean contrast на SDQ и несколько seed.</p>
+<h3>Графики</h3>
+<p><img src="../communication_diagnostics_2026-10-12_selected/cka_text8_L1.png" alt="cka_text8_L1" /></p>
+<p>TEXT8, слой 1: linear CKA состояний на одинаковых проверочных событиях. Высокое значение означает сходство представлений; низкое не доказывает статистическую независимость.</p>
+<p><img src="../communication_diagnostics_2026-10-12_selected/cka_text8_L2.png" alt="cka_text8_L2" /></p>
+<p>TEXT8, слой 2: linear CKA состояний на одинаковых проверочных событиях. Высокое значение означает сходство представлений; низкое не доказывает статистическую независимость.</p>
+<p><img src="../communication_diagnostics_2026-10-12_selected/cka_sdq_L1.png" alt="cka_sdq_L1" /></p>
+<p>SDQ, слой 1: linear CKA состояний на одинаковых проверочных событиях. Высокое значение означает сходство представлений; низкое не доказывает статистическую независимость.</p>
+<p><img src="../communication_diagnostics_2026-10-12_selected/cka_sdq_L2.png" alt="cka_sdq_L2" /></p>
+<p>SDQ, слой 2: linear CKA состояний на одинаковых проверочных событиях. Высокое значение означает сходство представлений; низкое не доказывает статистическую независимость.</p>
+<p><img src="../communication_diagnostics_2026-10-12_selected/sdq_stored_value.png" alt="sdq_stored_value" /></p>
+<p>SDQ: accuracy линейного чтения последнего сохранённого значения запрошенного ключа. Включены только запросы с предшествующей записью.</p>
+<p><img src="../communication_diagnostics_2026-10-12_selected/sdq_query_answer.png" alt="sdq_query_answer" /></p>
+<p>SDQ: accuracy линейного чтения полного ответа задачи, включая distractor accumulator и store/query counters. Native — исходная голова на той же выборке известных записей.</p>
+<p><img src="../communication_diagnostics_2026-10-12_selected/sdq_query_state_lesions.png" alt="sdq_query_state_lesions" /></p>
+<p>SDQ: перед текущим запросом обнулены оба слоя одной колонки; исходная голова сохранена. Положительное число — падение accuracy. Изменение не переносится на следующие события.</p>
+<p><img src="../communication_diagnostics_2026-10-12_selected/sdq_stored_value_gaps.png" alt="sdq_stored_value_gaps" /></p>
+<p>Чтение сохранённого значения на естественных SDQ gaps. В ячейках с менее чем 32 запросами число скрыто. Это интервалы естественных gaps, а не исходный fixed-gap benchmark.</p>
+<p><img src="../communication_diagnostics_2026-10-12_selected/text8_readouts.png" alt="text8_readouts" /></p>
+<p>Text8: исходная голова и дополнительные линейные головы на замороженной памяти. Новые головы обучались на train-отрывках; таблица оценивает отдельные validation-отрывки.</p>
+<p><img src="../communication_diagnostics_2026-10-12_selected/text8_concat_weights.png" alt="text8_concat_weights" /></p>
+<p>Text8: доли норм четырёх блоков дополнительной concat-головы после учёта масштаба признаков и удаления общего для классов сдвига. Это описание декодера, а не уникальная причинная доля колонки.</p>
+<p><img src="../communication_diagnostics_2026-10-12_selected/text8_concat_column_replacement.png" alt="text8_concat_column_replacement" /></p>
+<p>Text8: блок состояния заменён его средним на probe-train; concat-голова не переобучалась. Положительное число — ухудшение. Взаимозаменяемость коррелированных колонок остаётся ограничением.</p>
+<p><img src="../communication_diagnostics_2026-10-12_selected/sdq_concat_column_replacement.png" alt="sdq_concat_column_replacement" /></p>
+<p>SDQ: замена блока верхнего состояния средним для дополнительной concat-головы полного ответа. Это доступность информации для нового декодера; исходная модель остаётся неизменной.</p>
+<p><img src="../communication_diagnostics_2026-10-12_selected/text8_native_column_lesions.png" alt="text8_native_column_lesions" /></p>
+<p>Text8: перед токеном обнуляются оба слоя одной колонки; исходные router и prediction head сохранены. Каждая из 3584 позиций сравнивается со своим неизменным состоянием. Интервенция не переносится на последующие токены.</p>
+<h3>Воспроизведение и артефакты</h3>
+<p>Команда из корня репозитория: <code>OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 OMP_NUM_THREADS=1 .venv/bin/python inference/select_communication_readouts.py --output /tmp/communication-diagnostics-reproduced</code>. Для повторного построения графиков без вычислений: <code>python -m inference.communication_diagnostics_report &lt;output_dir&gt;</code>. Manifest фиксирует входные checkpoints и их SHA256, настройки, источники реализации. В <code>runs/&lt;task&gt;/&lt;condition&gt;/</code> находятся features.npz, result.json и веса всех обученных probes. Исходные checkpoints только читаются. Все графики доступны в PNG/SVG/PDF, общий файл — <a href="../communication_diagnostics_2026-10-12_selected/all_figures.pdf">all_figures.pdf</a>.</p>
+<p>Первый пилот с фиксированными 400 updates и нулевой инициализацией показал переобучение concat-головы на коротких Text8-отрывках; он сохранён в соседней папке communication_diagnostics_2026-10-12. Этот отчёт использует выбор на training-потоках и сохранённые признаки того же пилота. Протокол уточнялся после просмотра пилота: основная validation не является полностью нетронутым test. Уточнение метода не меняет CKA и интервенции с обнулением памяти, которые рассчитаны по исходным frozen checkpoints.</p>
+<p>Нет междуобученческих confidence intervals: один seed. Блоки времени и отдельные запросы не заменяют независимые обучения. Линейная доступность информации, сходство состояний и вклад в исходное предсказание — разные свойства.</p>
+<p>Дополнительная команда для Text8 memory lesions при воспроизведении: <code>OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 OMP_NUM_THREADS=1 .venv/bin/python inference/text8_column_lesions.py --directory /tmp/communication-diagnostics-reproduced</code>, затем <code>python -m inference.communication_diagnostics_report /tmp/communication-diagnostics-reproduced</code>. Новый output directory необходим при изменении хэшей исходников; существующие результаты не перезаписываются другой реализацией probes. Данные и хэш реализации сохранены в text8_lesions.json, попарные logits и targets — в native_text_lesions.npz каждой модели.</p>
+<!-- checkpoint-diagnostics:end -->
+<h2>Ограничения простыми словами</h2>
+<p>Это один seed и одна форма L2C4. У графиков нет p-values и полос «надёжности» между обучениями: отдельные символы и queries не заменяют повторные обучения. Результаты относятся к <code>clean</code> и текущей новой оценке, поэтому их нельзя напрямую подставлять вместо исторических таблиц статьи.</p>
+<p>Для SDQ online training accuracy сглажена EMA и измеряется на меняющейся по сложности задаче; held-out accuracy измеряется на фиксированной отдельной задаче. Их расхождение не равно обычному train/test gap. Fixed-gap probes — ещё одно распределение: в них нет перезаписи выбранного ключа.</p>
+<p>Время измерялось при двух параллельных процессах на RTX 5060 Laptop. Оно исключает evaluations и ночные паузы, но включает Python/compile overhead; это наблюдение о наших сеансах, а не чистый benchmark архитектур. CUDA peak из summary относится только к последнему процессу/сеансу. Счётчик после resume начинается заново.</p>
+<p>У validation-кривых восстановлены точные моменты оценки: расписание 20M, округление до полного optimizer update, затем финальный budget. Проверено соответствие каждой точки её записи в логе и совпадение последней оценки с summary. Дополнительное сглаживание и интерполяция не применялись.</p>
+<h2>Данные и воспроизведение</h2>
+<p>Источники: локальные <code>runs/communication_1m/&lt;task&gt;/L2C4/clean/&lt;condition&gt;/seed42-data42/{config.yaml,metadata.json,metrics.jsonl,summary.json}</code> и финальные npz. Актуальные SHA256, числовые кривые и восстановленные evaluation steps первых трёх графиков записаны в <a href="../communication_2026-10-13/data.json">данных за 13 октября</a>. Источники дополнительных исторических графиков 4–7 сохранены в <a href="data.json">data.json за 12 октября</a> и <a href="endpoints.csv">CSV за 12 октября</a>. <a href="all_figures_with_diagnostics.pdf">Все 20 графиков PDF</a>, <a href="index.html">HTML-отчёт</a>.</p>
+<pre><code class="language-bash">.venv/bin/python inference/communication_update_report.py
+</code></pre>
+<p>Команда перестраивает актуальные первые три графика в каталоге communication_2026-10-13/main_plots, на который ссылается этот Markdown-отчёт. Скрипт читает только локальные файлы и требует остановленной очереди. Он не запускает обучение, не возобновляет очередь и не меняет исходные логи.</p>
+</html>
