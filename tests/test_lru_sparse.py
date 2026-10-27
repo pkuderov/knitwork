@@ -10,7 +10,7 @@ from torch.nn import functional as F
 import yaml
 
 from knitwork.common.state_size import build, measure, state_floats
-from knitwork.models.grnn_lru_core import GridRnn as DenseGridRnn, StaticMessagePassingLayer
+from knitwork.models.grnn_lru_core import GridRnn as DenseGridRnn, StaticCommunication
 from knitwork.models.grnn_lru_sparse import GridRnn, SparseCommunication, entmax15, shuffle_channels
 
 
@@ -62,7 +62,7 @@ class SparseLruTests(unittest.TestCase):
     def test_star_masks_and_preserves_initial_self_and_input_mass(self):
         for topology in ('star', 'star_ring'):
             with self.subTest(topology=topology):
-                original = StaticMessagePassingLayer(12, n_q=4, n_kv=5)
+                original = StaticCommunication(12, n_q=4, n_kv=5)
                 old = original.pi_route_logits.detach().softmax(-1).clone()
                 router = SparseCommunication(original, topology=topology)
                 x = torch.randn(2, 5, 12)
@@ -78,7 +78,7 @@ class SparseLruTests(unittest.TestCase):
                 self.assertTrue(router.allowed[3, 1] == (topology == 'star_ring'))
 
     def test_self_heavy_keeps_hub_and_input(self):
-        original = StaticMessagePassingLayer(12, n_q=4, n_kv=5)
+        original = StaticCommunication(12, n_q=4, n_kv=5)
         hub = original.pi_route_logits.detach()[0].softmax(-1).clone()
         router = SparseCommunication(original, routing_init='self_heavy')
         weights = router.pi_route_logits.softmax(-1)

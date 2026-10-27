@@ -109,7 +109,7 @@ class GridRnn(nn.Module):
                 )
             if routing == 'table':
                 return TableMessagePassingLayer(hidden_size, n_q=n_q, n_kv=n_kv)
-            return StaticMessagePassingLayer(hidden_size, n_q=n_q, n_kv=n_kv)
+            return StaticCommunication(hidden_size, n_q=n_q, n_kv=n_kv)
 
         C = n_columns
         self.comm = self.attn = nn.ModuleList(
@@ -310,8 +310,8 @@ class GridRnn(nn.Module):
         return {key: value.detach() for key, value in state.items()}
 
 
-class StaticMessagePassingLayer(nn.Module):
-    """Message passing with learned, query-independent routing."""
+class StaticCommunication(nn.Module):
+    """Communication with learned, query-independent (=static) routing."""
     def __init__(
             self, dim, n_q=None, n_kv=None,
     ):
