@@ -99,6 +99,8 @@ class GridRnn(SparseGridRnn):
             elif mechanism == 'associative':
                 retained = [column for column in range(n_columns) if column != memory_column]
                 self.register_buffer('lru_columns', torch.tensor(retained), persistent=False)
+                # device-side index: a host list would be copied inside CUDA graph capture
+                self.register_buffer('memory_index', torch.tensor([memory_column]), persistent=False)
                 self.cells = CompactLruBank(self.cells, retained)
                 self.memory_writes = nn.ModuleList([
                     nn.Linear(hidden_size, memory_key_size + memory_value_size + 1)
@@ -190,7 +192,7 @@ class GridRnn(SparseGridRnn):
         memory_out = F.silu(self._memory_read(layer, next_memory, context)) + message[self.memory_column]
         out = lru_out.new_zeros(lru_out.shape[0], self.n_columns, self.hidden_size)
         out = out.index_copy(1, self.lru_columns, lru_out)
-        out = out.index_copy(1, self.lru_columns.new_tensor([self.memory_column]), memory_out.unsqueeze(1))
+        out = out.index_copy(1, self.memory_index, memory_out.unsqueeze(1))
         return out, next_h, next_memory, rate.sigmoid()
 
     def forward(self, x, state, *, capture=False, **_):

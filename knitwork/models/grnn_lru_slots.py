@@ -90,7 +90,7 @@ class GridRnn(ExperimentalGridRnn):
         next_memory, gate = self._write(layer, memory, torch.cat((slot_message, context), dim=-1))
         out = lru_out.new_zeros(lru_out.shape[0], self.n_columns, self.hidden_size)
         out = out.index_copy(1, self.lru_columns, lru_out)
-        out = out.index_copy(1, self.lru_columns.new_tensor([self.memory_column]), slot_out.unsqueeze(1))
+        out = out.index_copy(1, self.memory_index, slot_out.unsqueeze(1))
         return out, next_h, next_memory, gate
 
     def _write(self, layer, memory, control):
