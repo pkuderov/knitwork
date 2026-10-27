@@ -1,0 +1,18 @@
+# Local RTX 5060 queue. Stop on user request or completion; restart manually.
+matrix: knitwork/exps/communication/config/matrix.yaml
+additional_configs:
+  - knitwork/exps/communication/config/text8_none_single_column.yaml
+  - knitwork/exps/communication/config/sdq_none_single_column.yaml
+  - knitwork/exps/communication/config/text8_none_concat.yaml
+  - knitwork/exps/communication/config/sdq_none_concat.yaml
+output_dir: runs/communication_1m
+text8_path: /home/master/data/text/text8.txt
+device: cuda:0
+logger: comet
+workers: 2
+timezone: Europe/Moscow
+daily_cutoff: false
+graceful_stop: '22:55'
+hard_stop: '23:00'
+manual_restart: true
+launch_spacing_seconds: 30

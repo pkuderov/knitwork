@@ -1,0 +1,90 @@
+# Supplementary none control; same full training/evaluation protocol and seed 42.
+checkpoint:
+  every_tokens: 100000000
+  keep_history: false
+compile: true
+data_seed: 42
+dataset:
+  path: $MY_HOME/data/text/text8.txt
+  test_size: 5000000
+  val_size: 5000000
+deterministic: false
+device: null
+eval:
+  max_tokens: null
+  n_envs: 512
+  schedule: 20000000
+  seed: 20261009
+  segment_len: 1024
+  test_on_finish: true
+exp: text8
+log:
+  logger: comet
+  project: knitwork-aistat
+  schedule: 5000000
+  tags:
+  - communication-control
+  - text8
+  - one-million
+  - none-concat
+lr:
+  lr: 0.01
+  schedule: 250
+  tar: 5.0e-05
+  val: 0.0005
+  warmup:
+    logspace: true
+    n_linear_steps: 50
+    schedule: 12
+    val: 1.0e-06
+model: grnn_communication.none_concat
+n_envs: 512
+n_steps: 1000000000
+output_dir: runs/communication_extensions_1m
+parameter_range:
+- 950000
+- 1100000
+recipe: clean
+recipes:
+  clean:
+    entropy_weight: 0.0
+    loss_weight: 0.0
+    noise_std: 0.0
+reset_prob:
+  lr: 0.04
+  schedule: 100
+  tar: 0.001
+  val: 0.2
+  warmup:
+    logspace: true
+    n_linear_steps: 100
+    schedule: 15
+    val: 0.1
+resume: auto
+rollout_len: 64
+seed: 42
+token_wrapper: {}
+topologies:
+  L2C4:
+    hidden_size: 136
+    n_columns: 4
+    n_layers: 2
+topology: L2C4
+trackers:
+  eval: null
+  slow: 0.005
+wrapper_model: token
+training_runner: knitwork.exps.communication.run_concat
+readout_initialization: mean_equivalent
+grnn_communication_none_concat:
+  bank: 2
+  hidden_size: 136
+  ln_msg: true
+  mha: 2
+  n_attn_heads: 4
+  n_columns: 4
+  n_layers: 2
+  noise_std: 0.0
+  readout: concat
+  routing: none
+  use_bias: true

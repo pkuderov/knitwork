@@ -1,0 +1,14 @@
+# User-selected scope: two tasks, L2C4 only, one seed, six conditions = 12 runs.
+tasks:
+  text8: text8.yaml
+  sdq: sdq.yaml
+topologies: [L2C4]
+seeds: [42]
+recipes: [clean]
+conditions:
+  - dynamic_column0
+  - dynamic_mean
+  - static_column0
+  - static_mean
+  - none_column0
+  - none_mean

@@ -1,0 +1,112 @@
+seed: 42
+data_seed: 42
+topology: L2C4
+recipe: clean
+exp: sdq
+model: grnn_communication.dynamic_column0
+wrapper_model: token
+token_wrapper: {}
+device: null
+compile: true
+deterministic: false
+parameter_range: [950000, 1100000]
+n_envs: 512
+rollout_len: 32
+n_steps: 1000000000
+output_dir: runs/communication_1m
+resume: null
+checkpoint:
+  every_tokens: 100000000
+  keep_history: false
+log:
+  logger: comet
+  project: knitwork-aistat
+  tags: [communication-control, sdq, one-million]
+  schedule: 5000000
+trackers:
+  slow: 0.005
+  eval: null
+generator:
+  n_keys: 5
+  n_vals: 10
+  T: 10
+  p_store: 0.35
+  p_query: 0.35
+  count_stored: true
+  count_queried: true
+curriculum:
+  schedule: 200000
+  max_T: 500
+eval_generator:
+  n_keys: 5
+  n_vals: 10
+  T: 500
+  p_store: 0.1
+  p_query: 0.25
+  count_stored: true
+  count_queried: true
+eval:
+  schedule: 20000000
+  n_envs: 128
+  seed: 20261009
+  sdq_steps: 4096
+  gap_edges: [0, 8, 32, 128, 256, 512]
+  fixed_gaps: [8, 32, 128, 256, 512]
+  fixed_gap_examples: 1024
+  probe_seed: 20261010
+lr:
+  val: 0.0005
+  tar: 0.00005
+  lr: 0.01
+  schedule: 250
+  warmup:
+    val: 0.000000001
+    n_linear_steps: 50
+    schedule: 24
+recipes:
+  clean:
+    noise_std: 0.0
+    loss_weight: 0.0
+    entropy_weight: 0.0
+  paper:
+    noise_std: 0.02
+    loss_weight: 0.02
+    entropy_weight: 0.002
+topologies:
+  L2C4:
+    hidden_size: 136
+    n_layers: 2
+    n_columns: 4
+  L3C4:
+    hidden_size: 112
+    n_layers: 3
+    n_columns: 4
+grnn_communication_dynamic_column0: &core
+  hidden_size: 136
+  n_layers: 2
+  n_columns: 4
+  n_attn_heads: 4
+  use_bias: true
+  ln_msg: true
+  bank: 2
+  mha: 2
+  noise_std: 0.0
+  routing: dynamic
+  readout: column0
+grnn_communication_dynamic_mean:
+  <<: *core
+  readout: mean
+grnn_communication_static_column0:
+  <<: *core
+  routing: static
+grnn_communication_static_mean:
+  <<: *core
+  routing: static
+  readout: mean
+grnn_communication_none_column0:
+  <<: *core
+  routing: none
+grnn_communication_none_mean:
+  <<: *core
+  routing: none
+  readout: mean

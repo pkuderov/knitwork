@@ -1,0 +1,107 @@
+# Six matched conditions. Select with --model=grnn_communication.<condition>.
+seed: 42
+data_seed: 42
+topology: L2C4
+recipe: clean
+exp: text8
+model: grnn_communication.dynamic_column0
+wrapper_model: token
+token_wrapper: {}
+device: null
+compile: true
+deterministic: false
+parameter_range: [950000, 1100000]
+n_envs: 512
+rollout_len: 64
+n_steps: 1000000000
+output_dir: runs/communication_1m
+resume: null
+checkpoint:
+  every_tokens: 100000000
+  keep_history: false
+log:
+  logger: comet
+  project: knitwork-aistat
+  tags: [communication-control, text8, one-million]
+  schedule: 5000000
+trackers:
+  slow: 0.005
+  eval: null
+dataset:
+  path: $MY_HOME/data/text/text8.txt
+  val_size: 5000000
+  test_size: 5000000
+eval:
+  schedule: 20000000
+  n_envs: 512
+  seed: 20261009
+  max_tokens: null
+  segment_len: 1024
+  test_on_finish: true
+reset_prob:
+  val: 0.2
+  tar: 0.001
+  lr: 0.04
+  schedule: 100
+  warmup:
+    val: 0.1
+    n_linear_steps: 100
+    schedule: 15
+    logspace: true
+lr:
+  val: 0.0005
+  tar: 0.00005
+  lr: 0.01
+  schedule: 250
+  warmup:
+    val: 0.000001
+    n_linear_steps: 50
+    schedule: 12
+    logspace: true
+recipes:
+  clean:
+    noise_std: 0.0
+    loss_weight: 0.0
+    entropy_weight: 0.0
+  paper:
+    noise_std: 0.05
+    loss_weight: 0.05
+    entropy_weight: 0.005
+topologies:
+  L2C4:
+    hidden_size: 136
+    n_layers: 2
+    n_columns: 4
+  L3C4:
+    hidden_size: 112
+    n_layers: 3
+    n_columns: 4
+grnn_communication_dynamic_column0: &core
+  hidden_size: 136
+  n_layers: 2
+  n_columns: 4
+  n_attn_heads: 4
+  use_bias: true
+  ln_msg: true
+  bank: 2
+  mha: 2
+  noise_std: 0.0
+  routing: dynamic
+  readout: column0
+grnn_communication_dynamic_mean:
+  <<: *core
+  readout: mean
+grnn_communication_static_column0:
+  <<: *core
+  routing: static
+grnn_communication_static_mean:
+  <<: *core
+  routing: static
+  readout: mean
+grnn_communication_none_column0:
+  <<: *core
+  routing: none
+grnn_communication_none_mean:
+  <<: *core
+  routing: none
+  readout: mean
