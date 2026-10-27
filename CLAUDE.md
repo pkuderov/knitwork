@@ -104,7 +104,7 @@ docs/
     grnn_lru.md
     ...
   index.html    # Docsify site (GitHub Pages)
-  _sidebar.md   # navigation with categories
+  _navigation.md # sidebar (docsify loadSidebar): setup / new results / earlier results
 ```
 
 Each `docs/methods/<name>.md` should contain:

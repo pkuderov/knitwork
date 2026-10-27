@@ -40,7 +40,7 @@ jobs:
       - name: Assemble final site
         run: |
           mkdir -p _site/typst
-          # Docsify: copy docs/ to site root (keeps index.html, _sidebar.md, methods/, experiments/)
+          # Docsify: copy docs/ to site root (keeps index.html, _navigation.md, methods/, experiments/)
           cp -r docs/. _site/
           # Shiroa: deploy under /typst/
           cp -r shiroa/dist/. _site/typst/

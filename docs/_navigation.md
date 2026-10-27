@@ -1,0 +1,103 @@
+- **1. Experimental setup**
+  - [Home](README.md)
+  - **Tasks and benchmarks**
+  - [SDQ (Store-Distract-Query)](experiments/sdq.md)
+  - [Text8 / Shakespeare](experiments/text.md)
+  - [MQAR / Zoology](experiments/mqar.md)
+  - [POPGym RL pipeline](experiments/mikasa.md)
+  - [TreasureHunt](experiments/treasure.md)
+  - [Aliased Cubes (provisional)](experiments/aliased_cubes.md)
+  - **Main architectures**
+  - [Grid-GRU (MoSAIC)](methods/grid_gru.md)
+  - [Grid-LRU](methods/grid_lru.md)
+  - [GridRnn core (code reference)](methods/grnn_core.md)
+  - [GridRnn-LRU core (code reference)](methods/grnn_lru_core.md)
+  - [GRU baseline](methods/gru.md)
+  - [LRU](methods/lru.md)
+  - **Baselines**
+  - [Transformer](methods/transformer.md)
+  - [Mamba](methods/mamba.md)
+  - [HGRN2](methods/hgrn2.md)
+  - [mLSTM](methods/mlstm.md)
+  - [DeltaNet](methods/delta_net.md)
+  - [RIMs](methods/rims.md)
+  - [BRIMs](methods/brims.md)
+  - [Baseline memory](methods/baseline_memory.md)
+  - **Infrastructure**
+  - [Curriculum scheduling](methods/curriculum_scheduling.md)
+  - [GPU server setup](skill_new_project_gpu_server.md)
+
+- **2. New results (autumn 2026)**
+  - **AISTATS 2027 summary**
+  - [Full AISTATS results](experiments/aistats2027_results.md)
+  - [Ablations](experiments/ablations.md)
+  - [Hypothesis registry](experiments/hypotheses.md)
+  - [Training resources](experiments/aistats2027_resources.md)
+  - **RL (October)**
+  - [RL experiments: what worked and what did not](experiments/rl_2026-10.md)
+  - [Multi-timescale LRU bank](methods/grnn_lru_bank.md)
+  - [Many-column grid](methods/grnn_many.md)
+  - **Reports (RU)**
+  - [H100 report](experiments/h100_2026-10-12/report.md)
+  - [Communication study](experiments/communication_2026-10-13/report.md)
+  - [Communication study, first report](experiments/communication_2026-10-12/report.md)
+  - [Communication diagnostics](experiments/communication_diagnostics_2026-10-12_selected/report.md)
+  - [Communication variants](experiments/communication_variant_reference.md)
+  - [Routing theorems](experiments/mosaic_theorems_2026-10-13/report.md)
+  - [grnn_core architecture review](reviews/grnn_core_analysis.md)
+  - **Grid-LRU studies**
+  - [Recent results (09-29 to 10-05)](experiments/recent_results_2026-10-05.md)
+  - [LRU benchmark candidates](experiments/lru_benchmark_candidates.md)
+  - [LRU follow-up configurations](experiments/lru_followup.md)
+  - [LRU memory and access variants](experiments/lru_architecture_variants.md)
+  - [Sparse LRU mid experiments](experiments/lru_sparse_mid.md)
+  - [Slot memory experiments](experiments/lru_slots.md)
+  - [Grid LRU variants](methods/grnn_lru_experimental.md)
+  - [Sparse Grid LRU](methods/grnn_lru_sparse.md)
+  - [GridRNN-LRU slots](methods/grnn_lru_slots.md)
+
+- **3. Earlier results (before autumn 2026)**
+  - **Results**
+  - [AAAI results](experiments/results_aaai.md)
+  - [Results (summer)](experiments/results.md)
+  - [MoSAIC abstract (AAAI, RU)](papers/mosaic_abstract.md)
+  - [Paper analysis: It's All Connected + Nested Learning](papers/connected_nested_analysis.md)
+  - **Grid RNN variants**
+  - [GridRNN (original)](methods/grnn.md)
+  - [GridRNN-err](methods/grnn_err.md)
+  - [GridRNN-Feedback](methods/grnn_feedback.md)
+  - [GridRNN-AttnCost](methods/grnn_attn_cost.md)
+  - [GridLRU (May)](methods/grnn_lru.md)
+  - [HopfieldGridLRU](methods/hgrnn_lru.md)
+  - **Cell modifications**
+  - [GridRNN2 + VAE](methods/grnn2.md)
+  - [HGRNN](methods/hgrnn.md)
+  - [GridRnnFix](methods/grnn_fix.md)
+  - [GridRnnFixV3](methods/grnn_fix_v3.md)
+  - [GridRnnFixV4](methods/grnn_fix_v4.md)
+  - [GridRnnFixV5](methods/grnn_fix_v5.md)
+  - [HopfieldGridRnnFix](methods/hgrnn_fix.md)
+  - [HopfieldGridRnnFixV4](methods/hgrnn_fix_v4.md)
+  - [HGRN-GridRNN](methods/hgrn_grnn.md)
+  - **Memory and associations**
+  - [DeltaGrid](methods/grnn_delta.md)
+  - [Engram](methods/engram_grnn.md)
+  - [Fast Weights](methods/grnn_fw.md)
+  - [Reservoir](methods/grnn_reservoir.md)
+  - [PrecDelta](methods/grnn_prec_delta.md)
+  - [EmaMem](methods/grnn_ema_mem.md)
+  - **Iterative methods**
+  - [Equilibrium](methods/grnn_eq.md)
+  - [Equilibrium v2](methods/grnn_eq1.md)
+  - **Regularization and losses**
+  - [DiversityLoss](methods/diversity.md)
+  - [GridRNN-Loss](methods/grnn_loss.md)
+  - [GridRNN-AdvLoss](methods/grnn_adv_loss.md)
+  - [GridRNN-Disc](methods/grnn_disc.md)
+  - **Harmonic, fusion, multimodal**
+  - [HarmonicGridRNN](methods/grnn_harmonic.md)
+  - [Fusion cells](methods/fusion_cells.md)
+  - [GridRNN-Fusion](methods/grnn_fusion.md)
+  - [GridRNN-Multimodal](methods/grnn_multimodal.md)
+  - [GridRNN-Multimodal v2](methods/grnn_multimodal_v2.md)
+  - [Multimodal SDQ (design)](methods/multimodal_sdq_design.md)

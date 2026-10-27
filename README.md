@@ -116,5 +116,5 @@ knitwork/
 docs/
   methods/        # model documentation (.md per model)
   index.html      # Docsify GitHub Pages site
-  _sidebar.md     # navigation
+  _navigation.md  # sidebar navigation
 ```

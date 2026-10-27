@@ -41,27 +41,19 @@ inject_css() {
 
 # ── Convert .md → .typ ──────────────────────────────────────────
 
-mkdir -p "$SCRIPT_DIR/methods" "$SCRIPT_DIR/experiments"
-
-echo "Converting methods..."
-for f in "$DOCS_DIR/methods/"*.md; do
-    name=$(basename "$f" .md)
-    title=$(head -1 "$f" | sed 's/^# //')
-    convert "$f" "$SCRIPT_DIR/methods/${name}.typ" "$title"
-done
-
-echo "Converting experiments..."
-# recursive: report folders such as experiments/h100_2026-10-12/report.md are linked from the sidebar
+echo "Converting pages..."
+# every page the sidebar can link to: methods/, experiments/ (recursive), papers/, reviews/ and root pages
 while IFS= read -r -d '' f; do
-    rel=${f#"$DOCS_DIR/experiments/"}
-    mkdir -p "$SCRIPT_DIR/experiments/$(dirname "$rel")"
+    rel=${f#"$DOCS_DIR/"}
+    mkdir -p "$SCRIPT_DIR/$(dirname "$rel")"
     title=$(head -1 "$f" | sed 's/^# //')
-    convert "$f" "$SCRIPT_DIR/experiments/${rel%.md}.typ" "$title"
-done < <(find "$DOCS_DIR/experiments" -name '*.md' -print0 | sort -z)
+    convert "$f" "$SCRIPT_DIR/${rel%.md}.typ" "$title"
+done < <(cd "$DOCS_DIR" && find . -name '*.md' ! -name 'README.md' ! -name '_*' ! -path './README.md' -print0 \
+    | sed -z 's#^\./##' | sort -z | sed -z "s#^#$DOCS_DIR/#")
 
 echo "Copying images..."
 # pages reference figures relative to their own directory; mirror them next to the .typ files
-(cd "$DOCS_DIR" && find methods experiments -type f \( -name '*.png' -o -name '*.svg' -o -name '*.jpg' \) -print0 \
+(cd "$DOCS_DIR" && find methods experiments papers reviews -type f \( -name '*.png' -o -name '*.svg' -o -name '*.jpg' \) -print0 \
     | xargs -0 -r cp --parents -t "$SCRIPT_DIR")
 
 echo "Converting README..."
@@ -72,7 +64,7 @@ echo "Done converting."
 # ── Optional: build Shiroa + inject CSS ─────────────────────────
 
 if [[ "${1:-}" == "--build" ]]; then
-    echo "Generating summary-gen.typ from docs/_sidebar.md..."
+    echo "Generating summary-gen.typ from docs/_navigation.md..."
     python3 "$SCRIPT_DIR/gen_summary.py"
 
     # resolve shiroa command: either from script dir or from PATH

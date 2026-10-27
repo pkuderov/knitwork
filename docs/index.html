@@ -16,7 +16,8 @@
     window.$docsify = {
       name: 'knitwork methods',
       repo: 'https://github.com/pkuderov/knitwork',
-      loadSidebar: true,
+      // renamed from _sidebar.md so browsers do not reuse a cached old sidebar
+      loadSidebar: '_navigation.md',
       subMaxLevel: 2,
       auto2top: true,
       search: {

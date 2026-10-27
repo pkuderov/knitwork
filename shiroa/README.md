@@ -17,7 +17,7 @@ docs/experiments/*.md ─┼─ pandoc (gfm → typst) → fix_for_shiroa.py ─
 docs/README.md ─┘                                                     shiroa/experiments/*.typ
                                                                        shiroa/README.typ
 
-docs/_sidebar.md ──── gen_summary.py ──→ shiroa/book.typ  (из шаблона book.typ.tmpl)
+docs/_navigation.md ──── gen_summary.py ──→ shiroa/book.typ  (из шаблона book.typ.tmpl)
 
 shiroa/book.typ + shiroa/methods/*.typ + templates/ ──→ `shiroa build` ──→ shiroa/dist/ (HTML-книга)
 ```
@@ -30,7 +30,7 @@ shiroa/book.typ + shiroa/methods/*.typ + templates/ ──→ `shiroa build` ─
 |---|---|
 | `shiroa/build-content.sh` | Оркестратор: md→typst конвертация + генерация summary + `shiroa build` + инъекция CSS |
 | `shiroa/fix_for_shiroa.py` | Постобработка pandoc-вывода (typst-синтаксис, который pandoc генерирует криво: `#align`, `//`, `/ ` и т.д.) |
-| `shiroa/gen_summary.py` | Генерирует `book.typ` из `book.typ.tmpl` + `docs/_sidebar.md` |
+| `shiroa/gen_summary.py` | Генерирует `book.typ` из `book.typ.tmpl` + `docs/_navigation.md` |
 | `shiroa/book.typ.tmpl` | Шаблон книги (метаданные, плейсхолдер `__SUMMARY__` для оглавления). **Правится вручную.** |
 | `shiroa/book.typ` | Сгенерированный файл (см. ниже). **В git не хранится**, пересоздаётся при каждой сборке. |
 | `shiroa/methods/*.typ`, `shiroa/experiments/*.typ`, `shiroa/README.typ` | Сгенерированные `.typ`-файлы из `docs/*.md`. В git не хранятся. |
@@ -70,7 +70,7 @@ shiroa/book.typ + shiroa/methods/*.typ + templates/ ──→ `shiroa build` ─
 
 1. Создать `docs/methods/<name>.md` (см. правило в `CLAUDE.md` — по файлу на
    каждый файл модели в `knitwork/models/`).
-2. Добавить строку в `docs/_sidebar.md` в нужную категорию:
+2. Добавить строку в `docs/_navigation.md` в нужную категорию:
    `- [Название](methods/<name>.md)`.
 3. Закоммитить и запушить в `main` — Docsify обновится сразу (статика),
    Shiroa-книга пересоберётся автоматически через workflow (обычно 1–2 минуты).

@@ -4,3 +4,6 @@ experiments/
 README.typ
 book.typ
 /shiroa
+papers/
+reviews/
+/*.typ

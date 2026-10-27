@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Generate shiroa/book.typ from shiroa/book.typ.tmpl + docs/_sidebar.md.
+"""Generate shiroa/book.typ from shiroa/book.typ.tmpl + docs/_navigation.md.
 
 Keeps the Shiroa book TOC in sync with the docsify sidebar automatically,
-so a new docs/methods/*.md entry only needs to be added to _sidebar.md —
+so a new docs/methods/*.md entry only needs to be added to _navigation.md —
 book.typ itself is generated and not checked into git.
 """
 import re
@@ -10,11 +10,11 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-SIDEBAR = ROOT / "docs" / "_sidebar.md"
+SIDEBAR = ROOT / "docs" / "_navigation.md"
 TEMPLATE = Path(__file__).resolve().parent / "book.typ.tmpl"
 OUT = Path(__file__).resolve().parent / "book.typ"
 
-CATEGORY_RE = re.compile(r'^-\s+\*\*(.+?)\*\*\s*$')
+CATEGORY_RE = re.compile(r'^\s*-\s+\*\*(.+?)\*\*\s*$')  # top-level blocks and nested groups
 ITEM_RE = re.compile(r'^\s*-\s+\[(.+?)\]\((.+?)\.md\)\s*$')
 
 
