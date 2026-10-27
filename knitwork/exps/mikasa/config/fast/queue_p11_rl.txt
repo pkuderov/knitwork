@@ -1,0 +1,25 @@
+# H0 replication on AutoencodeEasy RL, seeds 1-2
+p11_AE_dyn_s1 --model=grnn_lru.L2C4 --grnn_lru_L2C4.x_add=true --grnn_lru_L2C4.routing=dynamic --grnn_lru_L2C4.hidden_size=160 --seed=1 --env=AutoencodeEasy --n_steps=20e6 --name=rlfast/p11/rl_dyn --log.tags=[rl-fast,p11,H0]
+p11_AE_lru_s1 --model=lru.L2 --seed=1 --env=AutoencodeEasy --n_steps=20e6 --name=rlfast/p11/rl --log.tags=[rl-fast,p11,H0]
+p11_AE_dyn_s2 --model=grnn_lru.L2C4 --grnn_lru_L2C4.x_add=true --grnn_lru_L2C4.routing=dynamic --grnn_lru_L2C4.hidden_size=160 --seed=2 --env=AutoencodeEasy --n_steps=20e6 --name=rlfast/p11/rl_dyn --log.tags=[rl-fast,p11,H0]
+p11_AE_lru_s2 --model=lru.L2 --seed=2 --env=AutoencodeEasy --n_steps=20e6 --name=rlfast/p11/rl --log.tags=[rl-fast,p11,H0]
+# A4 / A1 / A2 in RL
+p11_AE_table --model=grnn_lru.L2C4 --grnn_lru_L2C4.x_add=true --grnn_lru_L2C4.routing=table --grnn_lru_L2C4.hidden_size=168 --env=AutoencodeEasy --n_steps=20e6 --name=rlfast/p11/rl_table --log.tags=[rl-fast,p11,A4]
+p11_AE_dyn_noxadd --model=grnn_lru.L2C4 --grnn_lru_L2C4.routing=dynamic --grnn_lru_L2C4.hidden_size=160 --env=AutoencodeEasy --n_steps=20e6 --name=rlfast/p11/rl_dyn_noxadd --log.tags=[rl-fast,p11,A1]
+p11_AE_read --model=grnn_lru.L2C4 --grnn_lru_L2C4.x_add=true --grnn_lru_L2C4.routing=dynamic --grnn_lru_L2C4.read_attn=true --grnn_lru_L2C4.hidden_size=152 --env=AutoencodeEasy --n_steps=20e6 --name=rlfast/p11/rl_read --log.tags=[rl-fast,p11,A2]
+# D counting in RL (p7 CountRecallMedium: GRU -.557, LRU -.565, x_add -.544)
+p11_CRM_lru_ord --model=lru.L2 --rl_wrapper.policy=ordinal --env=CountRecallMedium --n_steps=15e6 --name=rlfast/p11/rl_ord --log.tags=[rl-fast,p11,D2]
+p11_CRM_lru_hz --model=lru.L2 --lru_L2.horizon=[1.0,100000.0] --env=CountRecallMedium --n_steps=15e6 --name=rlfast/p11/rl_hz --log.tags=[rl-fast,p11,D1]
+p11_CRM_dyn --model=grnn_lru.L2C4 --grnn_lru_L2C4.x_add=true --grnn_lru_L2C4.routing=dynamic --grnn_lru_L2C4.hidden_size=160 --env=CountRecallMedium --n_steps=15e6 --name=rlfast/p11/rl_dyn --log.tags=[rl-fast,p11,D]
+# leftover from p10 (OOM at gpu_mem_frac 0.3)
+p10_Conc_sel --model=grnn_lru.L2C4 --grnn_lru_L2C4.x_add=true --grnn_lru_L2C4.selective_rank=16 --grnn_lru_L2C4.hidden_size=176 --env=ConcentrationEasy --n_steps=10e6 --eval.n_envs=64 --gpu_mem_frac=0.4 --name=rlfast/p10/rl_sel --log.tags=[rl-fast,p10,popgym-cpu,selective]
+# p12 confirmations, one seed each
+p12_AE_rounds2 --model=grnn_lru.L2C4 --grnn_lru_L2C4.x_add=true --grnn_lru_L2C4.routing=dynamic --grnn_lru_L2C4.comm_rounds=2 --grnn_lru_L2C4.hidden_size=144 --env=AutoencodeEasy --n_steps=20e6 --name=rlfast/p12/rl_rounds2 --log.tags=[rl-fast,p12,A3]
+p12_AEM_dyn --model=grnn_lru.L2C4 --grnn_lru_L2C4.x_add=true --grnn_lru_L2C4.routing=dynamic --grnn_lru_L2C4.hidden_size=160 --env=AutoencodeMedium --n_steps=20e6 --name=rlfast/p12/rl_dyn --log.tags=[rl-fast,p12,AEM]
+p12_AEM_lru --model=lru.L2 --env=AutoencodeMedium --n_steps=20e6 --name=rlfast/p12/rl --log.tags=[rl-fast,p12,AEM]
+# p13 F-ideas, seed 42 (oracle AutoencodeHard, RL AutoencodeEasy)
+p13_AE_route_topk2 --model=grnn_lru.L2C4 --grnn_lru_L2C4.x_add=true --grnn_lru_L2C4.routing=dynamic --grnn_lru_L2C4.route_topk=2 --grnn_lru_L2C4.hidden_size=160 --env=AutoencodeEasy --n_steps=20e6 --name=rlfast/p13/rl_route_topk2 --log.tags=[rl-fast,p13,F1]
+p13_AE_colhz --model=grnn_lru.L2C4 --grnn_lru_L2C4.x_add=true --grnn_lru_L2C4.routing=dynamic --grnn_lru_L2C4.column_horizons=true --grnn_lru_L2C4.hidden_size=160 --env=AutoencodeEasy --n_steps=20e6 --name=rlfast/p13/rl_colhz --log.tags=[rl-fast,p13,F2]
+p13_AE_c8 --model=grnn_lru.L2C4 --grnn_lru_L2C4.x_add=true --grnn_lru_L2C4.routing=dynamic --grnn_lru_L2C4.n_columns=8 --grnn_lru_L2C4.hidden_size=120 --env=AutoencodeEasy --n_steps=20e6 --name=rlfast/p13/rl_c8 --log.tags=[rl-fast,p13,F3]
+p13_AE_inall --model=grnn_lru.L2C4 --grnn_lru_L2C4.x_add=true --grnn_lru_L2C4.routing=dynamic --grnn_lru_L2C4.input_all_layers=true --grnn_lru_L2C4.hidden_size=160 --env=AutoencodeEasy --n_steps=20e6 --name=rlfast/p13/rl_inall --log.tags=[rl-fast,p13,F4]
+p13_AE_rounds3 --model=grnn_lru.L2C4 --grnn_lru_L2C4.x_add=true --grnn_lru_L2C4.routing=dynamic --grnn_lru_L2C4.comm_rounds=3 --grnn_lru_L2C4.hidden_size=144 --env=AutoencodeEasy --n_steps=20e6 --name=rlfast/p13/rl_rounds3 --log.tags=[rl-fast,p13,F5]

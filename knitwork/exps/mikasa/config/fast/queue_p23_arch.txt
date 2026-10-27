@@ -1,0 +1,7 @@
+# p23 (seed 42): refine H2 (content-addressed soft write, RL .593 / oracle@4.6M .386); same protocol as p22
+p23_AE_bank_fb --model=grnn_bank.L2C4 --grnn_bank_L2C4.write=attn --grnn_bank_L2C4.write_feedback=true --env=AutoencodeEasy --n_steps=20e6 --name=rlfast/p23/rl_bank_fb --log.tags=[rl-fast,p23,H2b]
+p23_sup_AEH_bank_fb --model=grnn_bank.L2C4 --grnn_bank_L2C4.write=attn --grnn_bank_L2C4.write_feedback=true --env=AutoencodeHard --n_steps=5e6 --rl.supervised=true --name=rlfast/p23/sup_bank_fb --log.tags=[rl-fast,p23,H2b]
+p23_AE_bank_h4 --model=grnn_bank.L2C4 --grnn_bank_L2C4.write=attn --grnn_bank_L2C4.write_heads=4 --grnn_bank_L2C4.hidden_size=156 --env=AutoencodeEasy --n_steps=20e6 --name=rlfast/p23/rl_bank_h4 --log.tags=[rl-fast,p23,H2c]
+p23_sup_AEH_bank_h4 --model=grnn_bank.L2C4 --grnn_bank_L2C4.write=attn --grnn_bank_L2C4.write_heads=4 --grnn_bank_L2C4.hidden_size=156 --env=AutoencodeHard --n_steps=5e6 --rl.supervised=true --name=rlfast/p23/sup_bank_h4 --log.tags=[rl-fast,p23,H2c]
+p23_AE_bank_h4fb --model=grnn_bank.L2C4 --grnn_bank_L2C4.write=attn --grnn_bank_L2C4.write_heads=4 --grnn_bank_L2C4.write_feedback=true --grnn_bank_L2C4.hidden_size=156 --env=AutoencodeEasy --n_steps=20e6 --name=rlfast/p23/rl_bank_h4fb --log.tags=[rl-fast,p23,H2d]
+p23_sup_AEH_bank_h4fb --model=grnn_bank.L2C4 --grnn_bank_L2C4.write=attn --grnn_bank_L2C4.write_heads=4 --grnn_bank_L2C4.write_feedback=true --grnn_bank_L2C4.hidden_size=156 --env=AutoencodeHard --n_steps=5e6 --rl.supervised=true --name=rlfast/p23/sup_bank_h4fb --log.tags=[rl-fast,p23,H2d]

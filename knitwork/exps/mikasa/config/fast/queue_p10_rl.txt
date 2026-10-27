@@ -1,0 +1,4 @@
+p10_AE_dyn --model=grnn_lru.L2C4 --grnn_lru_L2C4.x_add=true --grnn_lru_L2C4.routing=dynamic --grnn_lru_L2C4.hidden_size=160 --env=AutoencodeEasy --n_steps=20e6 --name=rlfast/p10/rl_dyn --log.tags=[rl-fast,p10,dynamic]
+p10_AE_sel --model=grnn_lru.L2C4 --grnn_lru_L2C4.x_add=true --grnn_lru_L2C4.selective_rank=16 --grnn_lru_L2C4.hidden_size=176 --env=AutoencodeEasy --n_steps=20e6 --name=rlfast/p10/rl_sel --log.tags=[rl-fast,p10,selective]
+p10_Conc_dyn --model=grnn_lru.L2C4 --grnn_lru_L2C4.x_add=true --grnn_lru_L2C4.routing=dynamic --grnn_lru_L2C4.hidden_size=160 --env=ConcentrationEasy --n_steps=10e6 --eval.n_envs=64 --name=rlfast/p10/rl_dyn --log.tags=[rl-fast,p10,popgym-cpu,dynamic]
+p10_Conc_sel --model=grnn_lru.L2C4 --grnn_lru_L2C4.x_add=true --grnn_lru_L2C4.selective_rank=16 --grnn_lru_L2C4.hidden_size=176 --env=ConcentrationEasy --n_steps=10e6 --eval.n_envs=64 --name=rlfast/p10/rl_sel --log.tags=[rl-fast,p10,popgym-cpu,selective]

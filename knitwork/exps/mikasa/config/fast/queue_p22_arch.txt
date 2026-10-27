@@ -1,0 +1,8 @@
+# p22 (seed 42): cardinal architectures, fixed protocol: RL AutoencodeEasy 20M (learning) + oracle AutoencodeHard 5M (capacity)
+# refs: dynamic grid RL .82 / colhz .875 / LRU .38; oracle AEH dynamic .77 / colhz .763 / LRU .61
+p22_AE_bank_read --model=grnn_bank.L2C4 --env=AutoencodeEasy --n_steps=20e6 --name=rlfast/p22/rl_bank_read --log.tags=[rl-fast,p22,H1]
+p22_sup_AEH_bank_read --model=grnn_bank.L2C4 --env=AutoencodeHard --n_steps=5e6 --rl.supervised=true --name=rlfast/p22/sup_bank_read --log.tags=[rl-fast,p22,H1]
+p22_AE_bank_write --model=grnn_bank.L2C4 --grnn_bank_L2C4.write=attn --env=AutoencodeEasy --n_steps=20e6 --name=rlfast/p22/rl_bank_write --log.tags=[rl-fast,p22,H2]
+p22_sup_AEH_bank_write --model=grnn_bank.L2C4 --grnn_bank_L2C4.write=attn --env=AutoencodeHard --n_steps=5e6 --rl.supervised=true --name=rlfast/p22/sup_bank_write --log.tags=[rl-fast,p22,H2]
+p22_AE_grid_ff --model=grnn_lru.L2C4 --grnn_lru_L2C4.x_add=true --grnn_lru_L2C4.routing=dynamic --grnn_lru_L2C4.hidden_size=160 --grnn_lru_L2C4.column_horizons=true --grnn_lru_L2C4.feedback=false --grnn_lru_L2C4.route_query=current --env=AutoencodeEasy --n_steps=20e6 --name=rlfast/p22/rl_grid_ff --log.tags=[rl-fast,p22,H3]
+p22_sup_AEH_grid_ff --model=grnn_lru.L2C4 --grnn_lru_L2C4.x_add=true --grnn_lru_L2C4.routing=dynamic --grnn_lru_L2C4.hidden_size=160 --grnn_lru_L2C4.column_horizons=true --grnn_lru_L2C4.feedback=false --grnn_lru_L2C4.route_query=current --env=AutoencodeHard --n_steps=5e6 --rl.supervised=true --name=rlfast/p22/sup_grid_ff --log.tags=[rl-fast,p22,H3]

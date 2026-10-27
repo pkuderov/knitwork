@@ -1,0 +1,7 @@
+p8_BattleshipEasy_rnn --model=rnn.L2  --env=BattleshipEasy --n_steps=10e6 --eval.n_envs=64 --name=rlfast/p8/rl --log.tags=[rl-fast,p8,popgym-cpu]
+p8_MineSweeperEasy_lru --model=lru.L2  --env=MineSweeperEasy --n_steps=10e6 --eval.n_envs=64 --name=rlfast/p8/rl --log.tags=[rl-fast,p8,popgym-cpu]
+p8_MineSweeperEasy_glru_xadd --model=grnn_lru.L2C4 --grnn_lru_L2C4.x_add=true --env=MineSweeperEasy --n_steps=10e6 --eval.n_envs=64 --name=rlfast/p8/rl_xadd --log.tags=[rl-fast,p8,popgym-cpu,x_add]
+p8_MineSweeperEasy_rnn --model=rnn.L2  --env=MineSweeperEasy --n_steps=10e6 --eval.n_envs=64 --name=rlfast/p8/rl --log.tags=[rl-fast,p8,popgym-cpu]
+p8_ConcentrationEasy_lru --model=lru.L2  --env=ConcentrationEasy --n_steps=10e6 --eval.n_envs=64 --name=rlfast/p8/rl --log.tags=[rl-fast,p8,popgym-cpu]
+p8_ConcentrationEasy_glru_xadd --model=grnn_lru.L2C4 --grnn_lru_L2C4.x_add=true --env=ConcentrationEasy --n_steps=10e6 --eval.n_envs=64 --name=rlfast/p8/rl_xadd --log.tags=[rl-fast,p8,popgym-cpu,x_add]
+p8_ConcentrationEasy_rnn --model=rnn.L2  --env=ConcentrationEasy --n_steps=10e6 --eval.n_envs=64 --name=rlfast/p8/rl --log.tags=[rl-fast,p8,popgym-cpu]

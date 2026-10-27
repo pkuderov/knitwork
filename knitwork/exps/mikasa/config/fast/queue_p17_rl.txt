@@ -1,0 +1,15 @@
+# p17 (seed 42): curriculum for AutoencodeMedium, why colhz works (band order, routing), long AEM run
+p17_AEM_curr --model=grnn_lru.L2C4 --grnn_lru_L2C4.x_add=true --grnn_lru_L2C4.routing=dynamic --grnn_lru_L2C4.hidden_size=160 --grnn_lru_L2C4.column_horizons=true --env=AutoencodeMedium --n_steps=20e6 --init_from=runs/rl_fast/p13_AE_colhz.pt --name=rlfast/p17/rl_aem_curr --log.tags=[rl-fast,p17,curriculum]
+p17_AE_colhz_rev --model=grnn_lru.L2C4 --grnn_lru_L2C4.x_add=true --grnn_lru_L2C4.routing=dynamic --grnn_lru_L2C4.hidden_size=160 --grnn_lru_L2C4.column_horizons=reverse --env=AutoencodeEasy --n_steps=20e6 --name=rlfast/p17/rl_colhz_rev --log.tags=[rl-fast,p17,F2]
+p17_AE_static --model=grnn_lru.L2C4 --grnn_lru_L2C4.x_add=true --env=AutoencodeEasy --n_steps=20e6 --name=rlfast/p17/rl_static_xadd --log.tags=[rl-fast,p17,F2]
+p17_AE_static_colhz --model=grnn_lru.L2C4 --grnn_lru_L2C4.x_add=true --grnn_lru_L2C4.column_horizons=true --env=AutoencodeEasy --n_steps=20e6 --name=rlfast/p17/rl_static_colhz --log.tags=[rl-fast,p17,F2]
+p17_AEM_long --model=grnn_lru.L2C4 --grnn_lru_L2C4.x_add=true --grnn_lru_L2C4.routing=dynamic --grnn_lru_L2C4.hidden_size=160 --grnn_lru_L2C4.column_horizons=true --env=AutoencodeMedium --n_steps=60e6 --name=rlfast/p17/rl_aem_colhz_60m --log.tags=[rl-fast,p17,F2]
+# p17b: curriculum follow-ups (AEM_curr: -.46 scratch -> +.22)
+p17_AEM_curr_lru --model=lru.L2 --env=AutoencodeMedium --n_steps=20e6 --init_from=runs/rl_fast/p11_AE_lru_s1.pt --name=rlfast/p17/rl_aem_curr_lru --log.tags=[rl-fast,p17,curriculum]
+p17_AEH_curr --model=grnn_lru.L2C4 --grnn_lru_L2C4.x_add=true --grnn_lru_L2C4.routing=dynamic --grnn_lru_L2C4.hidden_size=160 --grnn_lru_L2C4.column_horizons=true --env=AutoencodeHard --n_steps=20e6 --init_from=runs/rl_fast/p17_AEM_curr.pt --name=rlfast/p17/rl_aeh_curr --log.tags=[rl-fast,p17,curriculum]
+# p17c: truncated BPTT window (rollout 128 < recall gap ~104 Medium / ~156 Hard); same samples per update
+p17_AEM_bptt256 --model=grnn_lru.L2C4 --grnn_lru_L2C4.x_add=true --grnn_lru_L2C4.routing=dynamic --grnn_lru_L2C4.hidden_size=160 --grnn_lru_L2C4.column_horizons=true --env=AutoencodeMedium --n_steps=20e6 --rollout_len=256 --n_envs=128 --name=rlfast/p17/rl_aem_bptt256 --log.tags=[rl-fast,p17,bptt]
+# p17d: LRU transfers Easy->Medium far better (.61 vs grid .22); is colhz init the cause? LRU next stages
+p17_AEM_curr_dyn --model=grnn_lru.L2C4 --grnn_lru_L2C4.x_add=true --grnn_lru_L2C4.routing=dynamic --grnn_lru_L2C4.hidden_size=160 --env=AutoencodeMedium --n_steps=20e6 --init_from=runs/rl_fast/p10_AE_dyn.pt --name=rlfast/p17/rl_aem_curr_dyn --log.tags=[rl-fast,p17,curriculum]
+p17_AEH_curr_lru --model=lru.L2 --env=AutoencodeHard --n_steps=20e6 --init_from=runs/rl_fast/p17_AEM_curr_lru.pt --name=rlfast/p17/rl_aeh_curr_lru --log.tags=[rl-fast,p17,curriculum]
+p17_AEM_bptt256_lru --model=lru.L2 --env=AutoencodeMedium --n_steps=20e6 --rollout_len=256 --n_envs=128 --name=rlfast/p17/rl_aem_bptt256_lru --log.tags=[rl-fast,p17,bptt]
