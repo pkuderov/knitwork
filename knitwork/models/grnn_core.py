@@ -50,17 +50,11 @@ class GridRnn(nn.Module):
         banks = [GruBank, GruBank1, GruBank2]
         self.cells = banks[bank](self.n_layers, self.n_columns, self.hidden_size, bias=use_bias)
 
-        mhas = [
-            MessagePassingLayer,
-            MessagePassingLayer1,
-            StochasticMessagePassingLayer,
-            StaticMessagePassingLayer,
-        ]
-        mha = mhas[mha]
+        mha = self._message_passing_class(mha)
         mha_kwargs = {}
-        if mha in (StochasticMessagePassingLayer, StaticMessagePassingLayer):
+        if issubclass(mha, (StochasticMessagePassingLayer, StaticMessagePassingLayer)):
             mha_kwargs |= {'noise_std': noise_std}
-        if mha is StochasticMessagePassingLayer:
+        if issubclass(mha, StochasticMessagePassingLayer):
             mha_kwargs |= {'top_k': top_k}
 
         self.attn = nn.ModuleList()
@@ -72,6 +66,12 @@ class GridRnn(nn.Module):
                 n_kv=n_kv,
                 **mha_kwargs,
             ))
+
+    def _message_passing_class(self, index):
+        return [
+            MessagePassingLayer, MessagePassingLayer1,
+            StochasticMessagePassingLayer, StaticMessagePassingLayer,
+        ][index]
 
     def forward(self, x: torch.Tensor, state: dict, *, capture=False, **_):
         # x shape: (In, B, H)
