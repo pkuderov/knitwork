@@ -39,7 +39,10 @@ def shuffled_types(n_envs, n_cards, n_types, *, generator, device):
 class CardMemoryEnv:
     """POPGym card-memory task for n_envs parallel episodes on one device."""
 
-    def __init__(self, task, n_envs, *, device, seed=0, prev_action_reward=True):
+    def __init__(
+            self, task, n_envs, *, device, seed=0, prev_action_reward=True,
+            min_cards=None, grow_cards=None, grow_acc=0.8,
+    ):
         kind, kw = TASKS[task.removeprefix('popgym-').removesuffix('-v0')]
         self.kind, self.kw = kind, kw
         self.n_envs = n_envs
@@ -48,6 +51,14 @@ class CardMemoryEnv:
         self.generator = torch.Generator(device=self.device).manual_seed(seed)
 
         n_cards = 52 * kw['num_decks']
+        # autoencode only: each episode draws its deck length from [min_cards, n_cards] (mixed-difficulty curriculum)
+        assert min_cards is None or (kind == 'autoencode' and 2 <= min_cards <= n_cards)
+        self.min_cards = min_cards
+        # grow_cards: adaptive curriculum, the upper deck length starts at min_cards and grows by grow_cards
+        # each time the training accuracy reaches grow_acc (see grow)
+        assert grow_cards is None or min_cards is not None
+        self.grow_cards, self.grow_acc = grow_cards, grow_acc
+        self.max_cards = min_cards if grow_cards else n_cards
         if kind == 'repeat_previous':
             self.ep_len, self.reward_scale = n_cards - 1, 1 / (n_cards - kw['k'])
             self.obs_sizes, self.n_actions = (N_SUITS,), N_SUITS
@@ -67,6 +78,7 @@ class CardMemoryEnv:
         self.codes = torch.zeros(B, T, len(self.obs_sizes), dtype=torch.long, device=self.device)
         self.targets = torch.zeros(B, T, dtype=torch.long, device=self.device)
         self.t = torch.zeros(B, dtype=torch.long, device=self.device)
+        self.lens = torch.full((B,), n_cards, dtype=torch.long, device=self.device)  # per-env deck length
         self.prev_action = torch.zeros(B, self.n_actions, device=self.device)
         self.prev_reward = torch.zeros(B, device=self.device)
         self.arange = torch.arange(B, device=self.device)
@@ -76,10 +88,13 @@ class CardMemoryEnv:
         n_types = self.kw.get('n_types', N_SUITS)
         cards = shuffled_types(n, self.n_cards, n_types, generator=g, device=dev)
         queries = shuffled_types(n, self.n_cards, n_types, generator=g, device=dev) if self.kind == 'count_recall' else None
-        return self.episodes(cards, queries)
+        lens = None
+        if self.min_cards is not None:
+            lens = torch.randint(self.min_cards, self.max_cards + 1, (n,), generator=g, device=dev)
+        return *self.episodes(cards, queries, lens), lens
 
-    def episodes(self, cards, queries=None):
-        """Card types in deal order [n, N] -> (codes [n, T, K], targets [n, T])."""
+    def episodes(self, cards, queries=None, lens=None):
+        """Card types in deal order [n, N] -> (codes [n, T, K], targets [n, T]); lens [n]: autoencode deck lengths."""
         kw, N, T = self.kw, self.n_cards, self.ep_len
         n = cards.shape[0]
         j = torch.arange(T, device=cards.device)
@@ -93,11 +108,12 @@ class CardMemoryEnv:
             codes = cards[:, :T, None]
         elif self.kind == 'autoencode':
             # watch: decisions 0..N-2 see (1, cards[j]); decision N-1 sees (0, cards[N-1]); then (0, 0)
-            suit = torch.cat([cards, cards.new_zeros(n, T - N)], dim=1)
-            mode = (j < N - 1).long().expand(n, T)
+            L = (lens if lens is not None else cards.new_full((n,), N))[:, None]  # [n, 1]
+            suit = torch.cat([cards, cards.new_zeros(n, T - N)], dim=1).masked_fill(j >= L, 0)
+            mode = (j < L - 1).long()
             codes = torch.stack([mode, suit], dim=-1)
-            src = (2 * N - 2 - j).clamp(0, N - 1)
-            targets = cards[:, src].masked_fill(j < N - 1, -1)
+            src = torch.minimum((2 * L - 2 - j).clamp(min=0), L - 1)  # [n, T]
+            targets = cards.gather(1, src.clamp(max=N - 1)).masked_fill(j < L - 1, -1)
         else:
             # decision j: count of queries[j] among cards[0..j]
             counts = F.one_hot(cards[:, :T], kw['n_types']).cumsum(dim=1)
@@ -116,7 +132,10 @@ class CardMemoryEnv:
         n = int(mask.sum())
         if n == 0:
             return
-        self.codes[mask], self.targets[mask] = self._generate(n)
+        codes, targets, lens = self._generate(n)
+        self.codes[mask], self.targets[mask] = codes, targets
+        if lens is not None:
+            self.lens[mask] = lens
         self.t[mask] = 0
         self.prev_action[mask] = 0.0
         self.prev_reward[mask] = 0.0
@@ -126,7 +145,16 @@ class CardMemoryEnv:
         if desync:
             # spread episode phases so rollouts are not phase-locked across envs
             self.t = torch.randint(self.ep_len, (self.n_envs,), generator=self.generator, device=self.device)
+            self.t = self.t % self._ep_lens()
         return self._encode()
+
+    def _ep_lens(self):
+        # [B] per-env episode length (autoencode: 2N - 1)
+        return 2 * self.lens - 1 if self.min_cards is not None else torch.full_like(self.lens, self.ep_len)
+
+    def grow(self, acc):
+        if self.grow_cards and acc >= self.grow_acc:
+            self.max_cards = min(self.n_cards, self.max_cards + self.grow_cards)
 
     def target(self):
         """Rewarded action for the current decision, -1 if unrewarded."""
@@ -135,22 +163,24 @@ class CardMemoryEnv:
     def step(self, actions):
         target = self.target()
         sign = torch.where(actions == target, 1.0, -1.0).masked_fill(target < 0, 0.0)
-        reward = sign * self.reward_scale
+        reward = sign * (1 / self.lens if self.min_cards is not None else self.reward_scale)
         self.prev_action = F.one_hot(actions, self.n_actions).float()
         # reward feature is the sign, POPGym rewards are O(1 / episode length)
         self.prev_reward = sign
         self.t = self.t + 1
-        done = self.t >= self.ep_len
+        done = self.t >= self._ep_lens()
         self._new_episodes(done)
         return self._encode(), reward, done
 
     def state_dict(self):
-        keys = ('codes', 'targets', 't', 'prev_action', 'prev_reward')
-        return {k: getattr(self, k).clone() for k in keys} | {'generator': self.generator.get_state()}
+        keys = ('codes', 'targets', 't', 'prev_action', 'prev_reward', 'lens')
+        return {k: getattr(self, k).clone() for k in keys} | {'generator': self.generator.get_state(), 'max_cards': self.max_cards}
 
     def load_state_dict(self, state):
         for k, v in state.items():
             if k == 'generator':
                 self.generator.set_state(v.cpu())
+            elif k == 'max_cards':
+                self.max_cards = v
             else:
                 setattr(self, k, v.to(self.device))
