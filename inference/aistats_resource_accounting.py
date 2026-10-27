@@ -225,7 +225,7 @@ def write_latex(data):
     main = [
         '% Generated offline by inference/aistats_resource_accounting.py.',
         r'\begin{table*}[t]', r'\centering',
-        r'\caption{Historical log-derived costs for the H100 subset of the main references with a 1B-token training budget. Elapsed loop time and effective rate are per-launch means $\pm$ sample standard deviations. $\dagger$: one launch, with no variability estimate. This hardware subset has fewer launches than the quality tables; workload contention was not controlled. Time includes training-loop overhead and is not exclusive accelerator usage.}',
+        r'\caption{Log-derived costs for the H100 subset of the main references with a 1B-token training budget. Elapsed loop time and effective rate are per-run means $\pm$ sample standard deviations. Single-run rows have no variability estimate. This hardware subset has fewer launches than the quality tables; workload contention was not controlled. Time includes training-loop overhead and is not exclusive accelerator usage.}',
         r'\label{tab:resources}',
         r'\begin{tabular}{llrrr}', r'\toprule',
         r'Task & Model & $n$ & Loop time (h) & Rate (k tokens/s) \\', r'\midrule',
@@ -233,7 +233,7 @@ def write_latex(data):
     for (task, config, gpu), runs in sorted(groups.items()):
         if config not in core_configs or gpu != paper_gpu:
             continue
-        label = model_label(config) + (r'$\dagger$' if len(runs) == 1 else '')
+        label = model_label(config)
         cells = [task, label, str(len(runs))]
         for field, scale, digits in [('loop_hours', 1, 3), ('effective_tokens_per_second', 1e3, 1)]:
             cells.append(latex_stat(runs, field, scale, digits))
@@ -241,16 +241,16 @@ def write_latex(data):
     main += [r'\bottomrule', r'\end{tabular}', r'\end{table*}', '']
     appendix = [
         '% Generated offline by inference/aistats_resource_accounting.py.',
-        r'\section{Historical Resource Accounting}\label{app:resources}', '',
-        r'Resource logs were recovered for the 65 historical launches in the main and reduced-token quality summaries. The tables below restrict resource accounting to the 48 launches whose device logs identify NVIDIA H100 80GB HBM3; the other 17 launches used different GPU types and are excluded from these resource tables. Historical quality summaries retain the complete original cohort, including those launches. Thus hardware-restricted resource counts differ from quality-table counts. No device labels or measurements have been reassigned or converted to H100 equivalents.', '',
-        r'For a run with processed-token counter $s_i$ and interval rate $f_i=\texttt{perf/fps}_i$, we reconstruct $T_{\mathrm{loop}}=\sum_i(s_i-s_{i-1})/f_i$, with $s_0=0$, over the training budget. The effective rate is processed tokens divided by $T_{\mathrm{loop}}$. This includes compilation, training, validation, inspection, logging overhead, and any workload contention. These are log-derived elapsed-time proxies rather than dedicated throughput benchmarks or exclusive GPU-hours.', '',
-        r'Update counts are $\lfloor s_{\mathrm{last}}/(n_{\mathrm{envs}}\,\ell_{\mathrm{TBPTT}})\rfloor$, counting reached update boundaries; a nonfinite-gradient skip need not perform an optimizer step. Tracker duration and the fps integral disagree in two launches in the complete historical inventory, so metadata duration is not used as the cost estimator. Tables report means $\pm$ sample standard deviations per launch; single-launch rows have no uncertainty estimate. H100 hardware labels do not control concurrent workloads or implementation differences. The new reported experiments also identify H100 80GB HBM3 in their device logs.', '',
+        r'\section{Resource Accounting}\label{app:resources}', '',
+        r'Resource accounting covers the 48 runs with confirmed NVIDIA H100 80GB HBM3 logs among the 65 larger-scale main and reduced-token runs. The quality tables include all runs; resource tables exclude the 17 runs on other GPU types. Hardware-restricted counts therefore differ from quality-table counts.', '',
+        r'For processed-token counts $s_i$ and logged interval rates $f_i$, estimated loop time is $T_{\mathrm{loop}}=\sum_i(s_i-s_{i-1})/f_i$, with $s_0=0$. Effective rate is processed tokens divided by this time. The estimate includes compilation, training, evaluation, inspection, logging, and workload contention; it measures elapsed loop time rather than exclusive GPU-hours.', '',
+        r'Update counts are $\lfloor s_{\mathrm{last}}/(n_{\mathrm{envs}}\,\ell_{\mathrm{TBPTT}})\rfloor$, counting reached update boundaries, including any skipped nonfinite-gradient updates. Tables report means and sample standard deviations across runs; single-run rows have no variability estimate. Shared hardware labels do not control concurrent workloads. The 1M and pilot experiments also report H100 80GB HBM3.', '',
     ]
     for task in ['SDQ', 'text8']:
         if task == 'text8':
             appendix += [r'\clearpage']
         for reduced in [False, True]:
-            kind = 'Reduced-token context' if reduced else 'Main cohort'
+            kind = 'Reduced-token context' if reduced else 'Full-budget'
             caption = task + ': ' + kind + r' resources, H100 subset only. '
             caption += r'Reduced-token rows have different batch and update geometries.' if reduced else r'Training budget: 1B tokens.'
             columns = 'lrrrrr' if reduced else 'lrrrr'
