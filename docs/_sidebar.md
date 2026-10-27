@@ -44,6 +44,8 @@
   - [RIMs](methods/rims.md)
   - [BRIMs](methods/brims.md)
   - [GridRnn-LRU core](methods/grnn_lru_core.md)
+  - [Multi-timescale LRU bank](methods/grnn_lru_bank.md)
+  - [Many-column grid](methods/grnn_many.md)
 
 - **Memory and Associations**
   - [DeltaGrid (NEW)](methods/grnn_delta.md)
