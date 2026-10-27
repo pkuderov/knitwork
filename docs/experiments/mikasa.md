@@ -1,218 +1,114 @@
-# MIKASA / POPGym — Memory Benchmark
+# POPGym RL pipeline (run_fast)
 
-> Current core-based PPO runner: `knitwork.exps.mikasa.run`. The June notes and launch examples below describe legacy `run_mikasa.py` implementations. The 2026-10-03 audit, historical Comet snapshot, Grid-LRU pilots and corrected commands are in `2026-10-03-mikasa-lru-experiment-plan.md` at the repository root. In installed POPGym, RepeatFirst rewards recalling the first symbol at every step, not only at episode end; Autoencode reproduces cards in reverse order. Battleship now has an optional discrete-coordinate action adapter in the current runner. Legacy claims and settings below should not be treated as current quantitative evidence.
+The only RL pipeline for the POPGym / MIKASA memory tasks is the GPU pipeline `knitwork/exps/mikasa/run_fast.py`. It
+replaced the earlier gymnasium-based runners (`run.py`, `run_mikasa.py`, `knitwork/rl/on_policy.py` and the
+off-policy code). The new pipeline is 100 to 250 times faster (130 vs 10k-36k environment steps per second) and its card
+tasks are tested to match the reference `popgym` implementation. Results: [RL experiments](experiments/rl_2026-10.md).
 
-## Task formulation
+## Components
 
-POPGym (Partially Observable Process Gym, Morad et al. 2023) is a set of diagnostic environments for evaluating different memory types in recurrent RL agents. Unlike TreasureHunt (single task type) or SDQ (synthetic association test), POPGym covers four orthogonal memory aspects:
-
-| Type | What is required | Example environments |
-|---|---|---|
-| **Object memory** | Retain properties of a specific object (object permanence) | RepeatFirst, HigherLower |
-| **Sequential memory** | Remember the order of events | RepeatPrevious, Autoencode |
-| **Capacity** | Hold multiple items simultaneously | MultiarmedBandit, CountRecall |
-| **Spatial memory** | Navigate in space without a map | Battleship, MineSweeper |
-
-All selected environments use **discrete actions** and **vector observations** — compatible with existing knitwork models without changes.
-
----
-
-## Environments
-
-### Object memory
-
-**RepeatFirst** (`popgym-RepeatFirstEasy/Medium/Hard-v0`)
-
-The agent receives a sequence of symbols from an alphabet of size N; at the end of the episode it must reproduce the **first** symbol of the sequence. Test for long-term storage of a single value.
-
-- Obs: `Discrete(N)` → token `[B, 1]`
-- Actions: `Discrete(N)`
-- Difficulty Easy → Hard: sequence length increases
-
-**HigherLower** (`popgym-HigherLowerEasy/Medium/Hard-v0`)
-
-Card game: the agent sees a card and predicts whether the next one will be **higher** or **lower**. Requires holding in memory the distribution of cards already played.
-
-- Obs: `Discrete(13)`, Actions: `Discrete(2)`
-
-### Sequential memory
-
-**RepeatPrevious** (`popgym-RepeatPreviousEasy/Medium/Hard-v0`)
-
-At each step the agent sees a symbol and on the next step must reproduce it (i.e., always respond with a delay of k steps).
-
-- Obs: `Discrete(N)`, Actions: `Discrete(N)`
-
-### Capacity (working memory capacity)
-
-**MultiarmedBandit** (`popgym-MultiarmedBanditEasy/Medium/Hard-v0`)
-
-Multi-armed bandit: arm rewards are set randomly at the start of the episode. The agent must explore and memorize the reward of each arm.
-
-- Obs: `Discrete(2)` (success/failure), Actions: `Discrete(K)`, where K = number of arms
-
-**CountRecall** (`popgym-CountRecallEasy/Medium/Hard-v0`) — *continuous observations*
-
-The agent counts symbol occurrences, then must reproduce the exact counter.
-
-- Obs: `MultiDiscrete([2, 2])` → linear encoder `[B, 2] → [B, embedding_size]`
-- Actions: `Discrete(26)`
-
-### Spatial memory
-
-**Battleship** (`popgym-BattleshipEasy/Medium/Hard-v0`) — *MultiDiscrete actions*
-
-The agent sinks ships on a grid, receiving binary feedback (hit/miss). Requires a map of already explored cells.
-
-- Obs: `Discrete(2)`, Actions: `MultiDiscrete([8, 8])` *(not yet supported)*
-
-**MineSweeper** (`popgym-MineSweeperEasy/Medium/Hard-v0`) — *MultiDiscrete actions*
-
-Classic minesweeper with partial visibility.
-
-- Obs: `Discrete(3)`, Actions: `MultiDiscrete([4, 4])` *(not yet supported)*
-
-> **Note:** environments with `MultiDiscrete` action space (Battleship, MineSweeper) require a separate action head and are not supported in the current implementation. Spatial memory is partially covered via HigherLower (remembering card distribution = implicit spatial statistics).
-
----
-
-## Observation integration
-
-### Discrete observations (`Discrete(n)`) — no model changes
-
-```python
-obs_in = to_torch(raw['obs'], device).view(-1, 1)   # [B, 1] int64
-rnn_state = rnn.reset_state(rnn_state, reset_mask)
-logits, rnn_state = rnn(obs_in, rnn_state)
-```
-
-The token is passed directly to `nn.Embedding(n_tokens, embedding_size)` of the model.
-
-### Continuous observations (`MultiDiscrete` / `Tuple`) — wrappers from `rl_wrappers.py`
-
-```python
-obs_in = to_torch(raw['obs'], device).to(dtype)     # [B, obs_dim] float32
-```
-
-In `GridRnnContinuous` (and analogues) `nn.Embedding` is replaced with `nn.Linear(obs_dim, embedding_size)`:
-
-```python
-x = self.embedding(obs.float())   # [B, obs_dim] → [B, embedding_size]
-h, extras = self.grid_step_postmsg(x, h=h)
-```
-
-The grid core (cells, attention, head) is inherited without changes.
-
----
-
-## Training algorithm
-
-**PPO + GAE** — identical to TreasureHunt:
-
-| Parameter | Value |
+| File | Role |
 |---|---|
-| γ (discount) | 0.99 |
-| λ (GAE lambda) | 0.95 |
-| clip\_eps | 0.2 |
-| value\_coef | 0.5 |
-| entropy\_coef | 0.01 |
-| max\_grad\_norm | 0.5 |
-| PPO epochs | 4 |
-| rollout\_len | 32 |
-| n\_envs | 64 |
-| LR | 8e-4 (warmup → decay) |
+| `knitwork/env/popgym_torch.py` | `CardMemoryEnv`: POPGym card-memory tasks as batched torch environments on the GPU, plus the deck-length curriculum |
+| `knitwork/env/popgym_batched.py` | `PopgymBatchEnv`: original POPGym environments stepped on the CPU in a batch (MineSweeper, Concentration, Battleship, ...) |
+| `knitwork/rl/ppo_gpu.py` | recurrent PPO: rollout collection, GAE, update, evaluation; CUDA graphs for the policy step and the minibatch replay |
+| `knitwork/models/wrappers.py` | `RLVectorModel`: observation encoder + any recurrent core + policy/value heads |
+| `knitwork/exps/mikasa/run_fast.py` | runner: config, checkpoints, resume, Comet logging |
+| `knitwork/exps/mikasa/config/fast/base.yaml` | defaults and the ~1M-parameter model configs |
+| `knitwork/exps/mikasa/run_fast_queue.sh`, `run_fast_pause.sh` | sequential queues with resource caps; pause and resume |
 
-**Actor-critic:** recurrent model as actor + separate `nn.Linear(hidden, 1)` as critic on top of the upper hidden state layer.
+## Tasks
 
----
+GPU (`CardMemoryEnv`): `RepeatPrevious{Easy,Medium,Hard}`, `RepeatFirst{Easy,Medium,Hard}`,
+`Autoencode{Easy,Medium,Hard}`, `CountRecall{Easy,Medium,Hard}`. Any other POPGym id (for example `MineSweeperEasy`,
+`ConcentrationEasy`, `BattleshipEasy`) runs through `PopgymBatchEnv` on the CPU.
 
-## Metrics
-
-| Metric | Description |
-|---|---|
-| **MeanReward** | Mean reward per step in the rollout |
-| **ep\_return** | Total return per episode (EMA over the last n\_envs completed) |
-| **ep\_length** | Mean length of completed episode |
-| **PolicyLoss** | PPO clipped surrogate loss |
-| **ValueLoss** | MSE critic |
-| **Entropy** | Policy entropy |
-
-The main metric is `ep_return`: how high a total reward the agent obtains per episode. For RepeatFirst this is proportional to the number of correct answers at the end.
-
----
+The observation is a one-hot of the card plus the previous action and reward sign (`env_cfg.prev_action_reward`).
 
 ## Running
 
 ```sh
-# Object memory — RepeatFirst (starting test)
-uv run knitwork/exps/mikasa/run_mikasa.py knitwork/exps/mikasa/config_mikasa.yaml \
-  --env=popgym-RepeatFirstEasy-v0 --model=grnn
+# one run; Comet project knitwork-aistat, checkpoint in runs/rl_fast/<run_id>.pt
+uv run python -m knitwork.exps.mikasa.run_fast knitwork/exps/mikasa/config/fast/base.yaml \
+  --model=lru.L2 --env=AutoencodeEasy --n_steps=20e6 --name=my/run
 
-# Sequential — RepeatPrevious
-uv run knitwork/exps/mikasa/run_mikasa.py knitwork/exps/mikasa/config_mikasa.yaml \
-  --env=popgym-RepeatPreviousEasy-v0 --model=grnn_lru
+# best grid configuration from the October study (1.01M params)
+uv run python -m knitwork.exps.mikasa.run_fast knitwork/exps/mikasa/config/fast/base.yaml \
+  --model=grnn_lru.L2C4 --grnn_lru_L2C4.n_layers=1 --grnn_lru_L2C4.hidden_size=224 \
+  --grnn_lru_L2C4.routing=dynamic --grnn_lru_L2C4.x_add=true --grnn_lru_L2C4.column_horizons=true \
+  --env=AutoencodeEasy --n_steps=20e6
 
-# Capacity — MultiarmedBandit
-uv run knitwork/exps/mikasa/run_mikasa.py knitwork/exps/mikasa/config_mikasa.yaml \
-  --env=popgym-MultiarmedBanditEasy-v0 --model=hgrnn
-
-# Capacity with continuous obs — CountRecall (requires continuous wrapper)
-uv run knitwork/exps/mikasa/run_mikasa.py knitwork/exps/mikasa/config_mikasa.yaml \
-  --env=popgym-CountRecallEasy-v0 --model=grnn
-
-# Smoke-test (no Comet logging, 50k steps)
-uv run knitwork/exps/mikasa/run_mikasa.py knitwork/exps/mikasa/config_mikasa.yaml \
-  --env=popgym-RepeatFirstEasy-v0 --model=grnn --n_steps=5e4 --log.enabled=false
+# smoke test without logging
+uv run python -m knitwork.exps.mikasa.run_fast knitwork/exps/mikasa/config/fast/base.yaml \
+  --model=lru.L2 --env=AutoencodeEasy --n_steps=2e5 --log.enabled=false
 ```
 
-### Running multiple environments for comparative analysis
+Model keys are `<registry name>.<config suffix>`: `--model=grnn_lru.L2C4` reads the `grnn_lru_L2C4:` section, and its
+fields are overridden as `--grnn_lru_L2C4.<field>=...`. The base config has `rnn.L2`, `lru.L2`, `grnn.L2C4`,
+`grnn_lru.L2C4`, `grnn_bank.L2C4`, `grnn_many.C16` and others, all sized to about 1M parameters with the heads.
+
+### Three protocols
 
 ```sh
-# Parallel — no more than 3 simultaneously (project rule)
-uv run knitwork/exps/mikasa/run_mikasa.py knitwork/exps/mikasa/config_mikasa.yaml \
-  --env=popgym-RepeatFirstEasy-v0 --model=grnn_lru --name="RepeatFirst grnn_lru" &
-
-uv run knitwork/exps/mikasa/run_mikasa.py knitwork/exps/mikasa/config_mikasa.yaml \
-  --env=popgym-RepeatPreviousEasy-v0 --model=grnn_lru --name="RepeatPrev grnn_lru" &
-
-uv run knitwork/exps/mikasa/run_mikasa.py knitwork/exps/mikasa/config_mikasa.yaml \
-  --env=popgym-MultiarmedBanditEasy-v0 --model=grnn_lru --name="Bandit grnn_lru" &
+B="uv run python -m knitwork.exps.mikasa.run_fast knitwork/exps/mikasa/config/fast/base.yaml --model=lru.L2"
+$B --env=AutoencodeEasy --n_steps=20e6 --run_id=ae_easy                       # 1. RL
+$B --env=AutoencodeHard --n_steps=5e6 --rl.supervised=true                    # 2. oracle: supervised on the correct action
+$B --env=AutoencodeMedium --n_steps=20e6 --init_from=runs/rl_fast/ae_easy.pt  # 3. transfer from the Easy checkpoint
 ```
 
----
+The oracle (`rl.supervised=true`) trains the same network with cross-entropy on the rewarded action. It separates memory
+capacity from the RL signal: if the oracle learns and PPO does not, the problem is credit assignment, not memory.
 
-## Logging
+### Queues, pause and resume
 
-Comet project (workspace `team-rl-exp`): `knitwork-mikasa`. Default metrics: `MeanReward`, `ep_return`, `ep_length`, `PolicyLoss`, `ValueLoss`, `Entropy`, `fps`.
+```sh
+# each line: <run_id> <overrides...>; logs go to logs/run_fast/<run_id>.log
+bash knitwork/exps/mikasa/run_fast_queue.sh knitwork/exps/mikasa/config/fast/queue_p25_arch.txt
+bash knitwork/exps/mikasa/run_fast_pause.sh      # SIGTERM: checkpoint at the end of the update, exit code 3
+bash knitwork/exps/mikasa/run_fast_queue.sh <same list>   # resumes unfinished runs, skips finished ones
+```
 
----
+The queue runs each job under `systemd-run` caps (`RUN_MEM`, default 3G; `RUN_CPU`, default 200%). `gpu_mem_frac`
+(default 0.3) caps the GPU memory per run; long BPTT, snapshot memory and many-column models need 0.45.
 
-## Experiment results
+## Main options
 
-### grnn_harmonic — MIKASA v6 (2026-06-17, running)
+| Option | Default | Meaning |
+|---|---|---|
+| `n_envs`, `rollout_len` | 256, 128 | parallel environments and BPTT window |
+| `n_steps` | 20e6 | environment steps |
+| `rl.lr`, `rl.epochs`, `rl.minibatches` | 3e-4, 4, 4 | PPO optimizer |
+| `rl.gamma`, `rl.gae_lambda`, `rl.clip_eps`, `rl.entropy_coef` | 0.99, 0.95, 0.2, 0.01 | PPO loss |
+| `rl.supervised` | false | oracle mode |
+| `rl.aux_coef` + `rl_wrapper.aux_lags` | 0, [] | auxiliary prediction of past observations |
+| `rl.route_entropy_coef` | 0 | routing entropy term for grid cores |
+| `rl_wrapper.readout` | core | `columns` feeds all top-layer grid columns to the heads |
+| `rl_wrapper.policy` | categorical | `ordinal` for counting tasks |
+| `train_env_cfg.min_cards` | null | Autoencode: deck length per episode drawn from `[min_cards, full]` |
+| `train_env_cfg.grow_cards`, `grow_acc` | null | adaptive curriculum: grow the deck when training accuracy reaches `grow_acc` |
+| `init_from` | null | warm start: model weights from another checkpoint |
+| `cuda_graphs` | true | capture the policy step and the update replay |
+| `eval.n_envs`, `eval.every` | 512, 20 | greedy evaluation on a separate env seed |
 
-Model: `HarmonicGridRNN 3L×4C LRU + 0Res | hidden=128 heads=4 mem=(32×128) ema=0.9` (2.11M params)
+## Output
 
-Algorithm: PPO | n_envs=64 | rollout_len=32 | LR=8e-4 (warmup+cosine) | 200M steps
+Every `print_every` updates:
 
-| # | Env | Progress | LR | PL | VL | H | R | EpRet | Status |
-|---|---|---|---|---|---|---|---|---|---|
-| #076 | RepeatFirstEasy | 20.5M/200M (10%) | 80% | -0.000 | 0.007 | 1.32 | -0.009 | -0.499 | RUNNING |
-| #077 | RepeatFirstMedium | 20.5M/200M (10%) | 80% | -0.002 | 0.000 | 1.33 | -0.001 | -0.496 | RUNNING |
-| #078 | MultiarmedBanditEasy | 20.0M/200M (10%) | 79% | -0.002 | 0.244 | **2.27** | **0.000** | **+0.021** | RUNNING |
-| #079 | MultiarmedBanditMedium | — | — | — | — | — | — | — | PENDING |
+```text
+[19.04M] 13452 sps Acc 0.962 H 0.530 KL 0.0302 EV 0.98 EpRet 0.929 Eval 0.933
+```
 
-**Observations (20M steps):**
-- BanditEasy (#078) shows the best behavior: entropy 2.27 (active exploration), EpRet slightly positive (+0.021). Model is learning the exploration task.
-- RepeatFirst Easy/Medium (#076, #077) are stuck at negative EpRet ≈ -0.5. Entropy is moderate (1.32–1.33). Long-term memory task — model has not learned it yet.
+`Acc`: accuracy of the sampled action on rewarded steps. `H`: policy entropy. `KL`: approximate KL of the update.
+`EV`: explained variance of the value head. `EpRet`: training episode return. `Eval`: greedy evaluation return (the
+metric used in the docs, maximum 1.0, random about -0.5).
 
-### grnn_harmonic — MIKASA v5 (2026-06-17, interrupted)
+## Tests
 
-Progress to 29M/200M steps before interruption (exit=-15, SIGTERM):
+```sh
+uv run --with pytest python -m pytest tests/test_popgym_torch.py tests/test_ppo_gpu.py
+```
 
-| # | Env | Progress | H | R | EpRet |
-|---|---|---|---|---|---|
-| #074 | RepeatFirstEasy | 29M/200M | 0.78 | -0.009 | -0.555 |
-| #075 | RepeatFirstMedium | 29M/200M | 0.22 | -0.001 | -0.529 |
-
-**Observations v5:** entropy dropped sharply (0.78 and 0.22) — model collapses into a single strategy without learning the task. This motivated changes in v6 (entropy_coef, warmup, Hopfield gate init).
+`test_popgym_torch.py` checks the GPU tasks step by step against `popgym` and the env state round trip;
+`test_ppo_gpu.py` checks GAE resets, the CUDA-graph policy against eager mode, the curriculum and the Grid-LRU RL options.
+Run the graphed tests in separate processes if the whole file crashes with an illegal-address error (known issue when the
+clockwork and memory-slot graph tests share one process).

@@ -45,6 +45,9 @@ uv run knitwork/exps/sdq/run_sdq.py knitwork/exps/sdq/config/extend_config.yaml 
 uv run knitwork/exps/text/run_text.py knitwork/exps/text/config/extend_config.yaml --model=grnn
 uv run knitwork/exps/text/run_text.py knitwork/exps/text/config/extend_config.yaml --model=hgrnn --name="hgrnn text8 ~78K"
 
+# POPGym RL (fast GPU pipeline, the only POPGym/MIKASA runner) — guide: docs/experiments/mikasa.md
+uv run python -m knitwork.exps.mikasa.run_fast knitwork/exps/mikasa/config/fast/base.yaml --model=lru.L2 --env=AutoencodeEasy --n_steps=20e6
+
 # TreasureHunt (PPO RL) — all models
 uv run knitwork/exps/treasure/run_treasure_hunt.py knitwork/exps/treasure/config_treasure_hunt.yaml --model=grnn_lru
 
@@ -143,7 +146,8 @@ before the switch to Comet remain in place and are not deleted; they are
 simply not the source for current/future comparisons. Active projects:
 - `knitwork-sdq` — SDQ experiments
 - `knitwork-text` / `knitwork-text-debug` — text8/Shakespeare experiments
-- `knitwork-mikasa` — MIKASA/POPGym RL experiments (separate research thread)
+- `knitwork-mikasa` — early MIKASA/POPGym RL runs (old gymnasium pipeline, removed)
+- `knitwork-aistat` — current RL runs from `run_fast.py` (`rlfast/p*/...`)
 - `knitwork` — earlier architecture-search runs (pre-dates the final paper
   configs; useful for history, not for current comparisons)
 
