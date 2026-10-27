@@ -1,19 +1,20 @@
 % Generated offline by inference/aistats_revision_evidence.py.
-\begin{table}[t]
+\begin{table}[H]
 \centering
-\caption{Sparse LRU pilots on Text8, seed 42, with a 1B-token training budget. $\Delta$ is BPC difference from the dense control. Block has a 0.531M core versus approximately 1.05M for its dense control.}
+\caption{Sparse LRU pilots on Text8, seed 42, with a 1B-token training budget. $\Delta$ is relative to the displayed dense control, computed before rounding. Dynamic hub uses standard query initialization. Block has a 0.531M core versus approximately 1.05M for the control. Best observed scores are bold; second best are underlined.}
 \label{tab:sparselru}
 \begin{tabular}{lrr}
 \toprule
 Variant & BPC $\downarrow$ & $\Delta$ \\
 \midrule
-self heavy & 1.6680 & $-0.0082$ \\
-star & 1.6816 & $+0.0055$ \\
-star ring & 1.6828 & $+0.0067$ \\
-clockwork & 1.7084 & $+0.0323$ \\
-block & 1.7638 & $+0.0877$ \\
-entmax & 1.6861 & $+0.0099$ \\
-dynamic hub & 1.6659 & $-0.0102$ \\
+Dense control & $1.6761$ & $+0.0000$ \\
+self heavy & $\underline{1.6680}$ & $-0.0082$ \\
+star & $1.6816$ & $+0.0055$ \\
+star ring & $1.6828$ & $+0.0067$ \\
+clockwork & $1.7084$ & $+0.0323$ \\
+block & $1.7638$ & $+0.0877$ \\
+entmax & $1.6861$ & $+0.0099$ \\
+dynamic hub & $\mathbf{1.6659}$ & $-0.0102$ \\
 \bottomrule
 \end{tabular}
 \end{table}

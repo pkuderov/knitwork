@@ -1,29 +1,32 @@
 % Generated offline by inference/aistats_revision_evidence.py.
 \begin{table}[t]
 \centering
-\setlength{\tabcolsep}{5pt}
-\caption{Text8 validation results for models with approximately one million parameters and a training budget of one billion tokens. Values are the mean and sample standard deviation across repeated runs. Models share the data split and training recipe; recurrent state and computational cost are not matched.}
+\setlength{\tabcolsep}{4pt}
+\caption{Text8 validation results at approximately one million parameters with a one-billion-token training budget. Values are means and sample standard deviations across runs. Models share the split and training recipe; state and computation differ. Best observed scores are bold; second best are underlined.}
 \label{tab:mid}
 \begin{tabular}{lrrr}
 \toprule
 Model & Size & Runs & BPC \\
 \midrule
-Mamba & 1.003M & 2 & $1.5657\pm0.0010$ \\
-MoSAIC L3C4 & 1.069M & 3 & $1.5918\pm0.0009$ \\
-MoSAIC L2C4 & 1.050M & 3 & $1.5960\pm0.0058$ \\
+MoSAIC L3C4 & 1.069M & 3 & $\mathbf{1.5918\pm0.0009}$ \\
+MoSAIC L2C4 & 1.050M & 3 & $\underline{1.5960\pm0.0058}$ \\
 MoSAIC L2C8 & 0.973M & 2 & $1.6084\pm0.0017$ \\
 MoSAIC L1C8 & 1.034M & 2 & $1.6367\pm0.0013$ \\
+\midrule
 GRU L1 & 1.004M & 2 & $1.6807\pm0.0003$ \\
 GRU L2 & 1.014M & 3 & $1.6359\pm0.0007$ \\
 GRU L3 & 0.986M & 2 & $1.6205\pm0.0080$ \\
+\midrule
 Grid-LRU L1C8 & 1.004M & 2 & $1.7471\pm0.0002$ \\
 Grid-LRU L2C4 & 1.049M & 3 & $1.6720\pm0.0006$ \\
 Grid-LRU L2C8 & 1.060M & 2 & $1.7156\pm0.0047$ \\
 Grid-LRU L3C4 & 1.063M & 3 & $1.6699\pm0.0042$ \\
+\midrule
 Transformer-256 & 1.002M & 2 & $1.6396\pm0.0098$ \\
 HGRN2 & 0.996M & 2 & $1.6695\pm0.0005$ \\
 mLSTM & 0.996M & 2 & $1.7163\pm0.0039$ \\
 DeltaNet & 1.004M & 2 & $1.7844\pm0.0012$ \\
+\midrule
 RIMs & 0.995M & 2 & $1.8741\pm0.0965$ \\
 BRIMs & 1.000M & 2 & $1.8853\pm0.0179$ \\
 \bottomrule

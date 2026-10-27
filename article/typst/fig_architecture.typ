@@ -215,7 +215,7 @@
   step((1, 2), $"SiLU" bold(W)^V (dot)$, <pv>),
 
   // scores
-  step((2, 0.5), $bold(q) bold(k)^top \/ sqrt(H\/R)$, <scores>),
+  step((2, 0.5), $bold(q) bold(k)^top \/ sqrt(d)$, <scores>),
 
   // train-only routing noise
   blob((2, -0.7), $+ epsilon ~ cal(N)(0, sigma^2)$, tint: t-in,

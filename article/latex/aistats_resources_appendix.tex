@@ -1,15 +1,15 @@
 % Generated offline by inference/aistats_resource_accounting.py.
-\section{Historical Resource Accounting}\label{app:resources}
+\section{Resource Accounting}\label{app:resources}
 
-Resource logs were recovered for the 65 historical launches in the main and reduced-token quality summaries. The tables below restrict resource accounting to the 48 launches whose device logs identify NVIDIA H100 80GB HBM3; the other 17 launches used different GPU types and are excluded from these resource tables. Historical quality summaries retain the complete original cohort, including those launches. Thus hardware-restricted resource counts differ from quality-table counts. No device labels or measurements have been reassigned or converted to H100 equivalents.
+Resource accounting covers the 48 runs with confirmed NVIDIA H100 80GB HBM3 logs among the 65 larger-scale main and reduced-token runs. The quality tables include all runs; resource tables exclude the 17 runs on other GPU types. Hardware-restricted counts therefore differ from quality-table counts.
 
-For a run with processed-token counter $s_i$ and interval rate $f_i=\texttt{perf/fps}_i$, we reconstruct $T_{\mathrm{loop}}=\sum_i(s_i-s_{i-1})/f_i$, with $s_0=0$, over the training budget. The effective rate is processed tokens divided by $T_{\mathrm{loop}}$. This includes compilation, training, validation, inspection, logging overhead, and any workload contention. These are log-derived elapsed-time proxies rather than dedicated throughput benchmarks or exclusive GPU-hours.
+For processed-token counts $s_i$ and logged interval rates $f_i$, estimated loop time is $T_{\mathrm{loop}}=\sum_i(s_i-s_{i-1})/f_i$, with $s_0=0$. Effective rate is processed tokens divided by this time. The estimate includes compilation, training, evaluation, inspection, logging, and workload contention; it measures elapsed loop time rather than exclusive GPU-hours.
 
-Update counts are $\lfloor s_{\mathrm{last}}/(n_{\mathrm{envs}}\,\ell_{\mathrm{TBPTT}})\rfloor$, counting reached update boundaries; a nonfinite-gradient skip need not perform an optimizer step. Tracker duration and the fps integral disagree in two launches in the complete historical inventory, so metadata duration is not used as the cost estimator. Tables report means $\pm$ sample standard deviations per launch; single-launch rows have no uncertainty estimate. H100 hardware labels do not control concurrent workloads or implementation differences. The new reported experiments also identify H100 80GB HBM3 in their device logs.
+Update counts are $\lfloor s_{\mathrm{last}}/(n_{\mathrm{envs}}\,\ell_{\mathrm{TBPTT}})\rfloor$, counting reached update boundaries, including any skipped nonfinite-gradient updates. Tables report means and sample standard deviations across runs; single-run rows have no variability estimate. Shared hardware labels do not control concurrent workloads. The 1M and pilot experiments also report H100 80GB HBM3.
 
 \begin{table}[H]
 \centering
-\caption{SDQ: Main cohort resources, H100 subset only. Training budget: 1B tokens.}
+\caption{SDQ: Full-budget resources, H100 subset only. Training budget: 1B tokens.}
 \begin{tabular}{lrrrr}
 \toprule
 Model & $n$ & Updates (k) & Loop time (h) & Rate (k tokens/s) \\
@@ -41,7 +41,7 @@ mLSTM & 2 & $250.0\pm0.0$ & $61.03\pm0.00$ & $3.065\pm0.026$ & $22.7\pm0.2$ \\
 \clearpage
 \begin{table}[H]
 \centering
-\caption{text8: Main cohort resources, H100 subset only. Training budget: 1B tokens.}
+\caption{text8: Full-budget resources, H100 subset only. Training budget: 1B tokens.}
 \begin{tabular}{lrrrr}
 \toprule
 Model & $n$ & Updates (k) & Loop time (h) & Rate (k tokens/s) \\

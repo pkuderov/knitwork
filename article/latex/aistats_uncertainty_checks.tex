@@ -1,0 +1,25 @@
+% Generated offline by inference/aistats_reporting_checks.py.
+\begin{table}[H]
+\centering
+\small
+\caption{Exploratory Welch comparisons of final scores. Differences are model minus reference (Text8 validation BPC, lower is better; SDQ Acc++, higher is better). Intervals are nominal 95 percent intervals under independent-run assumptions, with no multiplicity adjustment; 10M seed independence is unverified.}
+\label{tab:welch}
+\begin{tabular}{llllrrrr}
+\toprule
+Scale & Task & Model & Reference & Difference & df & Two-sided $p$ & 95\% interval \\
+\midrule
+10M & Text8 & MoSAIC-L2C4 & GRU-L3 & -0.0433 & 3.87 & $<0.001$ & [-0.0561, -0.0305] \\
+10M & Text8 & MoSAIC-L3C4 & GRU-L3 & -0.0485 & 2.32 & $0.003$ & [-0.0622, -0.0348] \\
+10M & SDQ & MoSAIC-L2C4 & GRU-L1 & +0.2255 & 3.99 & $<0.001$ & [+0.2134, +0.2376] \\
+10M & SDQ & MoSAIC-L3C4 & GRU-L1 & +0.3026 & 2.64 & $<0.001$ & [+0.2751, +0.3302] \\
+\midrule
+10M & Text8 & MoSAIC-L2C4 & Transformer-256 & -0.0095 & 2.68 & $0.304$ & [-0.0352, +0.0161] \\
+10M & Text8 & MoSAIC-L3C4 & Transformer-256 & -0.0147 & 2.08 & $0.165$ & [-0.0438, +0.0143] \\
+10M & Text8 & MoSAIC-L2C4 & MoSAIC-L2C8 & -0.0055 & 2.58 & $0.190$ & [-0.0164, +0.0054] \\
+10M & Text8 & MoSAIC-L3C4 & MoSAIC-L2C4 & -0.0052 & 2.46 & $0.208$ & [-0.0163, +0.0059] \\
+\midrule
+1M & Text8 & MoSAIC-L2C4 & GRU-L3 & -0.0246 & 1.71 & $0.082$ & [-0.0579, +0.0088] \\
+1M & Text8 & MoSAIC-L3C4 & GRU-L3 & -0.0287 & 1.02 & $0.122$ & [-0.0983, +0.0409] \\
+\bottomrule
+\end{tabular}
+\end{table}

@@ -1,0 +1,29 @@
+% Generated offline by inference/aistats_reporting_checks.py.
+\begin{table}[H]
+\centering
+\caption{Text8 test BPC for models with approximately one million parameters. Values summarize available validation-selected checkpoints; multiple runs report means and sample SD. Missing evaluations are explicit. Best available mean is bold; second best is underlined.}
+\label{tab:midtest}
+\begin{tabular}{lrr}
+\toprule
+Model & Test runs & BPC \\
+\midrule
+MoSAIC L3C4 & 1 & $\mathbf{1.6590}$ \\
+MoSAIC L2C4 & 2 & $\underline{1.6636\pm0.0056}$ \\
+MoSAIC L2C8 & 1 & $1.6730$ \\
+MoSAIC L1C8 & 1 & $1.7030$ \\
+GRU L1 & 1 & $1.7415$ \\
+GRU L2 & 2 & $1.6966\pm0.0002$ \\
+GRU L3 & 2 & $1.6814\pm0.0068$ \\
+Grid-LRU L1C8 & 1 & $1.8116$ \\
+Grid-LRU L2C4 & 0 & --- \\
+Grid-LRU L2C8 & 0 & --- \\
+Grid-LRU L3C4 & 2 & $1.7301\pm0.0002$ \\
+Transformer-256 & 0 & --- \\
+HGRN2 & 0 & --- \\
+mLSTM & 0 & --- \\
+DeltaNet & 1 & $1.8403$ \\
+RIMs & 2 & $1.9333\pm0.0991$ \\
+BRIMs & 2 & $1.9389\pm0.0189$ \\
+\bottomrule
+\end{tabular}
+\end{table}

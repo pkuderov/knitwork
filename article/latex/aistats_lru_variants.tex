@@ -1,18 +1,18 @@
 % Generated offline by inference/aistats_revision_evidence.py.
-\begin{table}[t]
+\begin{table}[H]
 \centering
-\caption{Five LRU mechanisms and their dynamic-hub control on Text8, seed 42, with a 1B-token training budget. Late $\Delta$ averages paired differences over late evaluations. Reset-1024 evaluates the same validation data with state reset every 1,024 valid tokens; reset penalty is its BPC minus continuous BPC. Core widths are L2C4H180; added projections or replacement of an LRU by matrix memory change parameter/state counts. This is a single-seed exploratory comparison.}
+\caption{Five LRU mechanisms and their zero-query-initialized dynamic-hub control on Text8, seed 42, with a 1B-token training budget. Late $\Delta$ averages checkpoint-aligned differences. Reset-1024 resets state every 1,024 valid tokens; its penalty is relative to continuous BPC. Differences are computed before rounding. Widths are L2C4H180; projections and matrix-memory replacement change parameter/state counts. Best observed scores are bold; second best are underlined.}
 \label{tab:lruvariants}
 \begin{tabular}{lrrrrr}
 \toprule
 Variant & BPC $\downarrow$ & $\Delta$ & Late $\Delta$ & Reset-1024 & Reset penalty \\
 \midrule
-control & 1.6673 & $+0.0000$ & $+0.0000$ & 1.6794 & $+0.0120$ \\
-write gate & 1.6650 & $-0.0023$ & $-0.0014$ & 1.6771 & $+0.0121$ \\
-query read & 1.6872 & $+0.0199$ & $+0.0184$ & 1.7009 & $+0.0136$ \\
-associative & 1.6938 & $+0.0265$ & $+0.0224$ & 1.7121 & $+0.0183$ \\
-rotations & 1.6651 & $-0.0023$ & $-0.0003$ & 1.6772 & $+0.0122$ \\
-two reads & 1.6488 & $-0.0185$ & $-0.0168$ & 1.6607 & $+0.0119$ \\
+control & $1.6673$ & $+0.0000$ & $+0.0000$ & $1.6794$ & $+0.0120$ \\
+write gate & $\underline{1.6650}$ & $-0.0023$ & $-0.0014$ & $\underline{1.6771}$ & $+0.0121$ \\
+query read & $1.6872$ & $+0.0199$ & $+0.0184$ & $1.7009$ & $+0.0136$ \\
+associative & $1.6938$ & $+0.0265$ & $+0.0224$ & $1.7121$ & $+0.0183$ \\
+rotations & $1.6651$ & $-0.0023$ & $-0.0003$ & $1.6772$ & $+0.0122$ \\
+two reads & $\mathbf{1.6488}$ & $-0.0185$ & $-0.0168$ & $\mathbf{1.6607}$ & $+0.0119$ \\
 \bottomrule
 \end{tabular}
 \end{table}

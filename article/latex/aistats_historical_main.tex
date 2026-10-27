@@ -1,7 +1,7 @@
 % Generated offline by inference/aistats_revision_evidence.py.
 \begin{table*}[t]
 \centering
-\caption{Historical $\sim$10M models with a 1B-token training budget. Values are mean $\pm$ sample SD; SDQ uses the final five diagnostic measurements per launch and has three launches per row. Params are for text8. $\dagger$: two text8 launches. Acc++ is an online curriculum diagnostic.}
+\caption{SDQ and Text8 results at approximately ten million parameters with a one-billion-token training budget. Values are means and sample standard deviations; SDQ averages the final five online diagnostic measurements per run and has three runs per row. Parameter counts are for Text8. Best observed scores are bold; second best are underlined.}
 \label{tab:historical}
 \begin{tabular}{lrrrr}
 \toprule
@@ -10,11 +10,13 @@ Model & Params & Text8 $n$ & Val. BPC $\downarrow$ & SDQ Acc++ $\uparrow$ \\
 GRU-L1 & 10.16M & 3 & $1.5632\pm0.0025$ & $0.6177\pm0.0052$ \\
 GRU-L2 & 10.04M & 3 & $1.5004\pm0.0119$ & $0.5444\pm0.0743$ \\
 GRU-L3 & 10.23M & 3 & $1.4830\pm0.0061$ & $0.3241\pm0.0862$ \\
+\midrule
 MoSAIC-L1C8 & 10.11M & 3 & $1.4687\pm0.0046$ & $0.7051\pm0.0163$ \\
-MoSAIC-L2C4 & 10.11M & 3 & $1.4397\pm0.0050$ & $0.8433\pm0.0055$ \\
+MoSAIC-L2C4 & 10.11M & 3 & $\underline{1.4397\pm0.0050}$ & $0.8433\pm0.0055$ \\
 MoSAIC-L2C8 & 10.17M & 3 & $1.4452\pm0.0019$ & $0.8664\pm0.0099$ \\
-MoSAIC-L2C16$^{\dagger}$ & 10.09M & 2 & $1.4548\pm0.0023$ & $0.8911\pm0.0049$ \\
-MoSAIC-L3C4 & 9.99M & 3 & $1.4345\pm0.0017$ & $0.9204\pm0.0128$ \\
+MoSAIC-L2C16 & 10.09M & 2 & $1.4548\pm0.0023$ & $\underline{0.8911\pm0.0049}$ \\
+MoSAIC-L3C4 & 9.99M & 3 & $\mathbf{1.4345\pm0.0017}$ & $\mathbf{0.9204\pm0.0128}$ \\
+\midrule
 Transformer-256 & 10.07M & 3 & $1.4492\pm0.0120$ & --- \\
 Transformer-64 & 10.07M & 3 & $1.4816\pm0.0049$ & --- \\
 \bottomrule
