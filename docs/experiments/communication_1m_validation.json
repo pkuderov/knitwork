@@ -1,0 +1,217 @@
+{
+  "date": "2026-10-09",
+  "scope": "Implementation validation only; no full-budget quality experiments or external tracker requests.",
+  "selected_matrix": {
+    "conditions": 6,
+    "tasks": [
+      "text8",
+      "sdq"
+    ],
+    "topologies": [
+      "L2C4",
+      "L3C4"
+    ],
+    "seeds": [
+      42
+    ],
+    "launches": 24
+  },
+  "tests": {
+    "communication_controls": {
+      "passed": 11,
+      "command": ".venv/bin/python -m unittest discover -s tests -p test_communication_controls.py -v"
+    },
+    "existing_rollout_pilots": {
+      "passed": 6,
+      "command": ".venv/bin/python -m unittest discover -s tests -p test_rollout_pilots.py -v"
+    }
+  },
+  "accounting": {
+    "configurations_checked": 24,
+    "report": "docs/experiments/communication_1m_accounting.json",
+    "equal_within_task_topology_seed": [
+      "nominal_parameters",
+      "carried_state",
+      "initial_weights",
+      "profiled_dense_forward_flops",
+      "profiled_dense_forward_backward_flops"
+    ]
+  },
+  "gpu_smokes": [
+    {
+      "device": "NVIDIA GeForce RTX 5060 Laptop GPU",
+      "task": "sdq",
+      "topology": "L2C4",
+      "condition": "static_mean",
+      "parameters": 1053338,
+      "compile": true,
+      "recipe": "clean",
+      "tokens": 32,
+      "resumed_at_tokens": 16,
+      "completed": true,
+      "skipped_updates": 0
+    },
+    {
+      "device": "NVIDIA GeForce RTX 5060 Laptop GPU",
+      "task": "sdq",
+      "topology": "L2C4",
+      "condition": "static_mean",
+      "parameters": 1053338,
+      "compile": true,
+      "recipe": "paper",
+      "tokens": 48,
+      "resumed_at_tokens": 16,
+      "uninterrupted_vs_resumed_weights_and_recurrent_state": "bit-exact"
+    }
+  ],
+  "source_and_config_sha256": {
+    "knitwork/exps/communication/evaluation.py": "3a21d97c3e7d44a563559638c305871918061427a503d18a27222bed341a0c1b",
+    "knitwork/exps/communication/protocol.py": "e0ee9918cb7599a9cabe3652685f62f831a800b9cfef8687f8962c9005e11ca9",
+    "knitwork/exps/communication/run.py": "ad8a81897dbd586fbc938ae3278502c8227aeaeaa6b5721447253193cdf960eb",
+    "knitwork/exps/communication/suite.py": "d143eea6e703a37e872d87ee276840b1ea3fc5c28cb88353dd92d45a88d81e38",
+    "knitwork/exps/communication/summarize.py": "190636b4677d4af6f69b624012083c52435f124a412f33fb8e90768f29636c95",
+    "knitwork/exps/communication/config/matrix.yaml": "08b0bd3c541269cd02606088f49447367054dc4661defe6ab82f9d321957ac58",
+    "knitwork/exps/communication/config/sdq.yaml": "b28eae6dabe449e5507b6d244236a5f74b7b8f9ba4b6c4e8c6a85d19110f9528",
+    "knitwork/exps/communication/config/text8.yaml": "0c9bb9e44f3fbf9b1994b9b4c89ae9af06889d7fd4e34f496ad715f0b3537edc",
+    "knitwork/models/grnn_communication.py": "410208deefa1eac1eb76f670b35c7cd57a8b7c4fea90b7c2e849205177e95c0c",
+    "knitwork/models/grnn_core.py": "ce9e1bf6a6c643cbe584db3537f673e4e822e3e48e355be0cfa3751f05cf44fa",
+    "knitwork/models/utils.py": "c4f447459a41078925a79a3c85cbdb02a05144eb5f8ebb7f3a0a8004042d57ef",
+    "tests/test_communication_controls.py": "a3c8e6fd763fd9720df2b4d2e3b4c2886a55c87dc74e44e63d5a66cca498791b"
+  },
+  "evidence_limits": [
+    "One training seed gives no between-training uncertainty estimate.",
+    "These controls are at 1M; no causal transfer to 10M is established.",
+    "Dense arithmetic equality excludes elementwise operations and optimizer cost."
+  ],
+  "config_updates": [
+    {
+      "date": "2026-10-10",
+      "checkpoint_every_tokens": 100000000,
+      "checks": {
+        "task_configs_checked": 2,
+        "matrix_runs_checked": 24,
+        "resume_fingerprint_unchanged_from_20M": true
+      },
+      "daily_stop": "Proposed 23:00 Europe/Moscow cutoff; no automatic supervisor installed or training started.",
+      "config_sha256": {
+        "knitwork/exps/communication/config/text8.yaml": "ca756ea958e05b899b84247a8fe849aa323bbb0ad6770fba3c0e9b21322a9bea",
+        "knitwork/exps/communication/config/sdq.yaml": "3e57e76dfd58527a52045c5b9f5b0a304c9f7c9b95998cc4bb56900175b28a57"
+      }
+    }
+  ],
+  "local_queue_validation": {
+    "date": "2026-10-10",
+    "communication_tests": 16,
+    "status": "passed",
+    "checks": [
+      "Moscow 22:55 graceful / 23:00 hard deadline",
+      "manual next-day restart",
+      "real hard kill restricted to own worker process group",
+      "signal handler restoration",
+      "interrupted evaluation exact resume on both tasks",
+      "deadline checkpoint before training",
+      "persistent 24-job queue with two-worker task interleaving"
+    ],
+    "config": "knitwork/exps/communication/config/local_queue.yaml",
+    "note": "Actual full-batch training startup and concurrent memory are checked separately in local queue artifacts.",
+    "existing_rollout_tests": 6,
+    "actual_launch": {
+      "date": "2026-10-10",
+      "counts": {
+        "running": 2,
+        "pending": 22
+      },
+      "supervisor_pid": 474985,
+      "workers": [
+        {
+          "run_id": "text8/L2C4/clean/dynamic_column0/seed42-data42",
+          "pid": 475010,
+          "log_path": "/home/master/knitwork/runs/communication_1m/_queue/jobs/text8/L2C4/clean/dynamic_column0/seed42-data42/train.log"
+        },
+        {
+          "run_id": "sdq/L2C4/clean/dynamic_column0/seed42-data42",
+          "pid": 475410,
+          "log_path": "/home/master/knitwork/runs/communication_1m/_queue/jobs/sdq/L2C4/clean/dynamic_column0/seed42-data42/train.log"
+        }
+      ],
+      "full_batch": true,
+      "precision_or_protocol_changed_for_parallelism": false,
+      "regular_checkpoint_tokens": 100000000,
+      "concurrent_gpu_memory_observed_mib": 7487,
+      "progress": [
+        {
+          "run_id": "text8/L2C4/clean/dynamic_column0/seed42-data42",
+          "pid": 475010,
+          "phase": "training",
+          "tokens": 9699328,
+          "updates": 296,
+          "updated_at": 1791637760.3696594,
+          "training_seconds": 118.45854601936298,
+          "last_checkpoint_tokens": 0,
+          "cuda_peak_allocated_bytes": 4097824768
+        },
+        {
+          "run_id": "sdq/L2C4/clean/dynamic_column0/seed42-data42",
+          "pid": 475410,
+          "phase": "training",
+          "tokens": 4292608,
+          "updates": 262,
+          "updated_at": 1791637764.2327633,
+          "training_seconds": 85.48829902801663,
+          "last_checkpoint_tokens": 0,
+          "cuda_peak_allocated_bytes": 1716286976
+        }
+      ]
+    }
+  },
+  "scope_update_2026_10_10": {
+    "topologies": [
+      "L2C4"
+    ],
+    "seeds": [
+      42
+    ],
+    "tasks": [
+      "text8",
+      "sdq"
+    ],
+    "conditions": 6,
+    "runs": 12,
+    "reason": "User removed L3C4 from the execution plan",
+    "worker_pause_signal": "SIGTERM",
+    "actual_gpu_pause": {
+      "text8_tokens": 94011392,
+      "sdq_tokens": 60342272,
+      "exit_codes": [
+        0,
+        0
+      ]
+    },
+    "note": "Earlier 24-case checks are historical; active matrix now contains 12 cases. SIGUSR1 failed to pause real GPU workers; SIGTERM succeeded, so queue workers now receive SIGTERM.",
+    "resumed_progress": [
+      {
+        "run_id": "text8/L2C4/clean/dynamic_column0/seed42-data42",
+        "pid": 479807,
+        "phase": "training",
+        "tokens": 99713024,
+        "updates": 3043,
+        "updated_at": 1791638971.5001256,
+        "training_seconds": 1108.1227732907573,
+        "last_checkpoint_tokens": 94011392,
+        "cuda_peak_allocated_bytes": 4073937920
+      },
+      {
+        "run_id": "sdq/L2C4/clean/dynamic_column0/seed42-data42",
+        "pid": 480027,
+        "phase": "training",
+        "tokens": 62160896,
+        "updates": 3794,
+        "updated_at": 1791638969.4693139,
+        "training_seconds": 1037.0411801864393,
+        "last_checkpoint_tokens": 60342272,
+        "cuda_peak_allocated_bytes": 1712623104
+      }
+    ],
+    "matrix_and_queue_checks": "passed: active 12-case dense profiling and queue ordering"
+  }
+}

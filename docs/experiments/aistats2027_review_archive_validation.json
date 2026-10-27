@@ -1,0 +1,89 @@
+{
+  "archive": "article/supplementary/mosaic_review_code.zip",
+  "manifest_verified": true,
+  "private_identifier_check": true,
+  "model_configurations_checked": 19,
+  "main_table_configurations_matched": 17,
+  "finite_cpu_forward": true,
+  "training_entrypoint_import": true,
+  "training_runs": 0,
+  "published": false,
+  "measured": {
+    "rnn_L1": {
+      "params": 1003563,
+      "state": 404
+    },
+    "rnn_L2": {
+      "params": 1014363,
+      "state": 576
+    },
+    "rnn_L3": {
+      "params": 985563,
+      "state": 696
+    },
+    "grnn_L1C8": {
+      "params": 1033515,
+      "state": 1120
+    },
+    "grnn_L2C4": {
+      "params": 1050499,
+      "state": 1088
+    },
+    "grnn_L2C8": {
+      "params": 972715,
+      "state": 1536
+    },
+    "grnn_L3C4": {
+      "params": 1068743,
+      "state": 1344
+    },
+    "grnn_L2C4_topk1": {
+      "params": 1050499,
+      "state": 1088
+    },
+    "grnn_L2C4_topk2": {
+      "params": 1050499,
+      "state": 1088
+    },
+    "grnn_lru_L1C8": {
+      "params": 1003651,
+      "state": 4224
+    },
+    "grnn_lru_L2C4": {
+      "params": 1049463,
+      "state": 3600
+    },
+    "grnn_lru_L2C8": {
+      "params": 1059747,
+      "state": 5120
+    },
+    "grnn_lru_L3C4": {
+      "params": 1063015,
+      "state": 4144
+    },
+    "delta_net": {
+      "params": 1004089,
+      "state": 141267
+    },
+    "hgrn2": {
+      "params": 996210,
+      "state": 280908
+    },
+    "mlstm": {
+      "params": 995577,
+      "state": 140619
+    },
+    "transformer": {
+      "params": 1002347,
+      "state": 360448
+    },
+    "rims": {
+      "params": 994859,
+      "state": 1392
+    },
+    "brims": {
+      "params": 1000395,
+      "state": 1920
+    }
+  }
+}
