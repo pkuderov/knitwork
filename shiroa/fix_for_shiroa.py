@@ -49,8 +49,10 @@ def _fix_line(line: str) -> str:
         return ''
 
     # / at start of line triggers Typst term-definition syntax — escape it
-    if re.match(r'^/ ', line):
-        line = '#"/" ' + line[2:]
+    # (also on indented continuation lines inside table cells)
+    m = re.match(r'^(\s*)/ ', line)
+    if m:
+        line = m.group(1) + '#"/" ' + line[m.end():]
 
     # [*text*]* → [*text*]
     line = re.sub(r'\[\*([^*\]]*)\]\*', r'[*\1*]', line)

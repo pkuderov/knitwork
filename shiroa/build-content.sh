@@ -51,11 +51,18 @@ for f in "$DOCS_DIR/methods/"*.md; do
 done
 
 echo "Converting experiments..."
-for f in "$DOCS_DIR/experiments/"*.md; do
-    name=$(basename "$f" .md)
+# recursive: report folders such as experiments/h100_2026-10-12/report.md are linked from the sidebar
+while IFS= read -r -d '' f; do
+    rel=${f#"$DOCS_DIR/experiments/"}
+    mkdir -p "$SCRIPT_DIR/experiments/$(dirname "$rel")"
     title=$(head -1 "$f" | sed 's/^# //')
-    convert "$f" "$SCRIPT_DIR/experiments/${name}.typ" "$title"
-done
+    convert "$f" "$SCRIPT_DIR/experiments/${rel%.md}.typ" "$title"
+done < <(find "$DOCS_DIR/experiments" -name '*.md' -print0 | sort -z)
+
+echo "Copying images..."
+# pages reference figures relative to their own directory; mirror them next to the .typ files
+(cd "$DOCS_DIR" && find methods experiments -type f \( -name '*.png' -o -name '*.svg' -o -name '*.jpg' \) -print0 \
+    | xargs -0 -r cp --parents -t "$SCRIPT_DIR")
 
 echo "Converting README..."
 convert "$DOCS_DIR/README.md" "$SCRIPT_DIR/README.typ" "knitwork"

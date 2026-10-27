@@ -249,3 +249,6 @@ knitwork/gens/data/*
 
 # run_fast.py checkpoints
 runs/rl_fast/
+
+# absolute symlinks to the full (unpublished) diagnostics data
+/docs/experiments/communication_diagnostics_2026-10-12_selected/runs/**/features.npz
