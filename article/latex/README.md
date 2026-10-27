@@ -1,75 +1,49 @@
-# MoSAIC — AISTATS 2027 revision
+# MoSAIC — AISTATS 2027 manuscript
 
-The active anonymous source is `paper.tex`; `paper.pdf` is generated from it. The current workspace branch is `aistat-knitwork`. Earlier Typst/AAAI artifacts are historical and are not synchronized automatically.
+The active anonymous source is `paper.tex`, with the separate evidence-focused edition in `paper_evidence_only.tex`. Both share the evidence tables, bibliography, style files, and figure assets. The workspace branch is `aistat-knitwork`. Earlier Typst/AAAI drafts are separate artifacts.
 
-## Build and regenerate evidence
+## Build
 
 From the repository root:
 
 ```bash
-make -C article/latex
+make -C article/latex paper.pdf paper_evidence_only.pdf
 ```
 
-The build runs pdfLaTeX, BibTeX, and three subsequent pdfLaTeX passes. To regenerate the new tables, figures, and numeric provenance **offline** from retained evidence:
+Regenerate tables, figures, and provenance offline, without training or tracker requests:
 
 ```bash
 .venv/bin/python inference/aistats_revision_evidence.py
-make -C article/latex
+.venv/bin/python inference/aistats_resource_accounting.py
+make -C article/latex paper.pdf paper_evidence_only.pdf
 ```
 
-`make -C article/latex evidence` performs the same offline evidence generation. It does not launch training or call Comet. Python requires the existing research environment and Matplotlib; local model accounting uses the logged widths/configurations with current model definitions. To regenerate the historical resource tables offline, run `.venv/bin/python inference/aistats_resource_accounting.py`.
+The existing research environment supplies PyTorch, Matplotlib, SciPy, NumPy, and YAML dependencies. Local parameter/state accounting uses logged model configurations. The generator also reads the retained test CSV export, distinct from the weekly snapshot's metric-presence inventory.
 
-## Separate manuscript without the earlier hypotheses
+## Current evidence and scope
 
-`paper_evidence_only.tex` and `paper_evidence_only.pdf` are a separate edition of the article. They retain the architecture, all empirical tables/figures, uncertainty, reproducibility limitations, and AI disclosure, while removing discussion of earlier specialization, column-collapse, and gradient-mechanism hypotheses and speculative explanations of the results. The AI disclosure describes assistance with architectural design. This edition shares the retained table files, bibliography, style files, and figure assets with `paper.tex`; it is edited separately and is not regenerated from the main manuscript automatically.
+The paper compares GRU-column MoSAIC with stacked GRU and selected local recurrent, modular, and attention references. The larger-scale SDQ/Text8 study uses approximately 10M parameters; the smaller-scale Text8 table contains 17 configurations and 39 runs near 1M parameters. Main training budgets are one billion tokens. Text8 primary values summarize final-checkpoint continuous-state validation; SDQ averages the final five online diagnostic measurements per run. Means and sample SD describe between-run variation.
+
+Eighteen available test evaluations cover 12 of the 17 smaller-scale groups. They use checkpoints selected by reset-1024 validation loss, evaluated with continuous state on the final 5M characters. Missing test scores remain explicit. This test segment overlaps validation used during earlier larger-scale development. Four exploratory Welch comparisons have intervals spanning zero; additional seeds and aligned segment losses are unavailable.
+
+The local Bayesian section is an interpretive Gaussian surrogate, with five theorems, four lemmas, and complete proofs. It is separated from architectural novelty and supplies no learned-router or BPC guarantee. The separate edition continues to omit earlier specialization and gradient hypotheses.
+
+The [audit response](../2026-10-07-aistats-audit-response.md) maps every major and minor item to its correction and remaining evidence gap. Its current validation record is [aistats2027_audit_response_validation.json](../../docs/experiments/aistats2027_audit_response_validation.json). Earlier dated validation records describe earlier PDFs and are retained as historical artifacts.
+
+## Anonymous review code
+
+The supplementary artifact is [mosaic_review_code.zip](../supplementary/mosaic_review_code.zip), with [run instructions](../supplementary/README.md). Regenerate it locally:
 
 ```bash
-make -C article/latex paper_evidence_only.pdf
+.venv/bin/python inference/aistats_review_archive.py
 ```
 
-After the October 7 theory revision, both PDFs have 23 pages: main text 1–8, AI statement/references 9–10, checklist 11, appendices 12–23. The current validation record is `docs/experiments/aistats2027_bayesian_validation.json`; `docs/experiments/aistats2027_evidence_only_validation.json` records the earlier edition. Both manuscripts load the standard `float` package so Appendix K resource tables use `[H]` placement and appear consecutively instead of spreading across a float page. The resource-table generator preserves this placement when run again; measurements and official style files are unchanged.
+It includes the models, 1M Text8 configuration, training/evaluation runner, dependencies, and checksum manifest. Tracking is disabled and the dataset path is made portable. It contains no tracker exports or checkpoints. It has been checked from an extracted independent directory, including the main-table parameter/state counts and finite CPU forward outputs. Preparing the archive does not publish it or run training. Public code release is planned after acceptance. The author must attach this archive when submitting the manuscript for its supplementary-code availability statement to apply.
 
-`aistats2027.sty` and `fancyhdr.sty` remain the unmodified official [AISTATS 2027 author kit](https://aistats.org/aistats2027/AISTATS2027PaperPack.zip), downloaded on 2026-10-01. The paper uses anonymous submission mode, US Letter, author–year citations, and single-column appendices. The [current call for papers](https://virtual.aistats.org/Conferences/2027/CallForPapers), checked on October 5, limits the main text to eight pages and imposes no page limit on references, AI Use Statement, checklist, or appendices. Even twenty appendix pages would be allowed. The AI statement immediately precedes references and explicitly discloses literature analysis and assistance in writing/debugging code. The September 30 policy update requires this statement in the paper only, not in the OpenReview form. The title remains unchanged.
+## Format
 
-The October 5 PDF had 21 pages: main text 1–8; AI Use Statement and references 9–10; checklist 11; appendices 12–21 (ten appendix pages). Compilation has no unresolved citations or cross-references. PDF metadata is anonymous and fonts are Type 0/Type 1, without Type 3. Both style files were checked byte for byte against a fresh official-kit download. The only remaining overfull-box warning is the official title block's 5.12pt warning. Key pages were rendered and inspected: no clipping of tables, equations, figures, or text. The retained [validation record](../../docs/experiments/aistats2027_revision_validation.json) also records the recheck of 124 pilot scalars against raw logs.
+`aistats2027.sty` and `fancyhdr.sty` remain the unmodified official [AISTATS 2027 author kit](https://aistats.org/aistats2027/AISTATS2027PaperPack.zip). Both editions use anonymous submission mode, US Letter, author–year citations, and single-column appendices. The main text remains within eight pages. AI Use Statement, references, checklist, and appendices follow outside that limit. The AI statement discloses literature analysis, coding assistance, and other assistance used in preparing the work. PDF author and build dates are blank.
 
-## Evidence in the October 5 revision
+Appendix tables use fixed placement and ragged page bottoms to avoid artificial vertical gaps. Resource tables remain paired by task on separate pages. The architecture diagram uses the same `sqrt(d)` denominator as the equations. There are no unresolved citations or cross-references; the official title-block warning is reported in the validation record.
 
-The revision keeps the original GRU-column architecture as its central contribution. It separates the historical approximately 10M series from the new approximately 1M Text8 series, and separates full-budget comparisons from short or single-seed exploratory probes. The full reviewer-response map and remaining gaps are in [the revision report](../../2026-10-05-aistats-paper-revision.md).
-
-**Main comparisons use a 1B-token training budget.** The historical approximately 10M series uses final Text8 validation BPC and the final five SDQ diagnostic measurements per launch. Longer runs contribute results within the 1B budget. Historical source curves remain in the [quality snapshot](../../docs/experiments/aistats2027_historical_quality.json). L2C4 has Text8 `1.4397 ± 0.0050` and SDQ `0.8433 ± 0.0055`; GRU-L2 has `1.5004 ± 0.0119` and `0.5444 ± 0.0743`. Abstract, body, tables, and curves use the same reporting rule.
-
-**New evidence** is frozen in the [weekly snapshot](../../docs/experiments/weekly_2026-09-28_2026-10-04_snapshot.json), collected through October 4 at 23:53 Moscow time. Table 2 reports all 18 baseline/topology groups and 41 launches in one table with a 1B-token training budget. Baselines are local implementations using a shared recipe, not official optimized checkpoints or an exhaustive tuning comparison. Mamba is the original selective-SSM family, not Mamba-2, and is stronger than MoSAIC in the new Text8 series.
-
-The main text adds top-1/top-2 routing and the five-condition regularizer pilot. The LRU mechanism table also reports already logged periodic resets every 1,024 valid tokens, with the reset penalty relative to continuous evaluation; this is a single-seed robustness diagnostic, not a longer-memory claim. Appendices report all five LRU mechanism variants, seven sparse-LRU variants with paired controls, eight BPTT-length pilots, six MQAR quality pilots, and ten POPGym RL pilots. Their negative results are retained. MQAR does not have completed strong-baseline comparisons, and the RL tasks are POPGym tasks accessed through the project runner rather than a separate MIKASA benchmark. Addressable-slot smoke checks and runs without quality metrics are not promoted to benchmark results. Numeric test values were not used for selection or reported comparison.
-
-Generated TeX tables live in `aistats_*.tex`; the offline evidence builder writes [full numeric provenance](../../docs/experiments/aistats2027_revision_evidence.json), including source steps, launch IDs, seeds, raw replicate summaries, and state/parameter counts. Launch IDs and private tracker links are not included in the anonymous PDF.
-
-## Resources and reproducibility
-
-The historical [resource report](../../docs/experiments/aistats2027_resources.md) preserves all 65 launches and their original device labels: 48 H100 80GB HBM3, eight TITAN RTX, five RTX 3080 Ti, and four V100-SXM3-32GB. Paper Table 4 and Appendix J now restrict resource reporting to the 48 verified H100 launches, with actual subset counts. The other 17 launches remain in the historical quality cohort; the manuscript explicitly states that this cohort used heterogeneous hardware. No GPU labels or measurements are reassigned to H100. Loop time is the integral of logged token increments divided by interval fps; it includes overhead/contention and is neither exclusive GPU-hours nor FLOPs. Main resource tables use the 1B-token training budget; shorter historical reference runs retain their reduced budgets.
-
-New device labels were retrieved read-only for the fixed 87-run `knitwork-aistat` weekly inventory and preserved in [a sanitized snapshot](../../docs/experiments/aistats2027_new_devices.json). All identify H100 80GB HBM3. Only GPU model labels were saved; environment variables, hostnames, usernames, IP addresses, and credentials were omitted. Shared hardware labels do not establish controlled workload conditions.
-
-The paper reports carried-state storage separately from peak training memory and runtime. It does not claim efficient sparse execution or learned semantic specialization. The code/configuration release is planned after acceptance; no anonymous code archive accompanies this draft. Historical seeds, the complete tuning record, and a complete asset-license inventory remain unavailable. The official checklist retains truthful No answers for those omissions. The author kit requests it after references, permits omission at initial submission without desk rejection, and requires its later inclusion at author response/camera-ready. It is retained here as a completed submission section.
-
-## Remaining evidence gaps
-
-- Full-budget state-matched and compute-matched controls. The found state-matched GRU run is only a technical check, not a quality comparison.
-- Independent SDQ evaluation with fixed gaps and held-out sequences.
-- Full-budget, repeated-seed regulator/projection/readout ablations, particularly on SDQ.
-- Strong-baseline and repeated-seed MQAR/RL comparisons; broader tasks and scales.
-- Controlled throughput, inference latency, peak training memory, and consistently estimated FLOPs if making an efficiency claim.
-- An untouched test evaluation: the newly configured Text8 test segment overlaps historical development validation. The current paper reports internal validation throughout.
-
-The [final audit](../../2026-10-05-aistats-final-audit.md) checks conference requirements and all 24 questions in the repository's paper-review guide. The [reviewer follow-up](../../2026-10-05-aistats-reviewer-followup.md) additionally maps all retained reviewer claims, both critical issues, eleven major and fourteen minor audit items, and the AI architecture analysis. This pass clarified BRIMs overlap, the approximate 0.973M–1.069M parameter range, readout-width confounding, unverifiable historical seed independence, and routing-diagnostic limits; all three figures now have prose references. No training or external submission was performed during revision. The local abstract was updated; the exact abstract previously entered in OpenReview is unavailable here. The author should compare it against this revision before upload, because the current call for papers flags major title/abstract changes after the abstract deadline. OpenReview author/profile/quota/reviewer fields and concurrent-submission status were not accessible for verification.
-
-## October 6 budget-reporting revision
-
-Both manuscript editions now use a single 1B-token budget for the main comparisons. Table 2 has no separate panel, endpoint footnotes, or interpolation labels. Exact reporting counters have also been removed from the prose, figure/table captions, and pilot tables. Full-budget quality summaries are regenerated from the final available validation records within 1B; SDQ retains the final-five diagnostic summary. Short pilots retain their configured protocols. The generators preserve these presentation choices, and numerical source records remain in the offline provenance JSON. The latest build and numeric checks are recorded in [budget-reporting validation](../../docs/experiments/aistats2027_budget_reporting_validation.json).
-
-## October 7 local Bayesian analysis and caption revision
-
-Both editions now include `aistats_bayesian_main.tex` in Section 3.5 and `aistats_bayesian_appendix.tex` as Appendix A. The analysis contains five theorems, four supporting lemmas, and a column-count counterexample, with complete proofs. It uses a proper Gaussian prior, retains normalized flat-prior likelihood as a limiting calculation, and states precisely what compression can lose. It explicitly separates fixed information access from learned adaptive top-k routing and Gaussian squared-error risk from BPC. The separate edition still omits the earlier specialization and gradient hypotheses. Checklist theory answers and the AI statement reflect this addition. No Lean verification is claimed without the referenced artifact.
-
-Table 2 now has a plain English caption and `Model / Size / Runs / BPC` headers. Seed identifiers appear in the protocol appendix rather than the caption. Empirical values are unchanged; the generator reproduces the revised table, including local column spacing. The [theory revision report](../../2026-10-07-aistats-bayesian-theory.md) explains the corrections to the supplied mathematical material. [Current validation](../../docs/experiments/aistats2027_bayesian_validation.json) records builds, retained-log comparisons, mathematical sanity checks, and unchanged evidence assets.
+Both rebuilt PDFs contain 25 pages: main text 1–8, AI statement and references 9–10, checklist 11, and appendices 12–25. Checklist answer explanations were shortened without changing its questions or font size, eliminating the almost-empty continuation page. The checklist page and representative result tables were visually inspected after rebuilding.
