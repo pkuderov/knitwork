@@ -4,6 +4,17 @@ Documentation for methods and architectures from `knitwork/models/`.
 
 Select a model in the sidebar on the left.
 
+## Start here (AISTATS 2027)
+
+| Page | Contents |
+|---|---|
+| [Grid-GRU (MoSAIC)](methods/grid_gru.md) | main architecture: grid of GRU columns with an attention router |
+| [Grid-LRU](methods/grid_lru.md) | LRU-cell grid, language-model and RL versions |
+| [AISTATS results](experiments/aistats2027_results.md) | all tables at 1M and 10M parameters, communication study, MQAR, costs |
+| [Ablations](experiments/ablations.md) | every controlled ablation in one place |
+| [RL experiments](experiments/rl_2026-10.md) | POPGym study, 181 runs: what worked and what did not |
+| [Hypothesis registry](experiments/hypotheses.md) | confirmed, rejected and open hypotheses |
+
 ## Categories
 
 | Category | Models |

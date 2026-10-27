@@ -1,3 +1,15 @@
+- **AISTATS 2027 (current)**
+  - [Grid-GRU (MoSAIC) architecture](methods/grid_gru.md)
+  - [Grid-LRU architecture](methods/grid_lru.md)
+  - [Full AISTATS results](experiments/aistats2027_results.md)
+  - [Ablations](experiments/ablations.md)
+  - [RL experiments (October)](experiments/rl_2026-10.md)
+  - [Hypothesis registry](experiments/hypotheses.md)
+  - [H100 report (RU)](experiments/h100_2026-10-12/report.md)
+  - [Communication study (RU)](experiments/communication_2026-10-13/report.md)
+  - [Communication diagnostics (RU)](experiments/communication_diagnostics_2026-10-12_selected/report.md)
+  - [Routing theorems (RU)](experiments/mosaic_theorems_2026-10-13/report.md)
+
 - **Experiments**
   - [AAAI results](experiments/results_aaai.md)
   - [Results](experiments/results.md)
