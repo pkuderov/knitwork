@@ -1,0 +1,41 @@
+{
+  "method": "CPU profiler mm/bmm/addmm FLOPs for one forward token; multiply-add counts as two",
+  "checks": [
+    {
+      "model": "Grid-GRU L3C4",
+      "analytical_matrix_flops": 3090080,
+      "profiled_matrix_flops": 3090080
+    },
+    {
+      "model": "Grid-GRU L2C4",
+      "analytical_matrix_flops": 3060272,
+      "profiled_matrix_flops": 3060272
+    },
+    {
+      "model": "Grid-GRU L2C8",
+      "analytical_matrix_flops": 3043392,
+      "profiled_matrix_flops": 3043392
+    },
+    {
+      "model": "Grid-GRU L1C8",
+      "analytical_matrix_flops": 3262280,
+      "profiled_matrix_flops": 3262280
+    },
+    {
+      "model": "GRU L1",
+      "analytical_matrix_flops": 1980408,
+      "profiled_matrix_flops": 1980408
+    },
+    {
+      "model": "GRU L2",
+      "analytical_matrix_flops": 2006208,
+      "profiled_matrix_flops": 2006208
+    },
+    {
+      "model": "GRU L3",
+      "analytical_matrix_flops": 1950192,
+      "profiled_matrix_flops": 1950192
+    }
+  ],
+  "new_training_runs": 0
+}

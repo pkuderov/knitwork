@@ -1,0 +1,111 @@
+/* knitwork — custom sidebar theme overrides */
+
+/* ── Light theme ─────────────────────────────────────────────── */
+.light {
+  --sidebar-bg: #eef0fb;
+  --sidebar-fg: #2c2f4a;
+  --sidebar-active: #3f51b5;
+  --sidebar-spacer: #c5cae9;
+  --sidebar-non-existant: #9fa8da;
+  --links: #3949ab;
+  --theme-hover: #e8eaf6;
+  --inline-code-color: #283593;
+  --table-header-bg: #c5cae9;
+  --table-alternate-bg: #f3f4fc;
+}
+
+/* ── Rust theme ──────────────────────────────────────────────── */
+.rust {
+  --sidebar-bg: #f2ede8;
+  --sidebar-fg: #2c2014;
+  --sidebar-active: #8b4513;
+  --sidebar-spacer: #d9c8b4;
+  --links: #a0522d;
+  --theme-hover: #e8ddd0;
+}
+
+/* ── Coal theme (dark) ───────────────────────────────────────── */
+.coal {
+  --sidebar-bg: #1a1d2e;
+  --sidebar-fg: #9fa8da;
+  --sidebar-active: #7986cb;
+  --sidebar-spacer: #252842;
+  --links: #7986cb;
+  --theme-hover: #20243a;
+}
+
+/* ── Navy theme (dark) ───────────────────────────────────────── */
+.navy {
+  --sidebar-bg: #1e2340;
+  --sidebar-fg: #c5cae9;
+  --sidebar-active: #7986cb;
+  --sidebar-spacer: #2a3050;
+  --links: #7986cb;
+  --theme-hover: #252d52;
+}
+
+/* ── Ayu theme (dark orange) ─────────────────────────────────── */
+.ayu {
+  --sidebar-bg: #13181f;
+  --sidebar-fg: #b0b8d0;
+  --sidebar-active: #ffb454;
+  --sidebar-spacer: #1e2530;
+  --theme-hover: #1a2130;
+}
+
+/* ── Sidebar structure ───────────────────────────────────────── */
+
+/* Section headings (= in book.typ) */
+.chapter .section {
+  font-size: 0.72em;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sidebar-active);
+  opacity: 0.85;
+  padding: 12px 0 2px 16px;
+  margin-top: 4px;
+}
+
+/* Active chapter item — left accent bar */
+.chapter li a.active {
+  border-left: 3px solid var(--sidebar-active);
+  padding-left: 13px;
+  font-weight: 600;
+}
+
+/* All chapter links — subtle left space so active bar doesn't shift layout */
+.chapter li a {
+  border-left: 3px solid transparent;
+  padding-left: 13px;
+  transition: border-color 0.15s, background-color 0.15s;
+  border-radius: 0 4px 4px 0;
+}
+
+.chapter li a:hover {
+  background-color: var(--theme-hover);
+}
+
+/* Spacer line between sections */
+.chapter .spacer {
+  height: 1px;
+  margin: 6px 12px;
+  opacity: 0.5;
+}
+
+/* Code in sidebar */
+.sidebar code {
+  font-size: 0.85em;
+  border-radius: 3px;
+  padding: 1px 4px;
+  background: var(--sidebar-spacer);
+}
+
+/* Scrollbar */
+.sidebar::-webkit-scrollbar {
+  width: 4px;
+}
+.sidebar::-webkit-scrollbar-thumb {
+  background: var(--sidebar-spacer);
+  border-radius: 2px;
+}

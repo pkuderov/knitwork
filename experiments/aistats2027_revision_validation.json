@@ -1,0 +1,103 @@
+{
+  "checked_utc": "2026-10-05T11:57:12.977236+00:00",
+  "pdf_sha256": "2b1f1142a8a3691f73ecafdba77f7d30858b4f6aafd98c93d9fef82b0b86db9b",
+  "pdf_pages": 21,
+  "main_pages": 8,
+  "ai_statement_page": 9,
+  "references_pages": [
+    9,
+    10
+  ],
+  "checklist_page": 11,
+  "appendix_pages": [
+    12,
+    21
+  ],
+  "appendix_page_count": 10,
+  "anonymous_author_metadata": true,
+  "letter_page_size": true,
+  "font_types": [
+    "Type0",
+    "Type1"
+  ],
+  "type3_fonts": false,
+  "unresolved_citations_or_references": false,
+  "text_spans_outside_page": [],
+  "main_baseline_groups": 18,
+  "main_baseline_table_page": 7,
+  "new_exact_horizon_groups": 16,
+  "new_exact_horizon_launches": 36,
+  "new_separate_horizon_groups": 2,
+  "new_separate_horizon_launches": 5,
+  "new_total_main_launches": 41,
+  "historical_main_text8_launches": 29,
+  "historical_main_sdq_launches": 24,
+  "interpolated_transformer_launches": 6,
+  "pilot_scalar_checks_against_raw_logs": 124,
+  "periodic_reset_values_added": true,
+  "historical_resource_inventory_runs": 65,
+  "historical_h100_resource_subset_runs": 48,
+  "historical_other_gpu_runs_excluded_from_cost_tables": 17,
+  "original_device_labels_preserved": true,
+  "historical_heterogeneous_quality_hardware_disclosed": true,
+  "new_device_snapshot_runs": 87,
+  "new_main_device_labels_verified": 41,
+  "new_pilot_device_ids_verified": 41,
+  "ai_literature_analysis_disclosed": true,
+  "ai_code_assistance_disclosed": true,
+  "official_checklist_questions_unchanged": true,
+  "official_checklist_answered_questions": 18,
+  "conference_cfp_checked": "https://virtual.aistats.org/Conferences/2027/CallForPapers",
+  "official_checklist_policy_source": "AISTATS2027PaperPack/sample_paper.tex",
+  "paper_review_questions_audited": 24,
+  "key_pages_visually_reviewed": [
+    1,
+    7,
+    8,
+    9,
+    11,
+    15,
+    16,
+    20
+  ],
+  "new_training_launched": false,
+  "external_submission_changed": false,
+  "remaining_tex_warnings": [
+    "Overfull \\hbox (5.1225pt too wide) in paragraph at lines 30--30"
+  ],
+  "official_style_verification": {
+    "aistats2027.sty": {
+      "matches_official_kit": true,
+      "sha256": "33ab38f8aac4b2f1df9fe67e354928598200584e9568385f32deb889e1b81d42"
+    },
+    "fancyhdr.sty": {
+      "matches_official_kit": true,
+      "sha256": "b56ec4434b9f4607529a4b23dc68ad8d4b94f1f631c8cddaf7da78140d53a5ea"
+    }
+  },
+  "all_figures_referenced_from_prose": true,
+  "figure_count": 3,
+  "new_parameter_count_range": {
+    "min": 972715,
+    "max": 1068743
+  },
+  "historical_seed_independence_claim_removed": true,
+  "routing_diagnostic_definition_checked_against_code": true,
+  "reviewer_followup_report": "2026-10-05-aistats-reviewer-followup.md",
+  "retained_reviewer_claims_audited": 10,
+  "old_audit_items_audited": {
+    "critical": 2,
+    "major": 11,
+    "minor": 14
+  },
+  "deadline_moscow": "2026-10-07T14:59:00+03:00",
+  "reviewer_pass_pages_visually_reviewed": [
+    2,
+    8,
+    14
+  ],
+  "resource_tables_15_16_page": 21,
+  "resource_tables_15_16_gap_pt": 37.92,
+  "resource_table_placement": "H",
+  "underfull_vbox_diagnostics": 8
+}

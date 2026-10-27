@@ -1,0 +1,33 @@
+{
+  "kind": "CPU algebra diagnostic, no optimization or training; fixed random hub context, zero initial bank",
+  "seed": 0,
+  "results": [
+    {
+      "mode": "slot_content",
+      "changed_slots": 8,
+      "first_usage_min": 0.023256845772266388,
+      "first_usage_max": 0.03300303593277931,
+      "first_key_min_pair_cosine": 0.9999997615814209,
+      "usage_min_after256": 0.9975801706314087,
+      "usage_max_after256": 0.9998143315315247
+    },
+    {
+      "mode": "slot_alloc",
+      "changed_slots": 8,
+      "first_usage_min": 0.023256845772266388,
+      "first_usage_max": 0.03300303593277931,
+      "first_key_min_pair_cosine": 0.9999998807907104,
+      "usage_min_after256": 0.9980905652046204,
+      "usage_max_after256": 0.9997611045837402
+    },
+    {
+      "mode": "slot_erase_add",
+      "changed_slots": 8,
+      "first_usage_min": 0.023256845772266388,
+      "first_usage_max": 0.03300303593277931,
+      "first_key_min_pair_cosine": 0.9999998807907104,
+      "usage_min_after256": 0.9975801706314087,
+      "usage_max_after256": 0.9998143315315247
+    }
+  ]
+}

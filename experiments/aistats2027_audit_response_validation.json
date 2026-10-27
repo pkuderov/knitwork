@@ -1,0 +1,141 @@
+{
+  "date": "2026-10-07",
+  "pdfs": {
+    "paper": {
+      "pages": 25,
+      "main_pages": 8,
+      "ai_references_pages": [
+        9,
+        10
+      ],
+      "checklist_pages": [
+        11
+      ],
+      "appendix_pages": [
+        12,
+        25
+      ],
+      "anonymous_metadata": true,
+      "dates_removed": true,
+      "excluded_model_mentions": 0,
+      "font_types": [
+        "Type0",
+        "Type1"
+      ],
+      "out_of_page_bounds": [],
+      "undefined_references": false,
+      "overfull": [
+        "Overfull \\hbox (5.1225pt too wide) in paragraph at lines 36--36"
+      ],
+      "sha256": "3f15101908a1693723b9e98409423fae10383f8d536cb613f56860f49c75a49f",
+      "minimum_page_text_characters": 1056
+    },
+    "paper_evidence_only": {
+      "pages": 25,
+      "main_pages": 8,
+      "ai_references_pages": [
+        9,
+        10
+      ],
+      "checklist_pages": [
+        11
+      ],
+      "appendix_pages": [
+        12,
+        25
+      ],
+      "anonymous_metadata": true,
+      "dates_removed": true,
+      "excluded_model_mentions": 0,
+      "font_types": [
+        "Type0",
+        "Type1"
+      ],
+      "out_of_page_bounds": [],
+      "undefined_references": false,
+      "overfull": [
+        "Overfull \\hbox (5.1225pt too wide) in paragraph at lines 37--37"
+      ],
+      "sha256": "67b6e8bffa0de46317389ad5d984461db56bcff91ca7f5420d513b17354dfc46",
+      "minimum_page_text_characters": 1056
+    }
+  },
+  "official_style_files_unchanged": {
+    "aistats2027.sty": true,
+    "fancyhdr.sty": true
+  },
+  "published_mid_configurations": 17,
+  "published_mid_training_runs": 39,
+  "available_test_evaluations": 18,
+  "test_groups_with_values": 12,
+  "historical_quality_unchanged": true,
+  "included_mid_scores_and_seeds_unchanged": true,
+  "pilot_scores_unchanged": true,
+  "topk_scores_unchanged": true,
+  "sdq_final_five_after_curriculum_plateau": true,
+  "pilot_scalar_checks_against_raw_logs": 124,
+  "welch_intervals_all_include_zero": true,
+  "new_training_runs": 0,
+  "external_tracker_requests": 0,
+  "archive_published": false,
+  "archive_sha256": "cfaf84d316ace14ff3a5b07db750682b5c4d25a91fc753e4f9414350b0edb91c",
+  "table_formatting": {
+    "aistats_resources_main.tex": {
+      "bold": 0,
+      "second_underlined": 0
+    },
+    "aistats_rollout.tex": {
+      "bold": 2,
+      "second_underlined": 2
+    },
+    "aistats_mqar.tex": {
+      "bold": 7,
+      "second_underlined": 7
+    },
+    "aistats_rl.tex": {
+      "bold": 2,
+      "second_underlined": 2
+    },
+    "aistats_mid_main.tex": {
+      "bold": 1,
+      "second_underlined": 1
+    },
+    "aistats_ablation_main.tex": {
+      "bold": 1,
+      "second_underlined": 1
+    },
+    "aistats_lru_variants.tex": {
+      "bold": 2,
+      "second_underlined": 2
+    },
+    "aistats_sparse_lru.tex": {
+      "bold": 1,
+      "second_underlined": 1
+    },
+    "aistats_uncertainty_checks.tex": {
+      "bold": 0,
+      "second_underlined": 0
+    },
+    "aistats_resources_appendix.tex": {
+      "bold": 0,
+      "second_underlined": 0
+    },
+    "aistats_historical_main.tex": {
+      "bold": 2,
+      "second_underlined": 2
+    },
+    "aistats_mid_state.tex": {
+      "bold": 0,
+      "second_underlined": 0
+    },
+    "aistats_mid_test.tex": {
+      "bold": 1,
+      "second_underlined": 1
+    }
+  },
+  "visual_pages_inspected": [
+    6,
+    11,
+    22
+  ]
+}

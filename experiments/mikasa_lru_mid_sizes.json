@@ -1,0 +1,354 @@
+{
+  "measurement": "CPU instantiation of current RLVectorModel; default one-hot observation + previous action/reward",
+  "state_count": "Sum of init_state tensor elements, including views and auxiliary outs; not unique allocation or information capacity",
+  "models": [
+    {
+      "family": "brims",
+      "cases": [
+        {
+          "environment": "RepeatFirstEasy",
+          "input_dim": 9,
+          "params": 981653,
+          "state_tensor_elements": 1920
+        },
+        {
+          "environment": "HigherLowerMedium",
+          "input_dim": 16,
+          "params": 984051,
+          "state_tensor_elements": 1920
+        },
+        {
+          "environment": "CountRecallHard",
+          "input_dim": 43,
+          "params": 1003745,
+          "state_tensor_elements": 1920
+        },
+        {
+          "environment": "ConcentrationHard",
+          "input_dim": 781,
+          "params": 1375301,
+          "state_tensor_elements": 1920
+        }
+      ]
+    },
+    {
+      "family": "delta_net",
+      "cases": [
+        {
+          "environment": "RepeatFirstEasy",
+          "input_dim": 9,
+          "params": 995604,
+          "state_tensor_elements": 141267
+        },
+        {
+          "environment": "HigherLowerMedium",
+          "input_dim": 16,
+          "params": 996687,
+          "state_tensor_elements": 141267
+        },
+        {
+          "environment": "CountRecallHard",
+          "input_dim": 43,
+          "params": 1005598,
+          "state_tensor_elements": 141267
+        },
+        {
+          "environment": "ConcentrationHard",
+          "input_dim": 781,
+          "params": 1173592,
+          "state_tensor_elements": 141267
+        }
+      ]
+    },
+    {
+      "family": "dynamic_hub",
+      "cases": [
+        {
+          "environment": "RepeatFirstEasy",
+          "input_dim": 9,
+          "params": 1048181,
+          "state_tensor_elements": 5040
+        },
+        {
+          "environment": "HigherLowerMedium",
+          "input_dim": 16,
+          "params": 1049079,
+          "state_tensor_elements": 5040
+        },
+        {
+          "environment": "CountRecallHard",
+          "input_dim": 43,
+          "params": 1056473,
+          "state_tensor_elements": 5040
+        },
+        {
+          "environment": "ConcentrationHard",
+          "input_dim": 781,
+          "params": 1195829,
+          "state_tensor_elements": 5040
+        }
+      ]
+    },
+    {
+      "family": "grnn_gru",
+      "cases": [
+        {
+          "environment": "RepeatFirstEasy",
+          "input_dim": 9,
+          "params": 1045173,
+          "state_tensor_elements": 1632
+        },
+        {
+          "environment": "HigherLowerMedium",
+          "input_dim": 16,
+          "params": 1045851,
+          "state_tensor_elements": 1632
+        },
+        {
+          "environment": "CountRecallHard",
+          "input_dim": 43,
+          "params": 1051441,
+          "state_tensor_elements": 1632
+        },
+        {
+          "environment": "ConcentrationHard",
+          "input_dim": 781,
+          "params": 1156741,
+          "state_tensor_elements": 1632
+        }
+      ]
+    },
+    {
+      "family": "grnn_lru",
+      "cases": [
+        {
+          "environment": "RepeatFirstEasy",
+          "input_dim": 9,
+          "params": 1042421,
+          "state_tensor_elements": 5040
+        },
+        {
+          "environment": "HigherLowerMedium",
+          "input_dim": 16,
+          "params": 1043319,
+          "state_tensor_elements": 5040
+        },
+        {
+          "environment": "CountRecallHard",
+          "input_dim": 43,
+          "params": 1050713,
+          "state_tensor_elements": 5040
+        },
+        {
+          "environment": "ConcentrationHard",
+          "input_dim": 781,
+          "params": 1190069,
+          "state_tensor_elements": 5040
+        }
+      ]
+    },
+    {
+      "family": "gru",
+      "cases": [
+        {
+          "environment": "RepeatFirstEasy",
+          "input_dim": 9,
+          "params": 1003109,
+          "state_tensor_elements": 576
+        },
+        {
+          "environment": "HigherLowerMedium",
+          "input_dim": 16,
+          "params": 1004547,
+          "state_tensor_elements": 576
+        },
+        {
+          "environment": "CountRecallHard",
+          "input_dim": 43,
+          "params": 1016369,
+          "state_tensor_elements": 576
+        },
+        {
+          "environment": "ConcentrationHard",
+          "input_dim": 781,
+          "params": 1239317,
+          "state_tensor_elements": 576
+        }
+      ]
+    },
+    {
+      "family": "hgrn2",
+      "cases": [
+        {
+          "environment": "RepeatFirstEasy",
+          "input_dim": 9,
+          "params": 990221,
+          "state_tensor_elements": 280908
+        },
+        {
+          "environment": "HigherLowerMedium",
+          "input_dim": 16,
+          "params": 990984,
+          "state_tensor_elements": 280908
+        },
+        {
+          "environment": "CountRecallHard",
+          "input_dim": 43,
+          "params": 997271,
+          "state_tensor_elements": 280908
+        },
+        {
+          "environment": "ConcentrationHard",
+          "input_dim": 781,
+          "params": 1115729,
+          "state_tensor_elements": 280908
+        }
+      ]
+    },
+    {
+      "family": "lru",
+      "cases": [
+        {
+          "environment": "RepeatFirstEasy",
+          "input_dim": 9,
+          "params": 1032119,
+          "state_tensor_elements": 1432
+        },
+        {
+          "environment": "HigherLowerMedium",
+          "input_dim": 16,
+          "params": 1033907,
+          "state_tensor_elements": 1432
+        },
+        {
+          "environment": "CountRecallHard",
+          "input_dim": 43,
+          "params": 1048599,
+          "state_tensor_elements": 1432
+        },
+        {
+          "environment": "ConcentrationHard",
+          "input_dim": 781,
+          "params": 1325727,
+          "state_tensor_elements": 1432
+        }
+      ]
+    },
+    {
+      "family": "mamba",
+      "cases": [
+        {
+          "environment": "RepeatFirstEasy",
+          "input_dim": 9,
+          "params": 995613,
+          "state_tensor_elements": 29488
+        },
+        {
+          "environment": "HigherLowerMedium",
+          "input_dim": 16,
+          "params": 996581,
+          "state_tensor_elements": 29488
+        },
+        {
+          "environment": "CountRecallHard",
+          "input_dim": 43,
+          "params": 1004549,
+          "state_tensor_elements": 29488
+        },
+        {
+          "environment": "ConcentrationHard",
+          "input_dim": 781,
+          "params": 1154741,
+          "state_tensor_elements": 29488
+        }
+      ]
+    },
+    {
+      "family": "mlstm",
+      "cases": [
+        {
+          "environment": "RepeatFirstEasy",
+          "input_dim": 9,
+          "params": 987131,
+          "state_tensor_elements": 140619
+        },
+        {
+          "environment": "HigherLowerMedium",
+          "input_dim": 16,
+          "params": 988209,
+          "state_tensor_elements": 140619
+        },
+        {
+          "environment": "CountRecallHard",
+          "input_dim": 43,
+          "params": 997079,
+          "state_tensor_elements": 140619
+        },
+        {
+          "environment": "ConcentrationHard",
+          "input_dim": 781,
+          "params": 1164299,
+          "state_tensor_elements": 140619
+        }
+      ]
+    },
+    {
+      "family": "rims",
+      "cases": [
+        {
+          "environment": "RepeatFirstEasy",
+          "input_dim": 9,
+          "params": 967693,
+          "state_tensor_elements": 1392
+        },
+        {
+          "environment": "HigherLowerMedium",
+          "input_dim": 16,
+          "params": 971171,
+          "state_tensor_elements": 1392
+        },
+        {
+          "environment": "CountRecallHard",
+          "input_dim": 43,
+          "params": 999721,
+          "state_tensor_elements": 1392
+        },
+        {
+          "environment": "ConcentrationHard",
+          "input_dim": 781,
+          "params": 1538461,
+          "state_tensor_elements": 1392
+        }
+      ]
+    },
+    {
+      "family": "two_reads",
+      "cases": [
+        {
+          "environment": "RepeatFirstEasy",
+          "input_dim": 9,
+          "params": 1048181,
+          "state_tensor_elements": 5040
+        },
+        {
+          "environment": "HigherLowerMedium",
+          "input_dim": 16,
+          "params": 1049079,
+          "state_tensor_elements": 5040
+        },
+        {
+          "environment": "CountRecallHard",
+          "input_dim": 43,
+          "params": 1056473,
+          "state_tensor_elements": 5040
+        },
+        {
+          "environment": "ConcentrationHard",
+          "input_dim": 781,
+          "params": 1195829,
+          "state_tensor_elements": 5040
+        }
+      ]
+    }
+  ]
+}

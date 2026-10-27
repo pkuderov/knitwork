@@ -1,0 +1,691 @@
+{
+  "test_source": "docs/experiments/recent_metrics_2026-10-05.csv",
+  "test_source_decimal_places": 6,
+  "test_values_reported": true,
+  "test_values_used_for_selection": false,
+  "test_checkpoint_rule": "Minimum reset-1024 validation loss; reported test score uses continuous state.",
+  "test_split_overlaps_10M_development_validation": true,
+  "test_groups": [
+    {
+      "model": "Grid-GRU L3C4",
+      "validation_runs": 3,
+      "test_runs": 1,
+      "mean_bpc": 1.65896,
+      "sample_sd": null,
+      "samples": [
+        {
+          "id": "44063b7060b041f4bd3ea1f22cde02e7",
+          "name": "mid/grnn.L3C4",
+          "seed": 42,
+          "test_bpc": null,
+          "csv_experiment": "grnn.L3C4_1.07M mid/grnn.L3C4"
+        },
+        {
+          "id": "4a3faa4788964891aeabadbf65a85c9b",
+          "name": "mid/grnn.L3C4/seed1337",
+          "seed": 1337,
+          "test_bpc": 1.65896,
+          "csv_experiment": "grnn.L3C4_1.07M mid/grnn.L3C4/seed1337"
+        },
+        {
+          "id": "971aace34ca7408e91f6964443ef2a8e",
+          "name": "mid/grnn.L3C4/seed31337",
+          "seed": 31337,
+          "test_bpc": null,
+          "csv_experiment": "grnn.L3C4_1.07M mid/grnn.L3C4/seed31337"
+        }
+      ]
+    },
+    {
+      "model": "Grid-GRU L2C4",
+      "validation_runs": 3,
+      "test_runs": 2,
+      "mean_bpc": 1.6636325,
+      "sample_sd": 0.005613720735839943,
+      "samples": [
+        {
+          "id": "9a7f67837248411baed1f216bd28375a",
+          "name": "mid/grnn.L2C4",
+          "seed": 42,
+          "test_bpc": null,
+          "csv_experiment": "grnn.L2C4_1.05M mid/grnn.L2C4"
+        },
+        {
+          "id": "5196277eae0c401388e5579ab8e48d4c",
+          "name": "mid/grnn.L2C4/seed1337",
+          "seed": 1337,
+          "test_bpc": 1.659663,
+          "csv_experiment": "grnn.L2C4_1.05M mid/grnn.L2C4/seed1337"
+        },
+        {
+          "id": "3d9e9cece42d4c67b913628ae3348c02",
+          "name": "mid/grnn.L2C4/seed31337",
+          "seed": 31337,
+          "test_bpc": 1.667602,
+          "csv_experiment": "grnn.L2C4_1.05M mid/grnn.L2C4/seed31337"
+        }
+      ]
+    },
+    {
+      "model": "Grid-GRU L2C8",
+      "validation_runs": 2,
+      "test_runs": 1,
+      "mean_bpc": 1.672999,
+      "sample_sd": null,
+      "samples": [
+        {
+          "id": "f75e22df3dbf4eb0abbfe093463be428",
+          "name": "mid/grnn.L2C8",
+          "seed": 42,
+          "test_bpc": null,
+          "csv_experiment": "grnn.L2C8_972.72K mid/grnn.L2C8"
+        },
+        {
+          "id": "d0f5cc50eab44741a6056ff8c7d1ca5d",
+          "name": "mid/grnn.L2C8/seed1337",
+          "seed": 1337,
+          "test_bpc": 1.672999,
+          "csv_experiment": "grnn.L2C8_972.72K mid/grnn.L2C8/seed1337"
+        }
+      ]
+    },
+    {
+      "model": "Grid-GRU L1C8",
+      "validation_runs": 2,
+      "test_runs": 1,
+      "mean_bpc": 1.702996,
+      "sample_sd": null,
+      "samples": [
+        {
+          "id": "cee14d6122ed4a329dda27715398d123",
+          "name": "mid/grnn.L1C8",
+          "seed": 42,
+          "test_bpc": 1.702996,
+          "csv_experiment": "grnn.L1C8_1.03M mid/grnn.L1C8"
+        },
+        {
+          "id": "90be163e283c487d9f57d3196ef3255f",
+          "name": "mid/grnn.L1C8/seed1337",
+          "seed": 1337,
+          "test_bpc": null,
+          "csv_experiment": "grnn.L1C8_1.03M mid/grnn.L1C8/seed1337"
+        }
+      ]
+    },
+    {
+      "model": "GRU L1",
+      "validation_runs": 2,
+      "test_runs": 1,
+      "mean_bpc": 1.741483,
+      "sample_sd": null,
+      "samples": [
+        {
+          "id": "05f0c70d309447ec80bf5283ef27c895",
+          "name": "mid/rnn.L1",
+          "seed": 42,
+          "test_bpc": null,
+          "csv_experiment": "rnn.L1_1.00M mid/rnn.L1"
+        },
+        {
+          "id": "96bc5360a1b646f6b539e622c448e4aa",
+          "name": "mid/rnn.L1/seed1337",
+          "seed": 1337,
+          "test_bpc": 1.741483,
+          "csv_experiment": "rnn.L1_1.00M mid/rnn.L1/seed1337"
+        }
+      ]
+    },
+    {
+      "model": "GRU L2",
+      "validation_runs": 3,
+      "test_runs": 2,
+      "mean_bpc": 1.6966005000000002,
+      "sample_sd": 0.00016051323932933018,
+      "samples": [
+        {
+          "id": "7803e0070e084e6bb917946896a6e5f6",
+          "name": "mid/rnn.L2",
+          "seed": 42,
+          "test_bpc": 1.696487,
+          "csv_experiment": "rnn.L2_1.01M mid/rnn.L2"
+        },
+        {
+          "id": "5792d3c74aaa45d2b9dc30ffabe9cf13",
+          "name": "mid/rnn.L2/seed1337",
+          "seed": 1337,
+          "test_bpc": null,
+          "csv_experiment": "rnn.L2_1.01M mid/rnn.L2/seed1337"
+        },
+        {
+          "id": "3735558c81684840aeace6620ee9c975",
+          "name": "mid/rnn.L2/seed31337",
+          "seed": 31337,
+          "test_bpc": 1.696714,
+          "csv_experiment": "rnn.L2_1.01M mid/rnn.L2/seed31337"
+        }
+      ]
+    },
+    {
+      "model": "GRU L3",
+      "validation_runs": 2,
+      "test_runs": 2,
+      "mean_bpc": 1.6814195,
+      "sample_sd": 0.006811559623170014,
+      "samples": [
+        {
+          "id": "eaa1d5c561f54610ac6dba212583dcaf",
+          "name": "mid/rnn.L3",
+          "seed": 42,
+          "test_bpc": 1.686236,
+          "csv_experiment": "rnn.L3_985.56K mid/rnn.L3"
+        },
+        {
+          "id": "8519d480488a4fa79a6759e160c627b9",
+          "name": "mid/rnn.L3/seed1337",
+          "seed": 1337,
+          "test_bpc": 1.676603,
+          "csv_experiment": "rnn.L3_985.56K mid/rnn.L3/seed1337"
+        }
+      ]
+    },
+    {
+      "model": "Grid-LRU L1C8",
+      "validation_runs": 2,
+      "test_runs": 1,
+      "mean_bpc": 1.811621,
+      "sample_sd": null,
+      "samples": [
+        {
+          "id": "dcc52e7eb8034b36ab310e0eff23fdff",
+          "name": "mid/grnn_lru.L1C8",
+          "seed": 42,
+          "test_bpc": 1.811621,
+          "csv_experiment": "grnn_lru.L1C8_1.00M mid/grnn_lru.L1C8"
+        },
+        {
+          "id": "1450ffd799094de991a228ca5b11f103",
+          "name": "mid/grnn_lru.L1C8/seed1337",
+          "seed": 1337,
+          "test_bpc": null,
+          "csv_experiment": "grnn_lru.L1C8_1.00M mid/grnn_lru.L1C8/seed1337"
+        }
+      ]
+    },
+    {
+      "model": "Grid-LRU L2C4",
+      "validation_runs": 3,
+      "test_runs": 0,
+      "mean_bpc": null,
+      "sample_sd": null,
+      "samples": [
+        {
+          "id": "6c724575fff24580bd7058effbc4416d",
+          "name": "mid/grnn_lru.L2C4",
+          "seed": 42,
+          "test_bpc": null,
+          "csv_experiment": "grnn_lru.L2C4_1.05M mid/grnn_lru.L2C4"
+        },
+        {
+          "id": "55de969d194c4ef98ee1c17388a45c2c",
+          "name": "mid/grnn_lru.L2C4/seed1337",
+          "seed": 1337,
+          "test_bpc": null,
+          "csv_experiment": "grnn_lru.L2C4_1.05M mid/grnn_lru.L2C4/seed1337"
+        },
+        {
+          "id": "5c0724b59c83434498bb98ceec4686ce",
+          "name": "mid/grnn_lru.L2C4/seed31337",
+          "seed": 31337,
+          "test_bpc": null,
+          "csv_experiment": "grnn_lru.L2C4_1.05M mid/grnn_lru.L2C4/seed31337"
+        }
+      ]
+    },
+    {
+      "model": "Grid-LRU L2C8",
+      "validation_runs": 2,
+      "test_runs": 0,
+      "mean_bpc": null,
+      "sample_sd": null,
+      "samples": [
+        {
+          "id": "09fb7a42bf0e47c49a31cf8dc89705a2",
+          "name": "mid/grnn_lru.L2C8",
+          "seed": 42,
+          "test_bpc": null,
+          "csv_experiment": "grnn_lru.L2C8_1.06M mid/grnn_lru.L2C8"
+        },
+        {
+          "id": "0b24e705672e4b81b0e9b9f79bcd56f3",
+          "name": "mid/grnn_lru.L2C8/seed1337",
+          "seed": 1337,
+          "test_bpc": null,
+          "csv_experiment": "grnn_lru.L2C8_1.06M mid/grnn_lru.L2C8/seed1337"
+        }
+      ]
+    },
+    {
+      "model": "Grid-LRU L3C4",
+      "validation_runs": 3,
+      "test_runs": 2,
+      "mean_bpc": 1.730137,
+      "sample_sd": 0.00020081832585694482,
+      "samples": [
+        {
+          "id": "08b65912756e45c3a02c6408a33252d3",
+          "name": "mid/grnn_lru.L3C4",
+          "seed": 42,
+          "test_bpc": 1.729995,
+          "csv_experiment": "grnn_lru.L3C4_1.06M mid/grnn_lru.L3C4"
+        },
+        {
+          "id": "5423e339c5ed4f02a9cab6b8c832ae9f",
+          "name": "mid/grnn_lru.L3C4/seed1337",
+          "seed": 1337,
+          "test_bpc": 1.730279,
+          "csv_experiment": "grnn_lru.L3C4_1.06M mid/grnn_lru.L3C4/seed1337"
+        },
+        {
+          "id": "7bf4b64dc82b4eb6bb76dc27d43fc073",
+          "name": "mid/grnn_lru.L3C4/seed31337",
+          "seed": 31337,
+          "test_bpc": null,
+          "csv_experiment": "grnn_lru.L3C4_1.06M mid/grnn_lru.L3C4/seed31337"
+        }
+      ]
+    },
+    {
+      "model": "Transformer-256",
+      "validation_runs": 2,
+      "test_runs": 0,
+      "mean_bpc": null,
+      "sample_sd": null,
+      "samples": [
+        {
+          "id": "ad72c9a030bb4fd397f655b78d8780f2",
+          "name": "mid/transformer",
+          "seed": 42,
+          "test_bpc": null,
+          "csv_experiment": "transformer_1.00M mid/transformer"
+        },
+        {
+          "id": "37180ab2c16f43b2bda41a39bea06469",
+          "name": "mid/transformer/seed1337",
+          "seed": 1337,
+          "test_bpc": null,
+          "csv_experiment": "transformer_1.00M mid/transformer/seed1337"
+        }
+      ]
+    },
+    {
+      "model": "HGRN2",
+      "validation_runs": 2,
+      "test_runs": 0,
+      "mean_bpc": null,
+      "sample_sd": null,
+      "samples": [
+        {
+          "id": "6f9ad9de836246cb8b2e5a2036cec297",
+          "name": "mid/hgrn2",
+          "seed": 42,
+          "test_bpc": null,
+          "csv_experiment": "hgrn2_996.21K mid/hgrn2"
+        },
+        {
+          "id": "14cc943be7234f569619183357c62e79",
+          "name": "mid/hgrn2/seed1337",
+          "seed": 1337,
+          "test_bpc": null,
+          "csv_experiment": "hgrn2_996.21K mid/hgrn2/seed1337"
+        }
+      ]
+    },
+    {
+      "model": "mLSTM",
+      "validation_runs": 2,
+      "test_runs": 0,
+      "mean_bpc": null,
+      "sample_sd": null,
+      "samples": [
+        {
+          "id": "a2f65cc2fde14e23a79e2d0ab3827767",
+          "name": "mid/mlstm",
+          "seed": 42,
+          "test_bpc": null,
+          "csv_experiment": "mlstm_995.58K mid/mlstm"
+        },
+        {
+          "id": "7aa3cf4a63fd468c898316faa6cd8e47",
+          "name": "mid/mlstm/seed1337",
+          "seed": 1337,
+          "test_bpc": null,
+          "csv_experiment": "mlstm_995.58K mid/mlstm/seed1337"
+        }
+      ]
+    },
+    {
+      "model": "DeltaNet",
+      "validation_runs": 2,
+      "test_runs": 1,
+      "mean_bpc": 1.840287,
+      "sample_sd": null,
+      "samples": [
+        {
+          "id": "8667f73112864e69919415351f233f6b",
+          "name": "mid/delta_net",
+          "seed": 42,
+          "test_bpc": null,
+          "csv_experiment": "delta_net_1.00M mid/delta_net"
+        },
+        {
+          "id": "68ed71d067cd459bbd0b0900284c4c4f",
+          "name": "mid/delta_net/seed1337",
+          "seed": 1337,
+          "test_bpc": 1.840287,
+          "csv_experiment": "delta_net_1.00M mid/delta_net/seed1337"
+        }
+      ]
+    },
+    {
+      "model": "RIMs",
+      "validation_runs": 2,
+      "test_runs": 2,
+      "mean_bpc": 1.9333015,
+      "sample_sd": 0.09911020777144992,
+      "samples": [
+        {
+          "id": "e7095a9b4f6f48e68296bb4d41d5edf7",
+          "name": "mid/rims",
+          "seed": 42,
+          "test_bpc": 2.003383,
+          "csv_experiment": "rims_994.86K mid/rims"
+        },
+        {
+          "id": "0a817e21865c4dfaa04503c5b4aa940e",
+          "name": "mid/rims/seed1337",
+          "seed": 1337,
+          "test_bpc": 1.86322,
+          "csv_experiment": "rims_994.86K mid/rims/seed1337"
+        }
+      ]
+    },
+    {
+      "model": "BRIMs",
+      "validation_runs": 2,
+      "test_runs": 2,
+      "mean_bpc": 1.9388585,
+      "sample_sd": 0.018880458164462065,
+      "samples": [
+        {
+          "id": "c306b9b240f74787bba9c02056ad7298",
+          "name": "mid/brims",
+          "seed": 42,
+          "test_bpc": 1.925508,
+          "csv_experiment": "brims_1.00M mid/brims"
+        },
+        {
+          "id": "3b24fb379acf4f4393df7b683a8fad22",
+          "name": "mid/brims/seed1337",
+          "seed": 1337,
+          "test_bpc": 1.952209,
+          "csv_experiment": "brims_1.00M mid/brims/seed1337"
+        }
+      ]
+    }
+  ],
+  "exploratory_welch_comparisons": [
+    {
+      "scale": "10M",
+      "task": "Text8",
+      "model": "grnn_L2C4",
+      "reference": "rnn_L3",
+      "n_model": 3,
+      "n_reference": 3,
+      "model_values": [
+        1.4390889406204224,
+        1.445021390914917,
+        1.435037612915039
+      ],
+      "reference_values": [
+        1.478661060333252,
+        1.4899370670318604,
+        1.480497121810913
+      ],
+      "delta": -0.043315768241882324,
+      "welch_df": 3.8686370231533607,
+      "p_two_sided": 0.0007906700553867261,
+      "nominal_ci95": [
+        -0.05608982362544976,
+        -0.03054171285831489
+      ]
+    },
+    {
+      "scale": "10M",
+      "task": "Text8",
+      "model": "grnn_L3C4",
+      "reference": "rnn_L3",
+      "n_model": 3,
+      "n_reference": 3,
+      "model_values": [
+        1.433035135269165,
+        1.4340989589691162,
+        1.4364007711410522
+      ],
+      "reference_values": [
+        1.478661060333252,
+        1.4899370670318604,
+        1.480497121810913
+      ],
+      "delta": -0.048520127932230706,
+      "welch_df": 2.3213054065083383,
+      "p_two_sided": 0.0030172850902017378,
+      "nominal_ci95": [
+        -0.06224540848397181,
+        -0.0347948473804896
+      ]
+    },
+    {
+      "scale": "10M",
+      "task": "SDQ",
+      "model": "grnn_L2C4",
+      "reference": "rnn_L1",
+      "n_model": 3,
+      "n_reference": 3,
+      "model_values": [
+        0.8381834374073417,
+        0.8490610091821069,
+        0.8425988676310157
+      ],
+      "reference_values": [
+        0.6117910331279406,
+        0.6213425828276385,
+        0.6200698685888768
+      ],
+      "delta": 0.2255466098920027,
+      "welch_df": 3.9886533845488215,
+      "p_two_sided": 8.573079356414132e-07,
+      "nominal_ci95": [
+        0.21344907250286976,
+        0.23764414728113564
+      ]
+    },
+    {
+      "scale": "10M",
+      "task": "SDQ",
+      "model": "grnn_L3C4",
+      "reference": "rnn_L1",
+      "n_model": 3,
+      "n_reference": 3,
+      "model_values": [
+        0.9055570126826488,
+        0.9280068927284502,
+        0.9275625260692499
+      ],
+      "reference_values": [
+        0.6117910331279406,
+        0.6213425828276385,
+        0.6200698685888768
+      ],
+      "delta": 0.30264098231196424,
+      "welch_df": 2.6361559956487253,
+      "p_two_sided": 0.00011083366221713403,
+      "nominal_ci95": [
+        0.2750992994948982,
+        0.3301826651290303
+      ]
+    },
+    {
+      "scale": "10M",
+      "task": "Text8",
+      "model": "grnn_L2C4",
+      "reference": "transformer",
+      "n_model": 3,
+      "n_reference": 3,
+      "model_values": [
+        1.4390889406204224,
+        1.445021390914917,
+        1.435037612915039
+      ],
+      "reference_values": [
+        1.4416393041610718,
+        1.4630935192108154,
+        1.4429818391799927
+      ],
+      "delta": -0.009522239367167229,
+      "welch_df": 2.677657780862006,
+      "p_two_sided": 0.30436063458031926,
+      "nominal_ci95": [
+        -0.03516883593217675,
+        0.01612435719784229
+      ]
+    },
+    {
+      "scale": "10M",
+      "task": "Text8",
+      "model": "grnn_L3C4",
+      "reference": "transformer",
+      "n_model": 3,
+      "n_reference": 3,
+      "model_values": [
+        1.433035135269165,
+        1.4340989589691162,
+        1.4364007711410522
+      ],
+      "reference_values": [
+        1.4416393041610718,
+        1.4630935192108154,
+        1.4429818391799927
+      ],
+      "delta": -0.01472659905751561,
+      "welch_df": 2.0819331629052003,
+      "p_two_sided": 0.1653857841157424,
+      "nominal_ci95": [
+        -0.04377552002636614,
+        0.014322321911334916
+      ]
+    },
+    {
+      "scale": "10M",
+      "task": "Text8",
+      "model": "grnn_L2C4",
+      "reference": "grnn_L2C8",
+      "n_model": 3,
+      "n_reference": 3,
+      "model_values": [
+        1.4390889406204224,
+        1.445021390914917,
+        1.435037612915039
+      ],
+      "reference_values": [
+        1.4455896615982056,
+        1.443122386932373,
+        1.4469140768051147
+      ],
+      "delta": -0.005492726961771721,
+      "welch_df": 2.575062554268801,
+      "p_two_sided": 0.18993907769986398,
+      "nominal_ci95": [
+        -0.016362778818031144,
+        0.005377324894487704
+      ]
+    },
+    {
+      "scale": "10M",
+      "task": "Text8",
+      "model": "grnn_L3C4",
+      "reference": "grnn_L2C4",
+      "n_model": 3,
+      "n_reference": 3,
+      "model_values": [
+        1.433035135269165,
+        1.4340989589691162,
+        1.4364007711410522
+      ],
+      "reference_values": [
+        1.4390889406204224,
+        1.445021390914917,
+        1.435037612915039
+      ],
+      "delta": -0.005204359690348381,
+      "welch_df": 2.4631378547606606,
+      "p_two_sided": 0.20751384378176724,
+      "nominal_ci95": [
+        -0.01627706879889204,
+        0.005868349418195277
+      ]
+    },
+    {
+      "scale": "1M",
+      "task": "Text8",
+      "model": "Grid-GRU L2C4",
+      "reference": "GRU L3",
+      "n_model": 3,
+      "n_reference": 2,
+      "model_values": [
+        1.592080547289606,
+        1.5932560487082532,
+        1.602653180751397
+      ],
+      "reference_values": [
+        1.626218587537921,
+        1.6148813192103937
+      ],
+      "delta": -0.024553361124405315,
+      "welch_df": 1.7139892386990547,
+      "p_two_sided": 0.08187926051766588,
+      "nominal_ci95": [
+        -0.05792230803752975,
+        0.008815585788719119
+      ]
+    },
+    {
+      "scale": "1M",
+      "task": "Text8",
+      "model": "Grid-GRU L3C4",
+      "reference": "GRU L3",
+      "n_model": 3,
+      "n_reference": 2,
+      "model_values": [
+        1.5927509356626692,
+        1.5909855337515624,
+        1.5918017634125574
+      ],
+      "reference_values": [
+        1.626218587537921,
+        1.6148813192103937
+      ],
+      "delta": -0.028703875765227815,
+      "welch_df": 1.0162279368842766,
+      "p_two_sided": 0.12172270370725773,
+      "nominal_ci95": [
+        -0.09834904146769737,
+        0.040941289937241734
+      ]
+    }
+  ],
+  "welch_assumptions": "Independent approximately normal run-level scores; no multiplicity correction; 10M seed independence is unverified.",
+  "segment_bootstrap_performed": false,
+  "segment_bootstrap_missing_inputs": "Aligned per-segment losses for the compared final checkpoints are not retained locally.",
+  "new_training_runs": 0,
+  "external_tracking_requests": 0
+}

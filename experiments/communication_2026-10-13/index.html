@@ -1,0 +1,213 @@
+<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Новые результаты коммуникации</title><style>body{font:16px/1.6 system-ui;max-width:1400px;margin:32px auto;padding:0 24px;color:#222}img{display:block;max-width:100%;height:auto;margin:28px auto}table{display:block;overflow-x:auto;border-collapse:collapse;margin:24px 0}td,th{border-bottom:1px solid #ddd;padding:8px 12px;text-align:left}pre{overflow:auto;background:#f5f5f5;padding:16px}a{color:#355c7d}</style><h1>Новые локальные результаты коммуникации MoSAIC</h1>
+<p>Срез: 13.10.2026 09:26 по Москве. Очередь остановлена по запросу пользователя: 11 завершённых запусков, 2 приостановленных, 3 ещё не начатых. Активных supervisor/worker процессов нет. Возобновление только вручную.</p>
+<p>Новые завершённые результаты относительно отчёта за 12 октября: Text8 <code>none_mean</code> и SDQ <code>static_mean</code>. В основном сравнении L2C4/H136, clean, seed модели и данных 42; около 1M параметров, 1088 чисел recurrent state. Все завершённые условия внутри задачи получили одинаковый бюджет около 1B токенов и совпадающий протокол. Source/config/data/initialization matching проверен штатным summarizer.</p>
+<p><strong>Все завершённые условия.</strong> BPC ниже — лучше, accuracy выше — лучше. Выбраны последние checkpoints, а не лучшие точки траекторий.</p>
+<table>
+<thead>
+<tr>
+<th>Условие</th>
+<th style="text-align:right">Text8 val BPC</th>
+<th style="text-align:right">Text8 test BPC</th>
+<th style="text-align:right">SDQ held-out Acc</th>
+<th style="text-align:right">SDQ fixed-gap macro</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>dynamic_column0</td>
+<td style="text-align:right">1.6006</td>
+<td style="text-align:right">1.6662</td>
+<td style="text-align:right">45.71%</td>
+<td style="text-align:right">52.68%</td>
+</tr>
+<tr>
+<td>static_column0</td>
+<td style="text-align:right">1.6004</td>
+<td style="text-align:right">1.6653</td>
+<td style="text-align:right">85.54%</td>
+<td style="text-align:right">72.89%</td>
+</tr>
+<tr>
+<td>none_column0</td>
+<td style="text-align:right">1.7235</td>
+<td style="text-align:right">1.7805</td>
+<td style="text-align:right">23.32%</td>
+<td style="text-align:right">44.80%</td>
+</tr>
+<tr>
+<td>dynamic_mean</td>
+<td style="text-align:right">1.6204</td>
+<td style="text-align:right">1.6825</td>
+<td style="text-align:right">79.79%</td>
+<td style="text-align:right">70.88%</td>
+</tr>
+<tr>
+<td>static_mean</td>
+<td style="text-align:right">1.6144</td>
+<td style="text-align:right">1.6791</td>
+<td style="text-align:right">82.26%</td>
+<td style="text-align:right">70.27%</td>
+</tr>
+<tr>
+<td>none_mean</td>
+<td style="text-align:right">1.6452</td>
+<td style="text-align:right">1.7055</td>
+<td style="text-align:right">не завершён</td>
+<td style="text-align:right">—</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Что добавил Text8 none_mean.</strong></p>
+<p>Без общения, но с чтением всех четырёх колонок, получено 1.6452 val BPC и 1.7055 test BPC. Это лучше none_column0 на 0.0783 val BPC: доступность остальных колонок действительно имеет значение в этом запуске. При этом none_mean хуже dynamic_mean на 0.0247 и static_mean на 0.0307 val BPC. Test сохраняет направление различий: соответственно +0.0230 и +0.0264 BPC.</p>
+<p>Это более содержательный контроль коммуникации, чем none_column0: все 1088 state-чисел имеют путь к предсказанию, readout mean одинаков. Здесь преимущество communicating-моделей не объясняется только недоступностью трёх колонок в none_column0. Номинальное число параметров и dense matrix FLOPs совпадают; эффективные градиенты и общие вычисления не обязаны совпадать. Результат описательный, одного seed. Преимущество маршрутизации, зависящей от содержимого, над обучаемыми static-связями не установлено.</p>
+<p><strong>Что добавил SDQ static_mean.</strong></p>
+<p>Финальная held-out accuracy 82.26%: выше dynamic_mean на 2.47 процентного пункта, но ниже static_column0 на 3.28 пункта. Открыть readout всю верхнюю память через mean не оказалось универсальным улучшением: у dynamic это помогло, у static в этом seed ухудшило итоговую общую accuracy.</p>
+<p>Средняя accuracy пяти fixed gaps у static_mean — 70.27%, у dynamic_mean — 70.88%, у static_column0 — 72.89%. На gap=512 static_mean даёт 16.50%, static_column0 4.98%, dynamic_mean 30.27%. Поэтому преимущество на обычной held-out задаче не означает лучшую память на каждом расстоянии. Mean может помогать сохранить доступ к длинным зависимостям, одновременно ухудшая короткие и средние; это интерпретация наблюдаемой картины, не установленный механизм.</p>
+<p><strong>Приостановленные обучения: сохранён прогресс, результаты промежуточные.</strong></p>
+<table>
+<thead>
+<tr>
+<th>Запуск</th>
+<th style="text-align:right">Checkpoint tokens</th>
+<th style="text-align:right">Последняя оценка при tokens</th>
+<th style="text-align:right">Метрика</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>sdq / L2C4 / none_mean</td>
+<td style="text-align:right">477,560,832</td>
+<td style="text-align:right">460,013,568</td>
+<td style="text-align:right">26.20% Acc</td>
+</tr>
+<tr>
+<td>text8 / L2C1 / none_column0</td>
+<td style="text-align:right">333,250,560</td>
+<td style="text-align:right">320,012,288</td>
+<td style="text-align:right">1.6920 BPC</td>
+</tr>
+</tbody>
+</table>
+<p>Последняя validation у остановленного обучения относится к последнему выполненному evaluation, а не к весам в более позднем checkpoint остановки. Новая evaluation после остановки не выполнялась. Checkpoints прочитаны на CPU: проверены число токенов, fingerprint, source hashes и наличие состояния optimizer, recurrent memory, генератора, RNG и расписаний. Ничего не возобновлялось.</p>
+<p>Одноколоночный Text8 имеет H228, 1 057 493 номинальных параметра и 456 активных state-чисел; L2C4 имеет H136, 1088 state-чисел, а none_column0 L2C4 использует для ответа только 272. Поэтому этот контроль устраняет бесполезные колонки, но не уравнивает размер памяти с L2C4. Его текущее качество не является итогом полного бюджета.</p>
+<p><strong>Сравнение частичных запусков при одинаковом числе обучающих токенов.</strong></p>
+<table>
+<thead>
+<tr>
+<th>Задача</th>
+<th>Условие</th>
+<th style="text-align:right">Tokens evaluation</th>
+<th style="text-align:right">Метрика</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>text8</td>
+<td>dynamic / column0</td>
+<td style="text-align:right">320,012,288</td>
+<td style="text-align:right">1.6746 BPC</td>
+</tr>
+<tr>
+<td>text8</td>
+<td>static / column0</td>
+<td style="text-align:right">320,012,288</td>
+<td style="text-align:right">1.6928 BPC</td>
+</tr>
+<tr>
+<td>text8</td>
+<td>none / column0</td>
+<td style="text-align:right">320,012,288</td>
+<td style="text-align:right">1.7934 BPC</td>
+</tr>
+<tr>
+<td>text8</td>
+<td>dynamic / mean</td>
+<td style="text-align:right">320,012,288</td>
+<td style="text-align:right">1.6900 BPC</td>
+</tr>
+<tr>
+<td>text8</td>
+<td>static / mean</td>
+<td style="text-align:right">320,012,288</td>
+<td style="text-align:right">1.6921 BPC</td>
+</tr>
+<tr>
+<td>text8</td>
+<td>none / mean</td>
+<td style="text-align:right">320,012,288</td>
+<td style="text-align:right">1.7151 BPC</td>
+</tr>
+<tr>
+<td>text8</td>
+<td>none / L2C1</td>
+<td style="text-align:right">320,012,288</td>
+<td style="text-align:right">1.6920 BPC</td>
+</tr>
+<tr>
+<td>sdq</td>
+<td>dynamic / column0</td>
+<td style="text-align:right">460,013,568</td>
+<td style="text-align:right">49.54% Acc</td>
+</tr>
+<tr>
+<td>sdq</td>
+<td>static / column0</td>
+<td style="text-align:right">460,013,568</td>
+<td style="text-align:right">67.98% Acc</td>
+</tr>
+<tr>
+<td>sdq</td>
+<td>none / column0</td>
+<td style="text-align:right">460,013,568</td>
+<td style="text-align:right">19.45% Acc</td>
+</tr>
+<tr>
+<td>sdq</td>
+<td>dynamic / mean</td>
+<td style="text-align:right">460,013,568</td>
+<td style="text-align:right">61.06% Acc</td>
+</tr>
+<tr>
+<td>sdq</td>
+<td>static / mean</td>
+<td style="text-align:right">460,013,568</td>
+<td style="text-align:right">76.28% Acc</td>
+</tr>
+<tr>
+<td>sdq</td>
+<td>none / mean</td>
+<td style="text-align:right">460,013,568</td>
+<td style="text-align:right">26.20% Acc</td>
+</tr>
+</tbody>
+</table>
+<p>При 320M токенов широкая единственная колонка даёт 1.6920 BPC, а none_mean L2C4 — 1.7151. Одноколоночный вариант близок к static_mean (1.6921) и уступает dynamic_column0 (1.6746). Это показывает конкурентность широкой колонки на этой стадии, несмотря на меньший state. Число колонок само по себе не определяет качество; окончательного сравнения на полном бюджете ещё нет.</p>
+<p>При 460M токенов SDQ none_mean даёт 26.20%, выше none_column0 (19.45%), но ниже dynamic_mean (61.06%) и static_mean (76.28%). Значит, промежуточное качество также нельзя объяснить только недоступностью трёх колонок в none_column0; отставание остаётся при чтении всей независимой памяти. Это наблюдение на промежуточном бюджете, не итоговый эффект.</p>
+<p>Эта таблица сравнивает промежуточное качество при одинаковом бюджете и помогает читать ранние траектории. Она не заменяет результаты после 1B токенов. В частности, SDQ none_mean ещё не закончил curriculum: в момент остановки training T около 306, а validation с самого начала использует T=500.</p>
+<p><strong>Что остаётся открытым для замечания ревью.</strong></p>
+<p>На Text8 появились описательные данные в пользу межколоночного обмена при одинаковом номинальном state и доступе readout ко всем колонкам. На SDQ главный контраст dynamic_mean против none_mean пока не завершён. Dynamic не показал общего преимущества над обучаемым static. Один seed не даёт оценки устойчивости между обучениями; тестовая Text8-оценка — дополнительный сегмент того же обучения, не независимый seed. Конкатенационный none-readout и одноколоночный полный бюджет остаются незавершёнными.</p>
+<p>Ещё не запускались: SDQ L2C1 none_column0, Text8 L2C4 none_concat и SDQ L2C4 none_concat. Они остаются в приостановленной очереди и автоматически не начнутся.</p>
+<p><strong>Три основных графика, обновлённые по новым данным.</strong> На кривых обучения показаны 11 завершённых и два остановленных запуска. Финальное качество и память по gap сравнивают только завершённые обучения с полным бюджетом. Подписи осей краткие, без общего заголовка и текстовых сносок внутри изображений.</p>
+<p><img src="main_plots/01_learning.png" alt="Как меняется качество по мере обучения" /></p>
+<p>L2C4, около 1M параметров, clean, seed 42. Чёрным пунктиром отмечены остановленные SDQ none_mean и Text8 L2C1; их последние validation предшествуют checkpoint остановки. SDQ train меняет сложность по curriculum; validation всегда использует T=500. X validation восстановлен по расписанию.</p>
+<p><img src="main_plots/02_final_quality.png" alt="Финальное качество: одинаковый бюджет около 1B токенов" /></p>
+<p>L2C4, около 1M параметров, clean, seed 42. Только завершённые запуски; полос неопределённости нет. Отсутствующие условия показаны серым; это не нулевой результат. Точки с разными маркерами измеряют разные критерии.</p>
+<p><img src="main_plots/03_memory_gaps.png" alt="Как далеко модель сохраняет полезную память" /></p>
+<p>L2C4, около 1M параметров, clean, seed 42. Только завершённые запуски; полос неопределённости нет. Слева реальные queries с известным store; counts: 17130 / 41872 / 51513 / 6286 / 393 / 0. Справа 1024 примера на gap.</p>
+<p><strong>Дополнительные сравнения.</strong></p>
+<p><img src="01_text8_final.png" alt="Text8" /></p>
+<p>Все шесть условий завершены при одинаковом бюджете около 1B токенов. Ниже BPC — лучше.</p>
+<p><img src="02_sdq_final.png" alt="SDQ" /></p>
+<p>Пять завершённых условий, одинаковый полный бюджет. Частичный none_mean в итоговый рейтинг не включён.</p>
+<p><img src="03_sdq_fixed_gaps.png" alt="Память SDQ" /></p>
+<p>1024 примера на каждое расстояние. Выбранная запись не перезаписывается; это отдельное распределение, не обычные held-out queries.</p>
+<p><img src="04_validation_curves.png" alt="Траектории validation" /></p>
+<p>Пунктирные чёрные кривые — остановленные обучения. Оценки привязаны к фактическому расписанию evaluation, а не к моменту отложенной записи в лог.</p>
+<p><img src="05_matched_budget.png" alt="Сопоставимый промежуточный бюджет" /></p>
+<p>Text8 сравнивается при 320,012,288 токенах, SDQ при 460,013,568. L2C1 имеет другое число state и другую ширину; сравнение его архитектуры не является state-matched.</p>
+<p><strong>CKA и чтение памяти.</strong> Диагностики прежних девяти checkpoints сохранены в <a href="../communication_diagnostics_2026-10-12_selected/report.md">отчёте с 13 графиками</a>. Они не пересчитаны для двух новых завершённых моделей, поэтому их выводы не распространяются автоматически на новые checkpoints.</p>
+<p><strong>Артефакты и воспроизведение.</strong> <a href="all_figures_with_main.pdf">Все восемь графиков PDF</a>, <a href="main_plots/all_figures.pdf">три основных графика PDF</a>, <a href="data.json">исходные данные и SHA256</a>, <a href="validation.json">проверка остановки и целостности</a>. Основные протоколы: <a href="../../../knitwork/exps/communication/config/README.md">конфиги и запуск</a>.</p>
+<pre><code class="language-bash">.venv/bin/python inference/communication_update_report.py
+</code></pre>
+<p>Команда только читает локальные артефакты и строит отчёт. Она требует остановленной очереди; обучение и внешние tracker-запросы не запускает.</p>
+</html>

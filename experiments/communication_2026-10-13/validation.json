@@ -1,0 +1,11 @@
+{
+  "queue_status": "paused",
+  "live_training_processes": [],
+  "completed_runs": 11,
+  "paused_runs": 2,
+  "resume_checkpoints_verified": true,
+  "matched_evaluation_budgets_verified": true,
+  "figures": 8,
+  "text_overlaps": {},
+  "report_sha256": "6396c02e74b1c7917f6c2dd204d285b4a84ee8321fedcd6e38d90a2a25ffb62c"
+}

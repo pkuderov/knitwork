@@ -1,0 +1,1515 @@
+{
+  "period_start_utc": "2026-09-27T21:00:00+00:00",
+  "period_end_utc": "2026-10-04T20:51:28.774280+00:00",
+  "projects_scanned": [
+    "knitwork-sdq",
+    "knitwork",
+    "knitwork-text-debug",
+    "knitwork-mikasa",
+    "pk-knitwork-text",
+    "knitwork-aistat",
+    "knitwork-text"
+  ],
+  "listings": [
+    {
+      "project": "knitwork-sdq",
+      "archived_query": false,
+      "listing_count": 30
+    },
+    {
+      "project": "knitwork-sdq",
+      "archived_query": true,
+      "listing_count": 0
+    },
+    {
+      "project": "knitwork",
+      "archived_query": false,
+      "listing_count": 86
+    },
+    {
+      "project": "knitwork",
+      "archived_query": true,
+      "listing_count": 21
+    },
+    {
+      "project": "knitwork-text-debug",
+      "archived_query": false,
+      "listing_count": 13
+    },
+    {
+      "project": "knitwork-text-debug",
+      "archived_query": true,
+      "listing_count": 28
+    },
+    {
+      "project": "knitwork-mikasa",
+      "archived_query": false,
+      "listing_count": 13
+    },
+    {
+      "project": "knitwork-mikasa",
+      "archived_query": true,
+      "listing_count": 0
+    },
+    {
+      "project": "pk-knitwork-text",
+      "archived_query": false,
+      "listing_count": 4
+    },
+    {
+      "project": "pk-knitwork-text",
+      "archived_query": true,
+      "listing_count": 12
+    },
+    {
+      "project": "knitwork-aistat",
+      "archived_query": false,
+      "listing_count": 87
+    },
+    {
+      "project": "knitwork-aistat",
+      "archived_query": true,
+      "listing_count": 0
+    },
+    {
+      "project": "knitwork-text",
+      "archived_query": false,
+      "listing_count": 41
+    },
+    {
+      "project": "knitwork-text",
+      "archived_query": true,
+      "listing_count": 7
+    }
+  ],
+  "runs": [
+    {
+      "project": "knitwork-text-debug",
+      "metadata": {
+        "experimentKey": "8b1dbd951bf241b0ae5ca263f2d61d20",
+        "experimentName": "grnn_lru.L2C4_1.05M ",
+        "durationMillis": 3190618,
+        "startTimeMillis": 1790710555406,
+        "endTimeMillis": 1790713746029,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-text-debug",
+      "metadata": {
+        "experimentKey": "511e380efed34ca49481d22e0512f7a7",
+        "experimentName": "rnn.L2_1.01M ",
+        "durationMillis": 12087703,
+        "startTimeMillis": 1790860786178,
+        "endTimeMillis": 1790872873875,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-text-debug",
+      "metadata": {
+        "experimentKey": "f6a456df7fb84d0cb32fe408564ebd41",
+        "experimentName": "grnn_lru.L2C4_1.05M ",
+        "durationMillis": 6321244,
+        "startTimeMillis": 1790862444236,
+        "endTimeMillis": 1790868765487,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-text-debug",
+      "metadata": {
+        "experimentKey": "6b0ae497633f49bbb5e084b7ebd2521f",
+        "experimentName": "grnn_lru.L2C4_1.05M ",
+        "durationMillis": 28843,
+        "startTimeMillis": 1790710496543,
+        "endTimeMillis": 1790710525422,
+        "running": false,
+        "archived": true
+      }
+    },
+    {
+      "project": "knitwork-text-debug",
+      "metadata": {
+        "experimentKey": "e3e4be523f6f468da1b1cc65726a5b32",
+        "experimentName": "grnn_lru.L2C4_1.05M ",
+        "durationMillis": 6313558,
+        "startTimeMillis": 1790855963164,
+        "endTimeMillis": 1790862276443,
+        "running": false,
+        "archived": true
+      }
+    },
+    {
+      "project": "knitwork-text-debug",
+      "metadata": {
+        "experimentKey": "16a393b78dae430482b60fa87b066694",
+        "experimentName": "rnn.L2_1.01M ",
+        "durationMillis": 15316,
+        "startTimeMillis": 1790857291222,
+        "endTimeMillis": 1790857306537,
+        "running": false,
+        "archived": true
+      }
+    },
+    {
+      "project": "knitwork-text-debug",
+      "metadata": {
+        "experimentKey": "724da3cd5f69442fbe4e9142a7043b88",
+        "experimentName": "rims_994.86K ",
+        "durationMillis": 25323,
+        "startTimeMillis": 1790878343948,
+        "endTimeMillis": 1790878369286,
+        "running": false,
+        "archived": true
+      }
+    },
+    {
+      "project": "knitwork-text-debug",
+      "metadata": {
+        "experimentKey": "8846f00490e345818b980661e78a09a7",
+        "experimentName": "rnn.L1_1.00M ",
+        "durationMillis": 8546,
+        "startTimeMillis": 1790878386394,
+        "endTimeMillis": 1790878394970,
+        "running": false,
+        "archived": true
+      }
+    },
+    {
+      "project": "knitwork-text-debug",
+      "metadata": {
+        "experimentKey": "09ff5fbecc7547b485605ad3f2f69e1d",
+        "experimentName": "grnn.L2C4_1.05M ",
+        "durationMillis": 8354,
+        "startTimeMillis": 1790878404010,
+        "endTimeMillis": 1790878412389,
+        "running": false,
+        "archived": true
+      }
+    },
+    {
+      "project": "knitwork-text-debug",
+      "metadata": {
+        "experimentKey": "4b6bebc077ca4f229d8d18251c769126",
+        "experimentName": "grnn_lru.L2C4_1.05M ",
+        "durationMillis": 38763,
+        "startTimeMillis": 1790878421304,
+        "endTimeMillis": 1790878460059,
+        "running": false,
+        "archived": true
+      }
+    },
+    {
+      "project": "knitwork-text-debug",
+      "metadata": {
+        "experimentKey": "4dc2f2c61935473d9d51a05093741dbf",
+        "experimentName": "rnn.L1_1.00M ",
+        "durationMillis": 34246,
+        "startTimeMillis": 1790878492386,
+        "endTimeMillis": 1790878526647,
+        "running": false,
+        "archived": true
+      }
+    },
+    {
+      "project": "knitwork-text-debug",
+      "metadata": {
+        "experimentKey": "1572e56809434654927949be8449176e",
+        "experimentName": "grnn.L2C4_1.05M ",
+        "durationMillis": 103627,
+        "startTimeMillis": 1790878535272,
+        "endTimeMillis": 1790878638896,
+        "running": false,
+        "archived": true
+      }
+    },
+    {
+      "project": "knitwork-text-debug",
+      "metadata": {
+        "experimentKey": "e5fec096b7b944b5bb9fc45a48dcc1e1",
+        "experimentName": "grnn_lru.L2C4_1.05M ",
+        "durationMillis": 60188,
+        "startTimeMillis": 1790878647525,
+        "endTimeMillis": 1790878707721,
+        "running": false,
+        "archived": true
+      }
+    },
+    {
+      "project": "knitwork-text-debug",
+      "metadata": {
+        "experimentKey": "a7286c6b6a96480bbb8c3b3580e059a1",
+        "experimentName": "delta_net_1.00M ",
+        "durationMillis": 481453,
+        "startTimeMillis": 1790878715787,
+        "endTimeMillis": 1790879197252,
+        "running": false,
+        "archived": true
+      }
+    },
+    {
+      "project": "knitwork-text-debug",
+      "metadata": {
+        "experimentKey": "6ecf0e30a2664339842200e99c651923",
+        "experimentName": "grnn_lru.L2C4_1.05M ",
+        "durationMillis": 457199,
+        "startTimeMillis": 1790879217846,
+        "endTimeMillis": 1790879675028,
+        "running": false,
+        "archived": true
+      }
+    },
+    {
+      "project": "knitwork-text-debug",
+      "metadata": {
+        "experimentKey": "a87cae2be7914a9c9eafff7a5ef216af",
+        "experimentName": "hgrn2_996.21K ",
+        "durationMillis": 907452,
+        "startTimeMillis": 1790879233711,
+        "endTimeMillis": 1790880141162,
+        "running": false,
+        "archived": true
+      }
+    },
+    {
+      "project": "knitwork-text-debug",
+      "metadata": {
+        "experimentKey": "97fb4718c0634956b1ee21464759ff52",
+        "experimentName": "grnn_lru.L2C4_1.05M ",
+        "durationMillis": 182076,
+        "startTimeMillis": 1790879737159,
+        "endTimeMillis": 1790879919253,
+        "running": false,
+        "archived": true
+      }
+    },
+    {
+      "project": "knitwork-text-debug",
+      "metadata": {
+        "experimentKey": "624f61bfa5e0445a96d95cc2a07dd8e6",
+        "experimentName": "grnn_lru.L2C4_1.05M ",
+        "durationMillis": 158515,
+        "startTimeMillis": 1790880171610,
+        "endTimeMillis": 1790880330122,
+        "running": false,
+        "archived": true
+      }
+    },
+    {
+      "project": "knitwork-text-debug",
+      "metadata": {
+        "experimentKey": "f829088bd60e42cdbd7cd192f197e860",
+        "experimentName": "hgrn2_996.21K ",
+        "durationMillis": 480424,
+        "startTimeMillis": 1790880349560,
+        "endTimeMillis": 1790880829994,
+        "running": false,
+        "archived": true
+      }
+    },
+    {
+      "project": "knitwork-text-debug",
+      "metadata": {
+        "experimentKey": "35c853dd19e1452092d7a00b2f423cf4",
+        "experimentName": "mlstm_995.58K ",
+        "durationMillis": 157539,
+        "startTimeMillis": 1790880837866,
+        "endTimeMillis": 1790880995438,
+        "running": false,
+        "archived": true
+      }
+    },
+    {
+      "project": "knitwork-text-debug",
+      "metadata": {
+        "experimentKey": "9223e48faca14a879c0a6b31f8b0a5dc",
+        "experimentName": "mamba_1.00M ",
+        "durationMillis": 114374,
+        "startTimeMillis": 1790881011260,
+        "endTimeMillis": 1790881125639,
+        "running": false,
+        "archived": true
+      }
+    },
+    {
+      "project": "knitwork-text-debug",
+      "metadata": {
+        "experimentKey": "d2fb9702dfb5407d83b848a1c9827aee",
+        "experimentName": "rims_994.86K ",
+        "durationMillis": 78193,
+        "startTimeMillis": 1790881136442,
+        "endTimeMillis": 1790881214436,
+        "running": false,
+        "archived": true
+      }
+    },
+    {
+      "project": "knitwork-text-debug",
+      "metadata": {
+        "experimentKey": "034780fbd8124528998ba8bbc9ef12ed",
+        "experimentName": "brims_1.00M ",
+        "durationMillis": 123708,
+        "startTimeMillis": 1790881225774,
+        "endTimeMillis": 1790881349455,
+        "running": false,
+        "archived": true
+      }
+    },
+    {
+      "project": "knitwork-text-debug",
+      "metadata": {
+        "experimentKey": "c4f3a65f39a84b56880bf41e2db6d516",
+        "experimentName": "grnn.L2C4_topk1_1.05M ",
+        "durationMillis": 82526,
+        "startTimeMillis": 1790881360380,
+        "endTimeMillis": 1790881442954,
+        "running": false,
+        "archived": true
+      }
+    },
+    {
+      "project": "knitwork-text-debug",
+      "metadata": {
+        "experimentKey": "882646d317394fa7bfc7473d4a42153e",
+        "experimentName": "rnn.L2_sm_grnnL2C4_3.59M ",
+        "durationMillis": 34652,
+        "startTimeMillis": 1790881453498,
+        "endTimeMillis": 1790881488090,
+        "running": false,
+        "archived": true
+      }
+    },
+    {
+      "project": "knitwork-text-debug",
+      "metadata": {
+        "experimentKey": "e1adabca1b8e423f9fbaca2b75ccfbb6",
+        "experimentName": "transformer_1.00M ",
+        "durationMillis": 10419,
+        "startTimeMillis": 1790881498452,
+        "endTimeMillis": 1790881509085,
+        "running": false,
+        "archived": true
+      }
+    },
+    {
+      "project": "knitwork-text-debug",
+      "metadata": {
+        "experimentKey": "1df5fc151c7749079fb1b5b2dfd63004",
+        "experimentName": "grnn_lru.L2C4_1.05M ",
+        "durationMillis": 73446,
+        "startTimeMillis": 1790881810262,
+        "endTimeMillis": 1790881883707,
+        "running": false,
+        "archived": true
+      }
+    },
+    {
+      "project": "knitwork-text-debug",
+      "metadata": {
+        "experimentKey": "74162bef41ef4c6498030ba76de05424",
+        "experimentName": "grnn.L2C4_topk1_1.05M ",
+        "durationMillis": 80203,
+        "startTimeMillis": 1790881893264,
+        "endTimeMillis": 1790881973658,
+        "running": false,
+        "archived": true
+      }
+    },
+    {
+      "project": "knitwork-text-debug",
+      "metadata": {
+        "experimentKey": "4979c1a756ff4fc5b56dbbbb4e85bc8e",
+        "experimentName": "transformer_1.00M ",
+        "durationMillis": 14400,
+        "startTimeMillis": 1790881982054,
+        "endTimeMillis": 1790881996668,
+        "running": false,
+        "archived": true
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "05f0c70d309447ec80bf5283ef27c895",
+        "experimentName": "rnn.L1_1.00M mid/rnn.L1",
+        "durationMillis": 29201401,
+        "startTimeMillis": 1790888253279,
+        "endTimeMillis": 1790917465180,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "7803e0070e084e6bb917946896a6e5f6",
+        "experimentName": "rnn.L2_1.01M mid/rnn.L2",
+        "durationMillis": 29869371,
+        "startTimeMillis": 1790888306169,
+        "endTimeMillis": 1790918185903,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "eaa1d5c561f54610ac6dba212583dcaf",
+        "experimentName": "rnn.L3_985.56K mid/rnn.L3",
+        "durationMillis": 30448621,
+        "startTimeMillis": 1790888367754,
+        "endTimeMillis": 1790918816379,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "cee14d6122ed4a329dda27715398d123",
+        "experimentName": "grnn.L1C8_1.03M mid/grnn.L1C8",
+        "durationMillis": 36386452,
+        "startTimeMillis": 1790888438165,
+        "endTimeMillis": 1790924824597,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "9a7f67837248411baed1f216bd28375a",
+        "experimentName": "grnn.L2C4_1.05M mid/grnn.L2C4",
+        "durationMillis": 36550880,
+        "startTimeMillis": 1790888503156,
+        "endTimeMillis": 1790925054230,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "f75e22df3dbf4eb0abbfe093463be428",
+        "experimentName": "grnn.L2C8_972.72K mid/grnn.L2C8",
+        "durationMillis": 42079990,
+        "startTimeMillis": 1790888594440,
+        "endTimeMillis": 1790930665484,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "44063b7060b041f4bd3ea1f22cde02e7",
+        "experimentName": "grnn.L3C4_1.07M mid/grnn.L3C4",
+        "durationMillis": 39258370,
+        "startTimeMillis": 1790888651287,
+        "endTimeMillis": 1790927909662,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "dcc52e7eb8034b36ab310e0eff23fdff",
+        "experimentName": "grnn_lru.L1C8_1.00M mid/grnn_lru.L1C8",
+        "durationMillis": 35120362,
+        "startTimeMillis": 1790888737527,
+        "endTimeMillis": 1790923856680,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "6c724575fff24580bd7058effbc4416d",
+        "experimentName": "grnn_lru.L2C4_1.05M mid/grnn_lru.L2C4",
+        "durationMillis": 33923805,
+        "startTimeMillis": 1790888843291,
+        "endTimeMillis": 1790922767104,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "09fb7a42bf0e47c49a31cf8dc89705a2",
+        "experimentName": "grnn_lru.L2C8_1.06M mid/grnn_lru.L2C8",
+        "durationMillis": 39011423,
+        "startTimeMillis": 1790888897148,
+        "endTimeMillis": 1790927918931,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "08b65912756e45c3a02c6408a33252d3",
+        "experimentName": "grnn_lru.L3C4_1.06M mid/grnn_lru.L3C4",
+        "durationMillis": 35701096,
+        "startTimeMillis": 1790888948235,
+        "endTimeMillis": 1790924649309,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "ad72c9a030bb4fd397f655b78d8780f2",
+        "experimentName": "transformer_1.00M mid/transformer",
+        "durationMillis": 4576240,
+        "startTimeMillis": 1790888973300,
+        "endTimeMillis": 1790893549579,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "e7095a9b4f6f48e68296bb4d41d5edf7",
+        "experimentName": "rims_994.86K mid/rims",
+        "durationMillis": 33124021,
+        "startTimeMillis": 1790889037549,
+        "endTimeMillis": 1790922172547,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "c306b9b240f74787bba9c02056ad7298",
+        "experimentName": "brims_1.00M mid/brims",
+        "durationMillis": 36269146,
+        "startTimeMillis": 1790889103254,
+        "endTimeMillis": 1790925366899,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "96bc5360a1b646f6b539e622c448e4aa",
+        "experimentName": "rnn.L1_1.00M mid/rnn.L1/seed1337",
+        "durationMillis": 31267017,
+        "startTimeMillis": 1790889361786,
+        "endTimeMillis": 1790920638594,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "c5f92c5003314a8aaa4c4b83472bf8d2",
+        "experimentName": "grnn.L2C4_topk1_1.05M mid/grnn.L2C4_topk1",
+        "durationMillis": 36632362,
+        "startTimeMillis": 1790893644074,
+        "endTimeMillis": 1790930276441,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "55de969d194c4ef98ee1c17388a45c2c",
+        "experimentName": "grnn_lru.L2C4_1.05M mid/grnn_lru.L2C4/seed1337",
+        "durationMillis": 32229961,
+        "startTimeMillis": 1790917570231,
+        "endTimeMillis": 1790949800189,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "5792d3c74aaa45d2b9dc30ffabe9cf13",
+        "experimentName": "rnn.L2_1.01M mid/rnn.L2/seed1337",
+        "durationMillis": 29777404,
+        "startTimeMillis": 1790918302142,
+        "endTimeMillis": 1790948079563,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "5c0724b59c83434498bb98ceec4686ce",
+        "experimentName": "grnn_lru.L2C4_1.05M mid/grnn_lru.L2C4/seed31337",
+        "durationMillis": 31957816,
+        "startTimeMillis": 1790918928350,
+        "endTimeMillis": 1790950886176,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "ad28d35366274f85a8c1b1f594848d2b",
+        "experimentName": "grnn.L2C4_topk2_1.05M mid/grnn.L2C4_topk2",
+        "durationMillis": 33659803,
+        "startTimeMillis": 1790922283107,
+        "endTimeMillis": 1790955942909,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "3735558c81684840aeace6620ee9c975",
+        "experimentName": "rnn.L2_1.01M mid/rnn.L2/seed31337",
+        "durationMillis": 29230024,
+        "startTimeMillis": 1790922333105,
+        "endTimeMillis": 1790951560059,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "5196277eae0c401388e5579ab8e48d4c",
+        "experimentName": "grnn.L2C4_1.05M mid/grnn.L2C4/seed1337",
+        "durationMillis": 33219907,
+        "startTimeMillis": 1790922854120,
+        "endTimeMillis": 1790956074025,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "6dbc5ce5334341f0bea5d3530fe81bcb",
+        "experimentName": "grnn_lru_sparse.control_1.05M lru_mid/control",
+        "durationMillis": 30684205,
+        "startTimeMillis": 1790924887282,
+        "endTimeMillis": 1790955571540,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "3d9e9cece42d4c67b913628ae3348c02",
+        "experimentName": "grnn.L2C4_1.05M mid/grnn.L2C4/seed31337",
+        "durationMillis": 31712956,
+        "startTimeMillis": 1790925128479,
+        "endTimeMillis": 1790956841425,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "191b7533bd264ea6a2bf84a2e7798e1e",
+        "experimentName": "grnn_lru_sparse.self_heavy_1.05M lru_mid/self_heavy",
+        "durationMillis": 30440741,
+        "startTimeMillis": 1790925469993,
+        "endTimeMillis": 1790955910753,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "7f45618a2cdf41749b255bad357a184e",
+        "experimentName": "grnn_lru_sparse.star_1.05M lru_mid/star",
+        "durationMillis": 31292421,
+        "startTimeMillis": 1790925653364,
+        "endTimeMillis": 1790956945876,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "c428fe4c01e04a5680f97b539fc3f338",
+        "experimentName": "grnn_lru_sparse.star_ring_1.05M lru_mid/star_ring",
+        "durationMillis": 30297099,
+        "startTimeMillis": 1790925812522,
+        "endTimeMillis": 1790956109622,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "9b65fb68d2f04c96a9ceacb6ae8f3672",
+        "experimentName": "grnn_lru_sparse.clockwork_1.05M lru_mid/clockwork",
+        "durationMillis": 28805220,
+        "startTimeMillis": 1790928018901,
+        "endTimeMillis": 1790956824123,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "d5ee140465524672855bcfb80932b893",
+        "experimentName": "grnn_lru_sparse.block_531.06K lru_mid/block",
+        "durationMillis": 28731494,
+        "startTimeMillis": 1790928053929,
+        "endTimeMillis": 1790956785434,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "798342c6ab814c5ca251fa1dd9c06328",
+        "experimentName": "grnn_lru_sparse.entmax_1.05M lru_mid/entmax",
+        "durationMillis": 26783932,
+        "startTimeMillis": 1790930377651,
+        "endTimeMillis": 1790957171827,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "010b7096f48f468bb79bae126881e666",
+        "experimentName": "grnn_lru_sparse.dynamic_hub_1.06M lru_mid/dynamic_hub",
+        "durationMillis": 26480291,
+        "startTimeMillis": 1790930765694,
+        "endTimeMillis": 1790957245997,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "24a0f721211d49899023cafae9b260e6",
+        "experimentName": "grnn_lru_sparse.dynamic_control_1.06M text_lru_architecture_mid/dynamic_control",
+        "durationMillis": 37234778,
+        "startTimeMillis": 1790961055859,
+        "endTimeMillis": 1790998300974,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "54b4390383304422902cb09b069131da",
+        "experimentName": "grnn_lru_experimental.write_gate_1.06M text_lru_architecture_mid/write_gate",
+        "durationMillis": 38092324,
+        "startTimeMillis": 1790961069057,
+        "endTimeMillis": 1790999153828,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "a6b467d154264b2881ed86cd237c59b2",
+        "experimentName": "grnn_lru_experimental.query_read_1.11M text_lru_architecture_mid/query_read",
+        "durationMillis": 38338415,
+        "startTimeMillis": 1790961085463,
+        "endTimeMillis": 1790999432887,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "8621e147570141e2b68788fe20e01a23",
+        "experimentName": "grnn_lru_experimental.associative_830.32K text_lru_architecture_mid/associative",
+        "durationMillis": 40416390,
+        "startTimeMillis": 1790961151269,
+        "endTimeMillis": 1791001567701,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "f3a8110e7bf4460a9bb568a05a440748",
+        "experimentName": "grnn_lru_experimental.rotations_1.06M text_lru_architecture_mid/rotations",
+        "durationMillis": 38437425,
+        "startTimeMillis": 1790961198685,
+        "endTimeMillis": 1790999636121,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "c47fb5050b3249a392ef61f8dcc85970",
+        "experimentName": "grnn_lru_experimental.two_reads_1.06M text_lru_architecture_mid/two_reads",
+        "durationMillis": 39721166,
+        "startTimeMillis": 1790961253328,
+        "endTimeMillis": 1791000974492,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "4a3faa4788964891aeabadbf65a85c9b",
+        "experimentName": "grnn.L3C4_1.07M mid/grnn.L3C4/seed1337",
+        "durationMillis": 42361525,
+        "startTimeMillis": 1790961328822,
+        "endTimeMillis": 1791003690449,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "971aace34ca7408e91f6964443ef2a8e",
+        "experimentName": "grnn.L3C4_1.07M mid/grnn.L3C4/seed31337",
+        "durationMillis": 42421889,
+        "startTimeMillis": 1790961373535,
+        "endTimeMillis": 1791003805987,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "8519d480488a4fa79a6759e160c627b9",
+        "experimentName": "rnn.L3_985.56K mid/rnn.L3/seed1337",
+        "durationMillis": 33899361,
+        "startTimeMillis": 1790961398850,
+        "endTimeMillis": 1790995292358,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "428bbf5eacb9489c9f2da648ce598c21",
+        "experimentName": "mamba_1.00M mid/mamba",
+        "durationMillis": 39206401,
+        "startTimeMillis": 1790974908744,
+        "endTimeMillis": 1791014115140,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "a7eb48b289ee4f2aaf001df0ad7ba65e",
+        "experimentName": "mqar_lru_architecture_mid/dynamic_control/ep8",
+        "durationMillis": 90028123,
+        "startTimeMillis": 1790974984683,
+        "endTimeMillis": 1791065012804,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "3e509bfb78b14a6eb56f7f87813f303f",
+        "experimentName": "mqar_lru_architecture_mid/write_gate/ep8",
+        "durationMillis": 90879534,
+        "startTimeMillis": 1790975043600,
+        "endTimeMillis": 1791065923134,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "f7539af531754ea6afb36c8bede34302",
+        "experimentName": "rnn.L2_1.01M rollout_mid/gru/r64/pilot67M",
+        "durationMillis": 481540,
+        "startTimeMillis": 1790995431606,
+        "endTimeMillis": 1790995913282,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "c55b14c3d0ac4ab1b53cadd80d718a22",
+        "experimentName": "rnn.L2_1.01M rollout_mid/gru/r512/pilot67M",
+        "durationMillis": 1545297,
+        "startTimeMillis": 1790996033663,
+        "endTimeMillis": 1790997578966,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "d7027e85eda64bd495126a02f99f7829",
+        "experimentName": "rnn.L2_RepeatPreviousHard_1.00M rl_mid_shortlist/01_RepeatPreviousHard_gru/8388608slots/seed42",
+        "durationMillis": 62197936,
+        "startTimeMillis": 1790997675653,
+        "endTimeMillis": 1791059873441,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "8667f73112864e69919415351f233f6b",
+        "experimentName": "delta_net_1.00M mid/delta_net",
+        "durationMillis": 77312074,
+        "startTimeMillis": 1790999295592,
+        "endTimeMillis": 1791076607666,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "a2f65cc2fde14e23a79e2d0ab3827767",
+        "experimentName": "mlstm_995.58K mid/mlstm",
+        "durationMillis": 70435009,
+        "startTimeMillis": 1790999526737,
+        "endTimeMillis": 1791069961748,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "96ec3b8ad83a4ff29e78661d687ab01d",
+        "experimentName": "lru.L2_RepeatPreviousHard_1.03M rl_mid_shortlist/02_RepeatPreviousHard_lru/8388608slots/seed42",
+        "durationMillis": 63843919,
+        "startTimeMillis": 1790999593405,
+        "endTimeMillis": 1791063437327,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "136031bbea584fbf9dacb964f03a0c3b",
+        "experimentName": "grnn_lru.L2C4_1.05M rollout_mid/grnn_lru/r64/pilot67M",
+        "durationMillis": 455541,
+        "startTimeMillis": 1791000149361,
+        "endTimeMillis": 1791000604912,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "ba83b1d66cdb401d93620b706bac5018",
+        "experimentName": "grnn.L2C4_1.05M rollout_mid/grnn_gru/r64/pilot67M",
+        "durationMillis": 878638,
+        "startTimeMillis": 1791000615519,
+        "endTimeMillis": 1791001504214,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "cbddaab718134805983c1d22272710f4",
+        "experimentName": "grnn_lru.L2C4_1.05M rollout_mid/grnn_lru/r512/pilot67M",
+        "durationMillis": 2135245,
+        "startTimeMillis": 1791000740275,
+        "endTimeMillis": 1791002875599,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "0376834a30a34678a353842fb4833d4c",
+        "experimentName": "grnn.L2C4_1.05M rollout_mid/grnn_gru/r512/pilot67M",
+        "durationMillis": 4258236,
+        "startTimeMillis": 1791001594682,
+        "endTimeMillis": 1791005852953,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "40eb9dbdf5614585bc29097043cf2d42",
+        "experimentName": "grnn.L2C4_1.05M grnn_ablation_mid/none/pilot67M",
+        "durationMillis": 1238877,
+        "startTimeMillis": 1791001646287,
+        "endTimeMillis": 1791002885157,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "f3a8995e028f42a088ff31e215be530f",
+        "experimentName": "lru.L2_1.05M rollout_mid/lru/r64/pilot67M",
+        "durationMillis": 809452,
+        "startTimeMillis": 1791001981727,
+        "endTimeMillis": 1791002801511,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "814aa9516246455ba9f83a523176fb75",
+        "experimentName": "lru.L2_1.05M rollout_mid/lru/r512/pilot67M",
+        "durationMillis": 1760684,
+        "startTimeMillis": 1791002054170,
+        "endTimeMillis": 1791003814855,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "b0c36ba9c13e4c1b91b8ae4fe3bb9374",
+        "experimentName": "grnn.L2C4_RepeatPreviousHard_1.05M rl_mid_shortlist/03_RepeatPreviousHard_grnn_gru/8388608slots/seed42",
+        "durationMillis": 64501189,
+        "startTimeMillis": 1791002922240,
+        "endTimeMillis": 1791067423432,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "6f9ad9de836246cb8b2e5a2036cec297",
+        "experimentName": "hgrn2_996.21K mid/hgrn2",
+        "durationMillis": 90380904,
+        "startTimeMillis": 1791002985081,
+        "endTimeMillis": 1791093365987,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "ebbc8da6e8874480ad3e0342bf8b651e",
+        "experimentName": "grnn_lru.L2C4_RepeatPreviousHard_1.04M rl_mid_shortlist/04_RepeatPreviousHard_grnn_lru/8388608slots/seed42",
+        "durationMillis": 64260380,
+        "startTimeMillis": 1791003880298,
+        "endTimeMillis": 1791068140697,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "8f98d51b7c19411c9f4179b71a19fae5",
+        "experimentName": "grnn.L2C4_1.05M grnn_ablation_mid/no_noise/pilot67M",
+        "durationMillis": 839810,
+        "startTimeMillis": 1791003950849,
+        "endTimeMillis": 1791004800970,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "5525cd852f684f53b06843e0b3a63064",
+        "experimentName": "grnn.L2C4_1.05M grnn_ablation_mid/no_comm/pilot67M",
+        "durationMillis": 1165246,
+        "startTimeMillis": 1791004818397,
+        "endTimeMillis": 1791005983647,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "3efba9c452a248e8aaa14f1539a5af18",
+        "experimentName": "grnn.L2C4_1.05M grnn_ablation_mid/no_entropy/pilot67M",
+        "durationMillis": 1122696,
+        "startTimeMillis": 1791004909142,
+        "endTimeMillis": 1791006031831,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "4589138c400948adab84e3937a18bdd2",
+        "experimentName": "grnn_lru_sparse.dynamic_hub_RepeatPreviousHard_1.05M rl_mid_shortlist/05_RepeatPreviousHard_dynamic_hub/8388608slots/seed42",
+        "durationMillis": 64007834,
+        "startTimeMillis": 1791005979415,
+        "endTimeMillis": 1791069987278,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "775dd69571b047f1bd5e9444c6af7db1",
+        "experimentName": "grnn_lru_experimental.two_reads_RepeatPreviousHard_1.05M rl_mid_shortlist/06_RepeatPreviousHard_two_reads/8388608slots/seed42",
+        "durationMillis": 64168166,
+        "startTimeMillis": 1791006022494,
+        "endTimeMillis": 1791070190674,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "ef2c91cc1dff4413a0971f1abca53366",
+        "experimentName": "rnn.L2_AutoencodeEasy_1.00M rl_mid_shortlist/07_AutoencodeEasy_gru/8388608slots/seed42",
+        "durationMillis": 63776297,
+        "startTimeMillis": 1791006107029,
+        "endTimeMillis": 1791069903671,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "39dbcf258a5f4fdb891e158e7cdbb4a8",
+        "experimentName": "lru.L2_AutoencodeEasy_1.03M rl_mid_shortlist/08_AutoencodeEasy_lru/8388608slots/seed42",
+        "durationMillis": 63794242,
+        "startTimeMillis": 1791006161936,
+        "endTimeMillis": 1791069956182,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "cc147c274a7745ef92bd5e6190988ac5",
+        "experimentName": "grnn_lru_sparse.dynamic_hub_AutoencodeEasy_1.05M rl_mid_shortlist/09_AutoencodeEasy_dynamic_hub/8388608slots/seed42",
+        "durationMillis": 63818988,
+        "startTimeMillis": 1791006215623,
+        "endTimeMillis": 1791070034611,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "63eebaf4ff1e4b02b9bb18c4929bfbfd",
+        "experimentName": "grnn_lru_experimental.two_reads_AutoencodeEasy_1.05M rl_mid_shortlist/10_AutoencodeEasy_two_reads/8388608slots/seed42",
+        "durationMillis": 64124672,
+        "startTimeMillis": 1791006272713,
+        "endTimeMillis": 1791070397393,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "4b364702f4e742e182b6cd9b66b9e314",
+        "experimentName": "mqar_lru_architecture_mid/query_read/ep8",
+        "durationMillis": 103877028,
+        "startTimeMillis": 1791006353449,
+        "endTimeMillis": 1791110230464,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "bcc7b8a14c8142318cac67562e47e124",
+        "experimentName": "mqar_lru_architecture_mid/associative/ep8",
+        "durationMillis": 101764668,
+        "startTimeMillis": 1791014224643,
+        "endTimeMillis": 1791115989308,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "a5157b080da14021a4fe6126d3ef8b61",
+        "experimentName": "mqar_lru_architecture_mid/rotations/ep8",
+        "durationMillis": 101723901,
+        "startTimeMillis": 1791014279254,
+        "endTimeMillis": 1791116002946,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "668690f230904a26b8ebf3474c614c4b",
+        "experimentName": "mqar_lru_architecture_mid/two_reads/ep8",
+        "durationMillis": 101650359,
+        "startTimeMillis": 1791014348941,
+        "endTimeMillis": 1791115999292,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "5423e339c5ed4f02a9cab6b8c832ae9f",
+        "experimentName": "grnn_lru.L3C4_1.06M mid/grnn_lru.L3C4/seed1337",
+        "durationMillis": 52540326,
+        "startTimeMillis": 1791014399548,
+        "endTimeMillis": 1791066937378,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "7bf4b64dc82b4eb6bb76dc27d43fc073",
+        "experimentName": "grnn_lru.L3C4_1.06M mid/grnn_lru.L3C4/seed31337",
+        "durationMillis": 52506173,
+        "startTimeMillis": 1791014462943,
+        "endTimeMillis": 1791066969123,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "90be163e283c487d9f57d3196ef3255f",
+        "experimentName": "grnn.L1C8_1.03M mid/grnn.L1C8/seed1337",
+        "durationMillis": 51233717,
+        "startTimeMillis": 1791063543043,
+        "endTimeMillis": 1791114787109,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "d0f5cc50eab44741a6056ff8c7d1ca5d",
+        "experimentName": "grnn.L2C8_972.72K mid/grnn.L2C8/seed1337",
+        "durationMillis": 56023319,
+        "startTimeMillis": 1791066035068,
+        "endTimeMillis": 1791122058412,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "1450ffd799094de991a228ca5b11f103",
+        "experimentName": "grnn_lru.L1C8_1.00M mid/grnn_lru.L1C8/seed1337",
+        "durationMillis": 48208736,
+        "startTimeMillis": 1791067070271,
+        "endTimeMillis": 1791115279013,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "0b24e705672e4b81b0e9b9f79bcd56f3",
+        "experimentName": "grnn_lru.L2C8_1.06M mid/grnn_lru.L2C8/seed1337",
+        "durationMillis": 52737242,
+        "startTimeMillis": 1791067959772,
+        "endTimeMillis": 1791120697029,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "68ed71d067cd459bbd0b0900284c4c4f",
+        "experimentName": "delta_net_1.00M mid/delta_net/seed1337",
+        "durationMillis": 63521240,
+        "startTimeMillis": 1791070000484,
+        "endTimeMillis": 1791133528272,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "14cc943be7234f569619183357c62e79",
+        "experimentName": "hgrn2_996.21K mid/hgrn2/seed1337",
+        "durationMillis": 66243178,
+        "startTimeMillis": 1791070052130,
+        "endTimeMillis": 1791136295332,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "7aa3cf4a63fd468c898316faa6cd8e47",
+        "experimentName": "mlstm_995.58K mid/mlstm/seed1337",
+        "durationMillis": 60836810,
+        "startTimeMillis": 1791070479800,
+        "endTimeMillis": 1791131327237,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "37180ab2c16f43b2bda41a39bea06469",
+        "experimentName": "transformer_1.00M mid/transformer/seed1337",
+        "durationMillis": 6365567,
+        "startTimeMillis": 1791076727767,
+        "endTimeMillis": 1791083102762,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "0a817e21865c4dfaa04503c5b4aa940e",
+        "experimentName": "rims_994.86K mid/rims/seed1337",
+        "durationMillis": 41007143,
+        "startTimeMillis": 1791083230762,
+        "endTimeMillis": 1791124237909,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "671835b43a954540bedc09cfcf7841bc",
+        "experimentName": "mamba_1.00M mid/mamba/seed1337",
+        "durationMillis": 39603271,
+        "startTimeMillis": 1791093487382,
+        "endTimeMillis": 1791133090647,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "3b24fb379acf4f4393df7b683a8fad22",
+        "experimentName": "brims_1.00M mid/brims/seed1337",
+        "durationMillis": 22663722,
+        "startTimeMillis": 1791114903810,
+        "endTimeMillis": 1791137567505,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "284917331efa471db29b13c26330eaba",
+        "experimentName": "mqar_lru_slots_mid/slot_content/ep8",
+        "durationMillis": 602838,
+        "startTimeMillis": 1791115395229,
+        "endTimeMillis": 1791115998068,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-aistat",
+      "metadata": {
+        "experimentKey": "f21aeea6d73a4b9499af072d97aa8ce3",
+        "experimentName": "mqar_lru_slots_mid/slot_alloc/ep8",
+        "durationMillis": 532470,
+        "startTimeMillis": 1791115467500,
+        "endTimeMillis": 1791115999957,
+        "running": false,
+        "archived": false
+      }
+    },
+    {
+      "project": "knitwork-text",
+      "metadata": {
+        "experimentKey": "a88b429bd2f74d83b5fd6c3788ff983a",
+        "experimentName": "rnn.L2_114.70K ",
+        "durationMillis": 16546,
+        "startTimeMillis": 1790860103741,
+        "endTimeMillis": 1790860120295,
+        "running": false,
+        "archived": true
+      }
+    },
+    {
+      "project": "knitwork-text",
+      "metadata": {
+        "experimentKey": "ae46f6e3f76a422094b2129eee3ca652",
+        "experimentName": "rnn.L2_114.70K ",
+        "durationMillis": 20383,
+        "startTimeMillis": 1790860220005,
+        "endTimeMillis": 1790860240388,
+        "running": false,
+        "archived": true
+      }
+    },
+    {
+      "project": "knitwork-text",
+      "metadata": {
+        "experimentKey": "77346063bcd7485fa1caeb524694719d",
+        "experimentName": "rnn.L2_114.70K ",
+        "durationMillis": 22211,
+        "startTimeMillis": 1790860268595,
+        "endTimeMillis": 1790860290783,
+        "running": false,
+        "archived": true
+      }
+    }
+  ]
+}

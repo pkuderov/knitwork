@@ -1,0 +1,110 @@
+{
+  "date": "2026-10-12",
+  "rows": [
+    {
+      "config": "knitwork/exps/communication/config/text8_none_single_column.yaml",
+      "config_sha256": "54c45c9fcdcf3e46908a5e9e04d9d001837f7b80609dc618e90673005c9d4927",
+      "run_id": "text8/L2C1/clean/none_column0/seed42-data42",
+      "effective_tokens": 999981056,
+      "parameters_nominal_trainable": 1057493,
+      "parameters_gru": 625176,
+      "parameters_router": 419978,
+      "parameters_adapters": 12339,
+      "state_scalars": 456,
+      "state_scalars_with_path_to_readout": 456,
+      "dense_forward_flops_per_token": 2302344,
+      "dense_flops_scope": "forward matrix products only; excludes elementwise operations, backward and optimizer",
+      "parameter_caveat": "One column: all carried state has a path to prediction; no unused columns. Upper single-source attention has zero task gradient in Q/K. Width matches the nominal parameter budget, not the L2C4 state or compute budget.",
+      "implementation": {
+        "kind": "single-column-none",
+        "source_hashes": {
+          "knitwork/models/grnn_single_column.py": "7c0cb1e50bd06df73b4bceec7ec68b2e6efbde80a97c6c9bac4817de51785e10",
+          "knitwork/exps/communication/run_single_column.py": "1f677165e6a825ca9ac0002a4f47d079cbf129bfe71b4b1642d38a1418ac47a9"
+        }
+      }
+    },
+    {
+      "config": "knitwork/exps/communication/config/sdq_none_single_column.yaml",
+      "config_sha256": "27a5da920929ad7c11d8c33f14937ef5420a2cf7e41c2e6b740075cabfd87adc",
+      "run_id": "sdq/L2C1/clean/none_column0/seed42-data42",
+      "effective_tokens": 999997440,
+      "parameters_nominal_trainable": 1062264,
+      "parameters_gru": 625176,
+      "parameters_router": 419978,
+      "parameters_adapters": 17110,
+      "state_scalars": 456,
+      "state_scalars_with_path_to_readout": 456,
+      "dense_forward_flops_per_token": 2294592,
+      "dense_flops_scope": "forward matrix products only; excludes elementwise operations, backward and optimizer",
+      "parameter_caveat": "One column: all carried state has a path to prediction; no unused columns. Upper single-source attention has zero task gradient in Q/K. Width matches the nominal parameter budget, not the L2C4 state or compute budget.",
+      "implementation": {
+        "kind": "single-column-none",
+        "source_hashes": {
+          "knitwork/models/grnn_single_column.py": "7c0cb1e50bd06df73b4bceec7ec68b2e6efbde80a97c6c9bac4817de51785e10",
+          "knitwork/exps/communication/run_single_column.py": "1f677165e6a825ca9ac0002a4f47d079cbf129bfe71b4b1642d38a1418ac47a9"
+        }
+      }
+    },
+    {
+      "config": "knitwork/exps/communication/config/text8_none_concat.yaml",
+      "config_sha256": "5963598bc7a55a2ae5dde8757368d46453b8b8a4b89bbe7456f049aa6e42408f",
+      "run_id": "text8/L2C4/clean/none_concat/seed42-data42",
+      "effective_tokens": 999981056,
+      "parameters_nominal_trainable": 1061515,
+      "parameters_gru": 891072,
+      "parameters_router": 152056,
+      "parameters_adapters": 18387,
+      "state_scalars": 1088,
+      "state_scalars_with_path_to_readout": 1088,
+      "dense_forward_flops_per_token": 3082304,
+      "dense_flops_scope": "forward matrix products only; excludes elementwise operations, backward and optimizer",
+      "parameter_caveat": "All columns have a path to prediction through independently learned head blocks. Upper single-source masked attention has zero task gradient in Q/K. The concat head adds parameters and output-head FLOPs while preserving carried state.",
+      "implementation": {
+        "kind": "concatenated-readout-none",
+        "source_hashes": {
+          "knitwork/models/grnn_concat.py": "523649edc4355e6347189a99cd5f56dde43ab4bc9440f247b7d95cb1d43c87a4",
+          "knitwork/exps/communication/run_concat.py": "8a65f085863991dcd8d067fadb4f1d11146fce399149feac29d005c0542b4363"
+        }
+      }
+    },
+    {
+      "config": "knitwork/exps/communication/config/sdq_none_concat.yaml",
+      "config_sha256": "0f4ccd978fd269a1ddef600f8ede8ca11b3b542855fc3c2ba0cf215e908df4df",
+      "run_id": "sdq/L2C4/clean/none_concat/seed42-data42",
+      "effective_tokens": 999997440,
+      "parameters_nominal_trainable": 1057418,
+      "parameters_gru": 891072,
+      "parameters_router": 152056,
+      "parameters_adapters": 14290,
+      "state_scalars": 1088,
+      "state_scalars_with_path_to_readout": 1088,
+      "dense_forward_flops_per_token": 3063808,
+      "dense_flops_scope": "forward matrix products only; excludes elementwise operations, backward and optimizer",
+      "parameter_caveat": "All columns have a path to prediction through independently learned head blocks. Upper single-source masked attention has zero task gradient in Q/K. The concat head adds parameters and output-head FLOPs while preserving carried state.",
+      "implementation": {
+        "kind": "concatenated-readout-none",
+        "source_hashes": {
+          "knitwork/models/grnn_concat.py": "523649edc4355e6347189a99cd5f56dde43ab4bc9440f247b7d95cb1d43c87a4",
+          "knitwork/exps/communication/run_concat.py": "8a65f085863991dcd8d067fadb4f1d11146fce399149feac29d005c0542b4363"
+        }
+      }
+    }
+  ],
+  "tests": {
+    "communication_controls": 11,
+    "communication_extensions": 6,
+    "communication_queue": 7,
+    "communication_diagnostics": 3,
+    "communication_probe_selection": 2,
+    "passed_total": 29
+  },
+  "queue": {
+    "total_jobs": 16,
+    "workers": 2,
+    "daily_cutoff": false,
+    "seed": 42,
+    "data_seed": 42,
+    "new_jobs": "queued after original matrix"
+  },
+  "scope": "Additional controls use new modules and original resumable training loop. Active workers original source hashes unchanged; pause and exact checkpoint continuation verified on real GPU jobs. Additional full-budget jobs are pending; CPU full-loop/resume and actual queue-dispatch tests passed."
+}

@@ -1,0 +1,95 @@
+{
+  "measurement": "Full actor-critic parameter counts and CPU forward check; no GPU peak or throughput measurement.",
+  "runs": [
+    {
+      "config": "01_RepeatPreviousHard_gru.yaml",
+      "env": "popgym-RepeatPreviousHard-v0",
+      "model": "rnn.L2",
+      "parameters": 1003109,
+      "observation_size": 9,
+      "actions": 4,
+      "max_episode_length": 155
+    },
+    {
+      "config": "02_RepeatPreviousHard_lru.yaml",
+      "env": "popgym-RepeatPreviousHard-v0",
+      "model": "lru.L2",
+      "parameters": 1032119,
+      "observation_size": 9,
+      "actions": 4,
+      "max_episode_length": 155
+    },
+    {
+      "config": "03_RepeatPreviousHard_grnn_gru.yaml",
+      "env": "popgym-RepeatPreviousHard-v0",
+      "model": "grnn.L2C4",
+      "parameters": 1045173,
+      "observation_size": 9,
+      "actions": 4,
+      "max_episode_length": 155
+    },
+    {
+      "config": "04_RepeatPreviousHard_grnn_lru.yaml",
+      "env": "popgym-RepeatPreviousHard-v0",
+      "model": "grnn_lru.L2C4",
+      "parameters": 1042421,
+      "observation_size": 9,
+      "actions": 4,
+      "max_episode_length": 155
+    },
+    {
+      "config": "05_RepeatPreviousHard_dynamic_hub.yaml",
+      "env": "popgym-RepeatPreviousHard-v0",
+      "model": "grnn_lru_sparse.dynamic_hub",
+      "parameters": 1048181,
+      "observation_size": 9,
+      "actions": 4,
+      "max_episode_length": 155
+    },
+    {
+      "config": "06_RepeatPreviousHard_two_reads.yaml",
+      "env": "popgym-RepeatPreviousHard-v0",
+      "model": "grnn_lru_experimental.two_reads",
+      "parameters": 1048181,
+      "observation_size": 9,
+      "actions": 4,
+      "max_episode_length": 155
+    },
+    {
+      "config": "07_AutoencodeEasy_gru.yaml",
+      "env": "popgym-AutoencodeEasy-v0",
+      "model": "rnn.L2",
+      "parameters": 1003685,
+      "observation_size": 11,
+      "actions": 4,
+      "max_episode_length": 103
+    },
+    {
+      "config": "08_AutoencodeEasy_lru.yaml",
+      "env": "popgym-AutoencodeEasy-v0",
+      "model": "lru.L2",
+      "parameters": 1032835,
+      "observation_size": 11,
+      "actions": 4,
+      "max_episode_length": 103
+    },
+    {
+      "config": "09_AutoencodeEasy_dynamic_hub.yaml",
+      "env": "popgym-AutoencodeEasy-v0",
+      "model": "grnn_lru_sparse.dynamic_hub",
+      "parameters": 1048541,
+      "observation_size": 11,
+      "actions": 4,
+      "max_episode_length": 103
+    },
+    {
+      "config": "10_AutoencodeEasy_two_reads.yaml",
+      "env": "popgym-AutoencodeEasy-v0",
+      "model": "grnn_lru_experimental.two_reads",
+      "parameters": 1048541,
+      "observation_size": 11,
+      "actions": 4,
+      "max_episode_length": 103
+    }
+  ]
+}

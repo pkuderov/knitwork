@@ -1,0 +1,615 @@
+{
+  "retrieved_utc": "2026-10-05T10:24:06.520198+00:00",
+  "source": "Fixed weekly knitwork-aistat inventory; system-details GET, only GPU model labels retained",
+  "runs": [
+    {
+      "id": "05f0c70d309447ec80bf5283ef27c895",
+      "name": "rnn.L1_1.00M mid/rnn.L1",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "7803e0070e084e6bb917946896a6e5f6",
+      "name": "rnn.L2_1.01M mid/rnn.L2",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "eaa1d5c561f54610ac6dba212583dcaf",
+      "name": "rnn.L3_985.56K mid/rnn.L3",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "cee14d6122ed4a329dda27715398d123",
+      "name": "grnn.L1C8_1.03M mid/grnn.L1C8",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "9a7f67837248411baed1f216bd28375a",
+      "name": "grnn.L2C4_1.05M mid/grnn.L2C4",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "f75e22df3dbf4eb0abbfe093463be428",
+      "name": "grnn.L2C8_972.72K mid/grnn.L2C8",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "44063b7060b041f4bd3ea1f22cde02e7",
+      "name": "grnn.L3C4_1.07M mid/grnn.L3C4",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "dcc52e7eb8034b36ab310e0eff23fdff",
+      "name": "grnn_lru.L1C8_1.00M mid/grnn_lru.L1C8",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "6c724575fff24580bd7058effbc4416d",
+      "name": "grnn_lru.L2C4_1.05M mid/grnn_lru.L2C4",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "09fb7a42bf0e47c49a31cf8dc89705a2",
+      "name": "grnn_lru.L2C8_1.06M mid/grnn_lru.L2C8",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "08b65912756e45c3a02c6408a33252d3",
+      "name": "grnn_lru.L3C4_1.06M mid/grnn_lru.L3C4",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "ad72c9a030bb4fd397f655b78d8780f2",
+      "name": "transformer_1.00M mid/transformer",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "e7095a9b4f6f48e68296bb4d41d5edf7",
+      "name": "rims_994.86K mid/rims",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "c306b9b240f74787bba9c02056ad7298",
+      "name": "brims_1.00M mid/brims",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "96bc5360a1b646f6b539e622c448e4aa",
+      "name": "rnn.L1_1.00M mid/rnn.L1/seed1337",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "c5f92c5003314a8aaa4c4b83472bf8d2",
+      "name": "grnn.L2C4_topk1_1.05M mid/grnn.L2C4_topk1",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "55de969d194c4ef98ee1c17388a45c2c",
+      "name": "grnn_lru.L2C4_1.05M mid/grnn_lru.L2C4/seed1337",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "5792d3c74aaa45d2b9dc30ffabe9cf13",
+      "name": "rnn.L2_1.01M mid/rnn.L2/seed1337",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "5c0724b59c83434498bb98ceec4686ce",
+      "name": "grnn_lru.L2C4_1.05M mid/grnn_lru.L2C4/seed31337",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "ad28d35366274f85a8c1b1f594848d2b",
+      "name": "grnn.L2C4_topk2_1.05M mid/grnn.L2C4_topk2",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "3735558c81684840aeace6620ee9c975",
+      "name": "rnn.L2_1.01M mid/rnn.L2/seed31337",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "5196277eae0c401388e5579ab8e48d4c",
+      "name": "grnn.L2C4_1.05M mid/grnn.L2C4/seed1337",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "6dbc5ce5334341f0bea5d3530fe81bcb",
+      "name": "grnn_lru_sparse.control_1.05M lru_mid/control",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "3d9e9cece42d4c67b913628ae3348c02",
+      "name": "grnn.L2C4_1.05M mid/grnn.L2C4/seed31337",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "191b7533bd264ea6a2bf84a2e7798e1e",
+      "name": "grnn_lru_sparse.self_heavy_1.05M lru_mid/self_heavy",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "7f45618a2cdf41749b255bad357a184e",
+      "name": "grnn_lru_sparse.star_1.05M lru_mid/star",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "c428fe4c01e04a5680f97b539fc3f338",
+      "name": "grnn_lru_sparse.star_ring_1.05M lru_mid/star_ring",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "9b65fb68d2f04c96a9ceacb6ae8f3672",
+      "name": "grnn_lru_sparse.clockwork_1.05M lru_mid/clockwork",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "d5ee140465524672855bcfb80932b893",
+      "name": "grnn_lru_sparse.block_531.06K lru_mid/block",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "798342c6ab814c5ca251fa1dd9c06328",
+      "name": "grnn_lru_sparse.entmax_1.05M lru_mid/entmax",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "010b7096f48f468bb79bae126881e666",
+      "name": "grnn_lru_sparse.dynamic_hub_1.06M lru_mid/dynamic_hub",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "24a0f721211d49899023cafae9b260e6",
+      "name": "grnn_lru_sparse.dynamic_control_1.06M text_lru_architecture_mid/dynamic_control",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "54b4390383304422902cb09b069131da",
+      "name": "grnn_lru_experimental.write_gate_1.06M text_lru_architecture_mid/write_gate",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "a6b467d154264b2881ed86cd237c59b2",
+      "name": "grnn_lru_experimental.query_read_1.11M text_lru_architecture_mid/query_read",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "8621e147570141e2b68788fe20e01a23",
+      "name": "grnn_lru_experimental.associative_830.32K text_lru_architecture_mid/associative",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "f3a8110e7bf4460a9bb568a05a440748",
+      "name": "grnn_lru_experimental.rotations_1.06M text_lru_architecture_mid/rotations",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "c47fb5050b3249a392ef61f8dcc85970",
+      "name": "grnn_lru_experimental.two_reads_1.06M text_lru_architecture_mid/two_reads",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "4a3faa4788964891aeabadbf65a85c9b",
+      "name": "grnn.L3C4_1.07M mid/grnn.L3C4/seed1337",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "971aace34ca7408e91f6964443ef2a8e",
+      "name": "grnn.L3C4_1.07M mid/grnn.L3C4/seed31337",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "8519d480488a4fa79a6759e160c627b9",
+      "name": "rnn.L3_985.56K mid/rnn.L3/seed1337",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "428bbf5eacb9489c9f2da648ce598c21",
+      "name": "mamba_1.00M mid/mamba",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "a7eb48b289ee4f2aaf001df0ad7ba65e",
+      "name": "mqar_lru_architecture_mid/dynamic_control/ep8",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "3e509bfb78b14a6eb56f7f87813f303f",
+      "name": "mqar_lru_architecture_mid/write_gate/ep8",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "f7539af531754ea6afb36c8bede34302",
+      "name": "rnn.L2_1.01M rollout_mid/gru/r64/pilot67M",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "c55b14c3d0ac4ab1b53cadd80d718a22",
+      "name": "rnn.L2_1.01M rollout_mid/gru/r512/pilot67M",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "d7027e85eda64bd495126a02f99f7829",
+      "name": "rnn.L2_RepeatPreviousHard_1.00M rl_mid_shortlist/01_RepeatPreviousHard_gru/8388608slots/seed42",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "8667f73112864e69919415351f233f6b",
+      "name": "delta_net_1.00M mid/delta_net",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "a2f65cc2fde14e23a79e2d0ab3827767",
+      "name": "mlstm_995.58K mid/mlstm",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "96ec3b8ad83a4ff29e78661d687ab01d",
+      "name": "lru.L2_RepeatPreviousHard_1.03M rl_mid_shortlist/02_RepeatPreviousHard_lru/8388608slots/seed42",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "136031bbea584fbf9dacb964f03a0c3b",
+      "name": "grnn_lru.L2C4_1.05M rollout_mid/grnn_lru/r64/pilot67M",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "ba83b1d66cdb401d93620b706bac5018",
+      "name": "grnn.L2C4_1.05M rollout_mid/grnn_gru/r64/pilot67M",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "cbddaab718134805983c1d22272710f4",
+      "name": "grnn_lru.L2C4_1.05M rollout_mid/grnn_lru/r512/pilot67M",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "0376834a30a34678a353842fb4833d4c",
+      "name": "grnn.L2C4_1.05M rollout_mid/grnn_gru/r512/pilot67M",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "40eb9dbdf5614585bc29097043cf2d42",
+      "name": "grnn.L2C4_1.05M grnn_ablation_mid/none/pilot67M",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "f3a8995e028f42a088ff31e215be530f",
+      "name": "lru.L2_1.05M rollout_mid/lru/r64/pilot67M",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "814aa9516246455ba9f83a523176fb75",
+      "name": "lru.L2_1.05M rollout_mid/lru/r512/pilot67M",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "b0c36ba9c13e4c1b91b8ae4fe3bb9374",
+      "name": "grnn.L2C4_RepeatPreviousHard_1.05M rl_mid_shortlist/03_RepeatPreviousHard_grnn_gru/8388608slots/seed42",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "6f9ad9de836246cb8b2e5a2036cec297",
+      "name": "hgrn2_996.21K mid/hgrn2",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "ebbc8da6e8874480ad3e0342bf8b651e",
+      "name": "grnn_lru.L2C4_RepeatPreviousHard_1.04M rl_mid_shortlist/04_RepeatPreviousHard_grnn_lru/8388608slots/seed42",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "8f98d51b7c19411c9f4179b71a19fae5",
+      "name": "grnn.L2C4_1.05M grnn_ablation_mid/no_noise/pilot67M",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "5525cd852f684f53b06843e0b3a63064",
+      "name": "grnn.L2C4_1.05M grnn_ablation_mid/no_comm/pilot67M",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "3efba9c452a248e8aaa14f1539a5af18",
+      "name": "grnn.L2C4_1.05M grnn_ablation_mid/no_entropy/pilot67M",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "4589138c400948adab84e3937a18bdd2",
+      "name": "grnn_lru_sparse.dynamic_hub_RepeatPreviousHard_1.05M rl_mid_shortlist/05_RepeatPreviousHard_dynamic_hub/8388608slots/seed42",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "775dd69571b047f1bd5e9444c6af7db1",
+      "name": "grnn_lru_experimental.two_reads_RepeatPreviousHard_1.05M rl_mid_shortlist/06_RepeatPreviousHard_two_reads/8388608slots/seed42",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "ef2c91cc1dff4413a0971f1abca53366",
+      "name": "rnn.L2_AutoencodeEasy_1.00M rl_mid_shortlist/07_AutoencodeEasy_gru/8388608slots/seed42",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "39dbcf258a5f4fdb891e158e7cdbb4a8",
+      "name": "lru.L2_AutoencodeEasy_1.03M rl_mid_shortlist/08_AutoencodeEasy_lru/8388608slots/seed42",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "cc147c274a7745ef92bd5e6190988ac5",
+      "name": "grnn_lru_sparse.dynamic_hub_AutoencodeEasy_1.05M rl_mid_shortlist/09_AutoencodeEasy_dynamic_hub/8388608slots/seed42",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "63eebaf4ff1e4b02b9bb18c4929bfbfd",
+      "name": "grnn_lru_experimental.two_reads_AutoencodeEasy_1.05M rl_mid_shortlist/10_AutoencodeEasy_two_reads/8388608slots/seed42",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "4b364702f4e742e182b6cd9b66b9e314",
+      "name": "mqar_lru_architecture_mid/query_read/ep8",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "bcc7b8a14c8142318cac67562e47e124",
+      "name": "mqar_lru_architecture_mid/associative/ep8",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "a5157b080da14021a4fe6126d3ef8b61",
+      "name": "mqar_lru_architecture_mid/rotations/ep8",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "668690f230904a26b8ebf3474c614c4b",
+      "name": "mqar_lru_architecture_mid/two_reads/ep8",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "5423e339c5ed4f02a9cab6b8c832ae9f",
+      "name": "grnn_lru.L3C4_1.06M mid/grnn_lru.L3C4/seed1337",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "7bf4b64dc82b4eb6bb76dc27d43fc073",
+      "name": "grnn_lru.L3C4_1.06M mid/grnn_lru.L3C4/seed31337",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "90be163e283c487d9f57d3196ef3255f",
+      "name": "grnn.L1C8_1.03M mid/grnn.L1C8/seed1337",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "d0f5cc50eab44741a6056ff8c7d1ca5d",
+      "name": "grnn.L2C8_972.72K mid/grnn.L2C8/seed1337",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "1450ffd799094de991a228ca5b11f103",
+      "name": "grnn_lru.L1C8_1.00M mid/grnn_lru.L1C8/seed1337",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "0b24e705672e4b81b0e9b9f79bcd56f3",
+      "name": "grnn_lru.L2C8_1.06M mid/grnn_lru.L2C8/seed1337",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "68ed71d067cd459bbd0b0900284c4c4f",
+      "name": "delta_net_1.00M mid/delta_net/seed1337",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "14cc943be7234f569619183357c62e79",
+      "name": "hgrn2_996.21K mid/hgrn2/seed1337",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "7aa3cf4a63fd468c898316faa6cd8e47",
+      "name": "mlstm_995.58K mid/mlstm/seed1337",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "37180ab2c16f43b2bda41a39bea06469",
+      "name": "transformer_1.00M mid/transformer/seed1337",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "0a817e21865c4dfaa04503c5b4aa940e",
+      "name": "rims_994.86K mid/rims/seed1337",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "671835b43a954540bedc09cfcf7841bc",
+      "name": "mamba_1.00M mid/mamba/seed1337",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "3b24fb379acf4f4393df7b683a8fad22",
+      "name": "brims_1.00M mid/brims/seed1337",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "284917331efa471db29b13c26330eaba",
+      "name": "mqar_lru_slots_mid/slot_content/ep8",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    },
+    {
+      "id": "f21aeea6d73a4b9499af072d97aa8ce3",
+      "name": "mqar_lru_slots_mid/slot_alloc/ep8",
+      "gpu_names": [
+        "NVIDIA H100 80GB HBM3"
+      ]
+    }
+  ]
+}

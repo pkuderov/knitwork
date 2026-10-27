@@ -1,0 +1,99 @@
+{
+  "main_quality_checks_against_retained_logs": 94,
+  "long_configurations_evaluated_within_one_billion": [],
+  "energy_identity_cases": 160,
+  "max_energy_identity_error": 5.684341886080802e-14,
+  "bottleneck_covariance_checks": [
+    {
+      "readout": "full",
+      "optimal_mse": 0.18181818181818166,
+      "compression_penalty": -2.220446049250313e-16
+    },
+    {
+      "readout": "posterior_mean",
+      "optimal_mse": 0.18181818181818188,
+      "compression_penalty": 0.0
+    },
+    {
+      "readout": "one_source",
+      "optimal_mse": 1.1111111111111112,
+      "compression_penalty": 0.9292929292929293
+    },
+    {
+      "readout": "two_sums",
+      "optimal_mse": 0.32349804479203703,
+      "compression_penalty": 0.14167986297385515
+    }
+  ],
+  "empirical_table_and_figure_changes": [
+    "aistats_mid_main.tex",
+    "aistats_resources_appendix.tex",
+    "aistats_checklist.tex"
+  ],
+  "table2_caption": "Text8 validation results for models with approximately one million parameters and a training budget of one billion tokens. Values are the mean and sample standard deviation across repeated runs. Models share the data split and training recipe; recurrent state and computational cost are not matched.",
+  "formal_proof_status": "Complete mathematical proofs; no Lean artifact was available in this repository.",
+  "additional_one_billion_quality_checks": 16,
+  "table2_generator_reproduces_source": true,
+  "revision": "2026-10-07 Bayesian routing analysis and Table 2 caption",
+  "new_experiments_run": false,
+  "external_tracker_queried": false,
+  "publication_performed": false,
+  "manuscripts": {
+    "paper": {
+      "pages": 23,
+      "main_text_pages": 8,
+      "ai_statement_page": 9,
+      "table2_page": 7,
+      "theorem1_page": 4,
+      "proof_appendix_first_page": 12,
+      "resource_text8_tables_page": 23,
+      "resource_tables_gap_pt": 37.92425537109375,
+      "anonymous_metadata": true,
+      "us_letter": true,
+      "font_types": [
+        "Type0",
+        "Type1"
+      ],
+      "unresolved_references": false,
+      "remaining_build_warning": "Official title block: overfull hbox 5.1225pt"
+    },
+    "paper_evidence_only": {
+      "pages": 23,
+      "main_text_pages": 8,
+      "ai_statement_page": 9,
+      "table2_page": 7,
+      "theorem1_page": 4,
+      "proof_appendix_first_page": 12,
+      "resource_text8_tables_page": 23,
+      "resource_tables_gap_pt": 37.92425537109375,
+      "anonymous_metadata": true,
+      "us_letter": true,
+      "font_types": [
+        "Type0",
+        "Type1"
+      ],
+      "unresolved_references": false,
+      "remaining_build_warning": "Official title block: overfull hbox 5.1225pt"
+    }
+  },
+  "official_style_files_unchanged": true,
+  "resource_change_is_page_break_only": true,
+  "other_empirical_tables_and_figures_unchanged": true,
+  "sha256": {
+    "article/latex/paper.tex": "8b4509103cca7af887994e5d4d735f4a89b9ae33f70b08947221a307d63fed71",
+    "article/latex/paper.pdf": "e8aaf5bcbd47772c049517a008a7f1a9e291d23d5fd2ce241589ed4d52ae51e1",
+    "article/latex/paper_evidence_only.tex": "b2d1e90e09f1979fa00e1a7f2ccd693936133cbee84029e1d5a53e19398b7c7e",
+    "article/latex/paper_evidence_only.pdf": "03d0d1b871cd55e16b927490ee83f7d4c98de205ffc1f46093c46cb803a52e89",
+    "article/latex/aistats_bayesian_main.tex": "31f351575a040facb9bc78ce1663744b00f5a8569272242b350bfd39a25200dd",
+    "article/latex/aistats_bayesian_appendix.tex": "0320e9cfa706db517d58d1e61f125f84cadecbc67e41ee4cd9a32741c4b64984",
+    "article/latex/aistats_mid_main.tex": "cdc1720a1c7be289ac1ae4b84b6b3bf5d581e3983dd05358570c4da55a05ae32",
+    "article/latex/aistats_checklist.tex": "51fa1e0beaf36daeb6652ccdda522a03d308566dc8756f43ca54f7fd358ce3dc",
+    "article/latex/aistats_resources_appendix.tex": "197b4e7ca5162de24eeb01b4ddad9630e2fe16cda0b967baf2087a7fd6aefedc",
+    "article/latex/refs.bib": "0544f73c8f11385742abf9398ffe7af23bb2441116b60d227c8f8970cc0ee43f",
+    "article/latex/aistats2027.sty": "33ab38f8aac4b2f1df9fe67e354928598200584e9568385f32deb889e1b81d42",
+    "article/latex/fancyhdr.sty": "b56ec4434b9f4607529a4b23dc68ad8d4b94f1f631c8cddaf7da78140d53a5ea",
+    "inference/aistats_revision_evidence.py": "5223e7c61705bd38abf451bbe7d5ab4eaa130b8d91e2d45732c48993a9d8d3cc",
+    "inference/aistats_resource_accounting.py": "b1abf40f472c1d14fc83b9d9709791185ddc3e4ec6322efff04ab78fddf1d5a4",
+    "docs/experiments/aistats2027_revision_evidence.json": "d4e2265a8342eb6904fd4ac9c1ec7a610997d980e69cbefc72af89e0dab1d073"
+  }
+}
