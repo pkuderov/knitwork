@@ -1,0 +1,397 @@
+{
+  "retrieval_started_utc": "2026-10-03T09:19:57.038844+00:00",
+  "method": "Last timestamp retained per duplicate metric step; common exact steps, no interpolation; Text8 CE nats divided by ln(2); single seed42 for all listed model comparisons.",
+  "groups": {
+    "architecture": {
+      "common_step": 980037632,
+      "control_id": "24a0f721211d49899023cafae9b260e6",
+      "rows": [
+        {
+          "id": "24a0f721211d49899023cafae9b260e6",
+          "name": "grnn_lru_sparse.dynamic_control_1.06M text_lru_architecture_mid/dynamic_control",
+          "step": 980037632,
+          "bpc": 1.6687321828832546,
+          "delta": 0.0,
+          "window1024_bpc": 1.6803208898463433,
+          "late_800M_980M_mean_delta": 0.0
+        },
+        {
+          "id": "54b4390383304422902cb09b069131da",
+          "name": "grnn_lru_experimental.write_gate_1.06M text_lru_architecture_mid/write_gate",
+          "step": 980037632,
+          "bpc": 1.6675028508948873,
+          "delta": -0.001229331988367388,
+          "window1024_bpc": 1.6799256737146604,
+          "late_800M_980M_mean_delta": -0.0013651466877536932
+        },
+        {
+          "id": "a6b467d154264b2881ed86cd237c59b2",
+          "name": "grnn_lru_experimental.query_read_1.11M text_lru_architecture_mid/query_read",
+          "step": 980037632,
+          "bpc": 1.6872404398211573,
+          "delta": 0.0185082569379027,
+          "window1024_bpc": 1.700851318793091,
+          "late_800M_980M_mean_delta": 0.018392529812137303
+        },
+        {
+          "id": "8621e147570141e2b68788fe20e01a23",
+          "name": "grnn_lru_experimental.associative_830.32K text_lru_architecture_mid/associative",
+          "step": 980037632,
+          "bpc": 1.6938127568238797,
+          "delta": 0.025080573940625017,
+          "window1024_bpc": 1.7121423237875362,
+          "late_800M_980M_mean_delta": 0.022390988858576932
+        },
+        {
+          "id": "f3a8110e7bf4460a9bb568a05a440748",
+          "name": "grnn_lru_experimental.rotations_1.06M text_lru_architecture_mid/rotations",
+          "step": 980037632,
+          "bpc": 1.6663478154116926,
+          "delta": -0.00238436747156201,
+          "window1024_bpc": 1.6786684805368532,
+          "late_800M_980M_mean_delta": -0.00033369793746909073
+        },
+        {
+          "id": "c47fb5050b3249a392ef61f8dcc85970",
+          "name": "grnn_lru_experimental.two_reads_1.06M text_lru_architecture_mid/two_reads",
+          "step": 980037632,
+          "bpc": 1.6530186440218724,
+          "delta": -0.01571353886138227,
+          "window1024_bpc": 1.6640800521774155,
+          "late_800M_980M_mean_delta": -0.01677116337112816
+        }
+      ]
+    },
+    "ablation": {
+      "common_step": 50331648,
+      "control_id": "ba83b1d66cdb401d93620b706bac5018",
+      "rows": [
+        {
+          "id": "ba83b1d66cdb401d93620b706bac5018",
+          "name": "grnn.L2C4_1.05M rollout_mid/grnn_gru/r64/pilot67M",
+          "step": 50331648,
+          "bpc": 1.925988303592766,
+          "delta": 0.0
+        },
+        {
+          "id": "40eb9dbdf5614585bc29097043cf2d42",
+          "name": "grnn.L2C4_1.05M grnn_ablation_mid/none/pilot67M",
+          "step": 50331648,
+          "bpc": 1.928157176802797,
+          "delta": 0.002168873210030897
+        },
+        {
+          "id": "8f98d51b7c19411c9f4179b71a19fae5",
+          "name": "grnn.L2C4_1.05M grnn_ablation_mid/no_noise/pilot67M",
+          "step": 50331648,
+          "bpc": 1.9243432895372634,
+          "delta": -0.0016450140555026582
+        },
+        {
+          "id": "5525cd852f684f53b06843e0b3a63064",
+          "name": "grnn.L2C4_1.05M grnn_ablation_mid/no_comm/pilot67M",
+          "step": 50331648,
+          "bpc": 1.921952042759667,
+          "delta": -0.004036260833099048
+        },
+        {
+          "id": "3efba9c452a248e8aaa14f1539a5af18",
+          "name": "grnn.L2C4_1.05M grnn_ablation_mid/no_entropy/pilot67M",
+          "step": 50331648,
+          "bpc": 1.9224038411834836,
+          "delta": -0.0035844624092824517
+        }
+      ]
+    },
+    "sparse": {
+      "common_step": 240009216,
+      "control_id": "6dbc5ce5334341f0bea5d3530fe81bcb",
+      "rows": [
+        {
+          "id": "6dbc5ce5334341f0bea5d3530fe81bcb",
+          "name": "grnn_lru_sparse.control_1.05M lru_mid/control",
+          "step": 240009216,
+          "bpc": 1.8778560350437445,
+          "delta": 0.0,
+          "window1024_bpc": 1.8817772394834165
+        },
+        {
+          "id": "191b7533bd264ea6a2bf84a2e7798e1e",
+          "name": "grnn_lru_sparse.self_heavy_1.05M lru_mid/self_heavy",
+          "step": 240009216,
+          "bpc": 1.8631014714435732,
+          "delta": -0.014754563600171355,
+          "window1024_bpc": 1.8650342124739696
+        },
+        {
+          "id": "7f45618a2cdf41749b255bad357a184e",
+          "name": "grnn_lru_sparse.star_1.05M lru_mid/star",
+          "step": 240009216,
+          "bpc": 1.8723522462508329,
+          "delta": -0.00550378879291169,
+          "window1024_bpc": 1.8780015323663743
+        },
+        {
+          "id": "c428fe4c01e04a5680f97b539fc3f338",
+          "name": "grnn_lru_sparse.star_ring_1.05M lru_mid/star_ring",
+          "step": 240009216,
+          "bpc": 1.889667975487653,
+          "delta": 0.011811940443908542,
+          "window1024_bpc": 1.8927698545786147
+        },
+        {
+          "id": "9b65fb68d2f04c96a9ceacb6ae8f3672",
+          "name": "grnn_lru_sparse.clockwork_1.05M lru_mid/clockwork",
+          "step": 240009216,
+          "bpc": 1.9282331931344785,
+          "delta": 0.05037715809073395,
+          "window1024_bpc": 1.933919971467908
+        },
+        {
+          "id": "d5ee140465524672855bcfb80932b893",
+          "name": "grnn_lru_sparse.block_531.06K lru_mid/block",
+          "step": 240009216,
+          "bpc": 1.9487345570132304,
+          "delta": 0.07087852196948585,
+          "window1024_bpc": 1.9550175991972014
+        },
+        {
+          "id": "798342c6ab814c5ca251fa1dd9c06328",
+          "name": "grnn_lru_sparse.entmax_1.05M lru_mid/entmax",
+          "step": 240009216,
+          "bpc": 1.8805965785852434,
+          "delta": 0.0027405435414988855,
+          "window1024_bpc": 1.885030807272439
+        },
+        {
+          "id": "010b7096f48f468bb79bae126881e666",
+          "name": "grnn_lru_sparse.dynamic_hub_1.06M lru_mid/dynamic_hub",
+          "step": 240009216,
+          "bpc": 1.8153369018020964,
+          "delta": -0.06251913324164815,
+          "window1024_bpc": 1.8220521363876856
+        }
+      ]
+    },
+    "baseline": {
+      "common_step": 980037632,
+      "control_id": "428bbf5eacb9489c9f2da648ce598c21",
+      "rows": [
+        {
+          "id": "428bbf5eacb9489c9f2da648ce598c21",
+          "name": "mamba_1.00M mid/mamba",
+          "step": 980037632,
+          "bpc": 1.5659111511863684,
+          "delta": 0.0,
+          "window1024_bpc": 1.5834203609054092
+        },
+        {
+          "id": "9a7f67837248411baed1f216bd28375a",
+          "name": "grnn.L2C4_1.05M mid/grnn.L2C4",
+          "step": 980037632,
+          "bpc": 1.592080547289606,
+          "delta": 0.026169396103237652,
+          "window1024_bpc": 1.6016243805339359
+        },
+        {
+          "id": "7803e0070e084e6bb917946896a6e5f6",
+          "name": "rnn.L2_1.01M mid/rnn.L2",
+          "step": 980037632,
+          "bpc": 1.6364388285480942,
+          "delta": 0.07052767736172583,
+          "window1024_bpc": 1.6439312527329324
+        },
+        {
+          "id": "6c724575fff24580bd7058effbc4416d",
+          "name": "grnn_lru.L2C4_1.05M mid/grnn_lru.L2C4",
+          "step": 980037632,
+          "bpc": 1.6726692097268059,
+          "delta": 0.10675805854043752,
+          "window1024_bpc": 1.685937155292919
+        },
+        {
+          "id": "c47fb5050b3249a392ef61f8dcc85970",
+          "name": "grnn_lru_experimental.two_reads_1.06M text_lru_architecture_mid/two_reads",
+          "step": 980037632,
+          "bpc": 1.6530186440218724,
+          "delta": 0.08710749283550401,
+          "window1024_bpc": 1.6640800521774155
+        }
+      ]
+    }
+  },
+  "rollout": [
+    {
+      "family": "GRU",
+      "step": 50331648,
+      "rollout64_bpc": 1.9826270060361133,
+      "rollout512_bpc": 2.0034186766295217,
+      "delta": 0.020791670593408362
+    },
+    {
+      "family": "Grid-GRU",
+      "step": 50331648,
+      "rollout64_bpc": 1.925988303592766,
+      "rollout512_bpc": 1.9464031601981342,
+      "delta": 0.020414856605368126
+    },
+    {
+      "family": "Grid-LRU",
+      "step": 50331648,
+      "rollout64_bpc": 2.486694569085587,
+      "rollout512_bpc": 2.4870462736066017,
+      "delta": 0.00035170452101462857
+    },
+    {
+      "family": "LRU",
+      "step": 50331648,
+      "rollout64_bpc": 2.1574568296839556,
+      "rollout512_bpc": 2.155217959535024,
+      "delta": -0.0022388701489317597
+    }
+  ],
+  "mqar_pair": {
+    "step": 108371968,
+    "rows": [
+      {
+        "id": "a7eb48b289ee4f2aaf001df0ad7ba65e",
+        "name": "mqar_lru_architecture_mid/dynamic_control/ep8",
+        "accuracy": 0.02609677419354839,
+        "loss": 7.719626254420127,
+        "segments": {
+          "val/T128_K8/Acc": 0.11025,
+          "val/T256_K16/Acc": 0.0454375,
+          "val/T256_K32/Acc": 0.01828125,
+          "val/T256_K64/Acc": 0.00078125,
+          "val/T64_K4/Acc": 0.248
+        }
+      },
+      {
+        "id": "3e509bfb78b14a6eb56f7f87813f303f",
+        "name": "mqar_lru_architecture_mid/write_gate/ep8",
+        "accuracy": 0.019048387096774193,
+        "loss": 7.575395651663503,
+        "segments": {
+          "val/T128_K8/Acc": 0.086,
+          "val/T256_K16/Acc": 0.0224375,
+          "val/T256_K32/Acc": 0.0065,
+          "val/T256_K64/Acc": 0.00275,
+          "val/T64_K4/Acc": 0.23275
+        }
+      }
+    ]
+  },
+  "rl_common": {
+    "step": 1572864,
+    "rows": [
+      {
+        "id": "d7027e85eda64bd495126a02f99f7829",
+        "name": "rnn.L2_RepeatPreviousHard_1.00M rl_mid_shortlist/01_RepeatPreviousHard_gru/8388608slots/seed42",
+        "return_value": -0.4857336956521738
+      },
+      {
+        "id": "96ec3b8ad83a4ff29e78661d687ab01d",
+        "name": "lru.L2_RepeatPreviousHard_1.03M rl_mid_shortlist/02_RepeatPreviousHard_lru/8388608slots/seed42",
+        "return_value": -0.4687499999999998
+      },
+      {
+        "id": "b0c36ba9c13e4c1b91b8ae4fe3bb9374",
+        "name": "grnn.L2C4_RepeatPreviousHard_1.05M rl_mid_shortlist/03_RepeatPreviousHard_grnn_gru/8388608slots/seed42",
+        "return_value": -0.5054347826086956
+      },
+      {
+        "id": "ebbc8da6e8874480ad3e0342bf8b651e",
+        "name": "grnn_lru.L2C4_RepeatPreviousHard_1.04M rl_mid_shortlist/04_RepeatPreviousHard_grnn_lru/8388608slots/seed42",
+        "return_value": -0.5217391304347825
+      },
+      {
+        "id": "4589138c400948adab84e3937a18bdd2",
+        "name": "grnn_lru_sparse.dynamic_hub_RepeatPreviousHard_1.05M rl_mid_shortlist/05_RepeatPreviousHard_dynamic_hub/8388608slots/seed42",
+        "return_value": -0.5264945652173912
+      },
+      {
+        "id": "775dd69571b047f1bd5e9444c6af7db1",
+        "name": "grnn_lru_experimental.two_reads_RepeatPreviousHard_1.05M rl_mid_shortlist/06_RepeatPreviousHard_two_reads/8388608slots/seed42",
+        "return_value": -0.5142663043478259
+      },
+      {
+        "id": "ef2c91cc1dff4413a0971f1abca53366",
+        "name": "rnn.L2_AutoencodeEasy_1.00M rl_mid_shortlist/07_AutoencodeEasy_gru/8388608slots/seed42",
+        "return_value": -0.4939903846153845
+      },
+      {
+        "id": "39dbcf258a5f4fdb891e158e7cdbb4a8",
+        "name": "lru.L2_AutoencodeEasy_1.03M rl_mid_shortlist/08_AutoencodeEasy_lru/8388608slots/seed42",
+        "return_value": -0.49759615384615374
+      },
+      {
+        "id": "cc147c274a7745ef92bd5e6190988ac5",
+        "name": "grnn_lru_sparse.dynamic_hub_AutoencodeEasy_1.05M rl_mid_shortlist/09_AutoencodeEasy_dynamic_hub/8388608slots/seed42",
+        "return_value": -0.5192307692307692
+      },
+      {
+        "id": "63eebaf4ff1e4b02b9bb18c4929bfbfd",
+        "name": "grnn_lru_experimental.two_reads_AutoencodeEasy_1.05M rl_mid_shortlist/10_AutoencodeEasy_two_reads/8388608slots/seed42",
+        "return_value": -0.5168269230769229
+      }
+    ]
+  },
+  "sparse_last_common_pairs": [
+    {
+      "id": "191b7533bd264ea6a2bf84a2e7798e1e",
+      "name": "grnn_lru_sparse.self_heavy_1.05M lru_mid/self_heavy",
+      "step": 920035328,
+      "bpc": 1.6725121895665682,
+      "control_bpc": 1.6787840528782332,
+      "delta": -0.00627186331166496
+    },
+    {
+      "id": "7f45618a2cdf41749b255bad357a184e",
+      "name": "grnn_lru_sparse.star_1.05M lru_mid/star",
+      "step": 1000000001,
+      "bpc": 1.6816347513076095,
+      "control_bpc": 1.6761478168144825,
+      "delta": 0.0054869344931269826
+    },
+    {
+      "id": "c428fe4c01e04a5680f97b539fc3f338",
+      "name": "grnn_lru_sparse.star_ring_1.05M lru_mid/star_ring",
+      "step": 600023040,
+      "bpc": 1.7305441234645549,
+      "control_bpc": 1.7330543822365485,
+      "delta": -0.002510258771993623
+    },
+    {
+      "id": "9b65fb68d2f04c96a9ceacb6ae8f3672",
+      "name": "grnn_lru_sparse.clockwork_1.05M lru_mid/clockwork",
+      "step": 920035328,
+      "bpc": 1.7122995159304246,
+      "control_bpc": 1.6787840528782332,
+      "delta": 0.03351546305219144
+    },
+    {
+      "id": "d5ee140465524672855bcfb80932b893",
+      "name": "grnn_lru_sparse.block_531.06K lru_mid/block",
+      "step": 920035328,
+      "bpc": 1.760666884763176,
+      "control_bpc": 1.6787840528782332,
+      "delta": 0.08188283188494272
+    },
+    {
+      "id": "798342c6ab814c5ca251fa1dd9c06328",
+      "name": "grnn_lru_sparse.entmax_1.05M lru_mid/entmax",
+      "step": 1000000001,
+      "bpc": 1.686081448736993,
+      "control_bpc": 1.6761478168144825,
+      "delta": 0.00993363192251051
+    },
+    {
+      "id": "010b7096f48f468bb79bae126881e666",
+      "name": "grnn_lru_sparse.dynamic_hub_1.06M lru_mid/dynamic_hub",
+      "step": 1000000001,
+      "bpc": 1.6659415923903547,
+      "control_bpc": 1.6761478168144825,
+      "delta": -0.010206224424127885
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "kind": "CPU sampling of finite-deck histogram policy, not trained model or tracker result",
+  "seed": 314159,
+  "episodes": 10000,
+  "deck_cards": 156,
+  "suits": 4,
+  "scored_actions": 92,
+  "rule": "At observed card index t, predict argmax of cumulative suit counts; scored t=63..154, target index t-63, consistent with installed RepeatPreviousHard step implementation",
+  "mean_return": -0.4472282608695652,
+  "episode_sd": 0.07902126085766888,
+  "mean_standard_error": 0.0007902126085766888
+}
