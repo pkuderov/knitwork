@@ -63,45 +63,6 @@ class TokenModel(nn.Module):
         return getattr(self.rnn, 'has_attn', False)
 
 
-class RLTokenModel(nn.Module):
-    """Token-input recurrent actor-critic built around a core model."""
-
-    def __init__(
-            self, *,
-            input_size, output_size,
-            rnn: dict, rnn_fn,
-            dtype, device, feature_norm=False, policy_gain=None,
-    ):
-        super().__init__()
-        self.dtype = dtype
-        self.device = device
-        self.rnn = rnn_fn(dtype=dtype, device=device, **rnn)
-        self.hidden_size = self.rnn.hidden_size
-        self.feature_norm = feature_norm
-
-        self.embedding = nn.Embedding(input_size, self.hidden_size)
-        self.policy_head = nn.Linear(self.hidden_size, output_size)
-        self.value_head = nn.Linear(self.hidden_size, 1)
-        _init_rl_heads(self, policy_gain)
-
-        print(f'Param count: {count_learnable_params(self, as_str=True)}')
-
-    def forward(self, tokens, state, *, capture=False, **kwargs):
-        x = self.embedding(tokens)
-        if not getattr(self.rnn, 'batch_first', False):
-            x = x.transpose(0, 1)
-        z, state, info = self.rnn(x, state, capture=capture, **kwargs)
-        if self.feature_norm:
-            z = torch.nn.functional.rms_norm(z, (self.hidden_size,))
-        return self.policy_head(z), self.value_head(z).squeeze(-1), state, info
-
-    def reset_state(self, state, reset_mask):
-        return self.rnn.reset_state(state, reset_mask)
-
-    def detach_state(self, state):
-        return self.rnn.detach_state(state)
-
-
 class RLVectorModel(nn.Module):
     """Vector-input recurrent actor-critic built around a core model.
 

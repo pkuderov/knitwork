@@ -53,7 +53,6 @@ REGISTRY = {
 
 WRAPPER_REGISTRY = {
     'token': 'wrappers.TokenModel',
-    'rl_token': 'wrappers.RLTokenModel',
     'rl_vector': 'wrappers.RLVectorModel',
 }
 
