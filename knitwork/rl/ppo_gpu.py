@@ -66,26 +66,46 @@ def compute_gae(rewards, values, dones, last_value, *, gamma, lambda_):
 
 
 def replay(model, obs, dones, state):
-    """Re-run the recurrent policy over a stored rollout: logits [T, b, A], values [T, b]."""
-    logits, values = [], []
+    """Re-run the recurrent policy over a stored rollout: logits [T, b, A], values [T, b],
+    aux predictions (or head features) [T, b, F] and normalised routing entropy [T] (zeros without dynamic routing)."""
+    logits, values, auxs, ents = [], [], [], []
     for t in range(obs.shape[0]):
-        lg, v, state, _ = model(obs[t], state)
+        lg, v, state, info = model(obs[t], state)
         state = model.reset_state(state, dones[t])
         logits.append(lg)
         values.append(v)
-    return torch.stack(logits), torch.stack(values)
+        auxs.append(info['aux'])
+        ent = info.get('comm_entropy')
+        ents.append(torch.stack(ent).mean() if ent else v.new_zeros(()))
+    return torch.stack(logits), torch.stack(values), torch.stack(auxs), torch.stack(ents)
+
+
+def aux_memory_loss(aux, lags, obs, dones):
+    """MSE of the prediction of obs[t - k] made at step t, for each lag k, within the same episode."""
+    T, b, _ = obs.shape
+    pred = aux.view(T, b, len(lags), -1)  # [T, b, K, obs_dim]
+    # episode id per step: increments after each done
+    ep = torch.cumsum(torch.cat([dones.new_zeros(1, b), dones[:-1]]).long(), 0)  # [T, b]
+    losses = []
+    for i, k in enumerate(lags):
+        same = (ep[k:] == ep[:-k]).unsqueeze(-1).to(obs.dtype)  # [T-k, b, 1]
+        err = (pred[k:, :, i] - obs[:-k]) ** 2 * same
+        losses.append(err.sum() / (same.sum() * obs.shape[-1]).clamp_min(1))
+    return torch.stack(losses).mean()
 
 
 def ppo_update(
         model, batch, optim, *, epochs, minibatches, clip_eps, value_coef, entropy_coef,
         max_grad_norm, gamma, gae_lambda, target_kl=None, supervised=False, reward_mult=1.0,
+        aux_coef=0.0, route_entropy_coef=0.0,
 ):
     rewards = batch['rewards'] * reward_mult
     advs, returns = compute_gae(
         rewards, batch['values'], batch['dones'], batch['last_value'], gamma=gamma, lambda_=gae_lambda,
     )
     T, B = rewards.shape
-    stats = {k: [] for k in ('L_pi', 'L_v', 'H', 'ApproxKL', 'ClipFrac', '|Grad|', 'L_sup')}
+    stats = {k: [] for k in ('L_pi', 'L_v', 'H', 'ApproxKL', 'ClipFrac', '|Grad|', 'L_sup', 'L_aux', 'H_route')}
+    net = model.model if isinstance(model, GraphedPolicy) else model
     stopped = False
     for _ in range(epochs):
         perm = torch.randperm(B, device=rewards.device)
@@ -93,9 +113,9 @@ def ppo_update(
             state = index_state(batch['state_init'], idx, B)
             obs, dones = batch['obs'][:, idx], batch['dones'][:, idx]
             if isinstance(model, GraphedPolicy):
-                logits, values = model.replay_minibatch(obs, dones, state)
+                logits, values, aux, route_ent = model.replay_minibatch(obs, dones, state)
             else:
-                logits, values = replay(model, obs, dones, state)
+                logits, values, aux, route_ent = replay(model, obs, dones, state)
             dist = Categorical(logits=logits)
             actions = batch['actions'][:, idx]
             log_ratio = dist.log_prob(actions) - batch['log_probs'][:, idx]
@@ -108,12 +128,21 @@ def ppo_update(
             if supervised:
                 # oracle diagnostic: same data stream and model, cross-entropy on rewarded targets
                 targets = batch['targets'][:, idx]
-                rewarded = targets >= 0
+                # CountRecall counts can exceed the action range; such targets are unreachable
+                rewarded = (targets >= 0) & (targets < logits.shape[-1])
                 sup_loss = F.cross_entropy(logits[rewarded], targets[rewarded])
                 loss = sup_loss + value_coef * value_loss
                 stats['L_sup'].append(sup_loss.detach())
             else:
                 loss = policy_loss + value_coef * value_loss - entropy_coef * entropy
+            if aux_coef:
+                aux_loss = aux_memory_loss(aux, net.aux_lags, obs, dones)
+                loss = loss + aux_coef * aux_loss
+                stats['L_aux'].append(aux_loss.detach())
+            if route_entropy_coef:
+                # > 0 rewards softer routing, < 0 sharper
+                loss = loss - route_entropy_coef * route_ent.mean()
+            stats['H_route'].append(route_ent.mean().detach())
 
             optim.zero_grad(set_to_none=True)
             loss.backward()
